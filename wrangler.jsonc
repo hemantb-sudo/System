@@ -1,0 +1,13 @@
+{
+  "name": "system1",
+  "compatibility_date": "2026-07-08",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "frontend"
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}

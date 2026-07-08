@@ -1,9 +1,0 @@
-name = "system1"
-compatibility_date = "2026-07-08"
-compatibility_flags = ["nodejs_compat"]
-
-[assets]
-directory = "frontend"
-
-[observability]
-enabled = true

@@ -8,4 +8,3 @@ frontend/.DS_Store
 backend/.claude/
 frontend/.claude/
 .wrangler/
-wrangler.jsonc
