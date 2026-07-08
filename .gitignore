@@ -7,3 +7,4 @@ frontend/.DS_Store
 .claude/
 backend/.claude/
 frontend/.claude/
+.wrangler/
