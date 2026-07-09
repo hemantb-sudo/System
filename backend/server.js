@@ -1,7 +1,7 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const path    = require('path');
+const express  = require('express');
+const cors     = require('cors');
+const path     = require('path');
 const { Pool } = require('pg');
 
 const app  = express();
@@ -9,10 +9,9 @@ const PORT = process.env.PORT || 4000;
 
 app.use(cors({
   origin: function(origin, cb) {
-    // Allow requests with no origin (curl, Postman) and any *.pages.dev or *.workers.dev or localhost
     if (!origin) return cb(null, true);
     if (/localhost|127\.0\.0\.1|\.pages\.dev|\.workers\.dev/.test(origin)) return cb(null, true);
-    cb(null, true); // allow all for now — tighten after deploy
+    cb(null, true);
   },
   credentials: true
 }));
@@ -20,25 +19,22 @@ app.use(express.json());
 
 const FRONTEND = path.join(__dirname, '..', 'frontend');
 
-// ── Database (Supabase / PostgreSQL) ──────────────────────────────────────────
+// ── Database ──────────────────────────────────────────────────────────────────
+// Local  → Supabase staging  (DATABASE_URL in backend/.env)
+// Render → Supabase production (DATABASE_URL in Render environment)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
 });
 
-// Run a query and return all rows
 async function q(text, params = []) {
   const { rows } = await pool.query(text, params);
   return rows;
 }
-
-// Run a query and return the first row (or null)
 async function q1(text, params = []) {
   const { rows } = await pool.query(text, params);
   return rows[0] || null;
 }
-
-// Run inside a transaction; fn receives a pg client
 async function withTx(fn) {
   const client = await pool.connect();
   try {
@@ -53,8 +49,6 @@ async function withTx(fn) {
     client.release();
   }
 }
-
-// Helpers for transactional client
 const tq  = (c, sql, p = []) => c.query(sql, p).then(r => r.rows);
 const tq1 = (c, sql, p = []) => c.query(sql, p).then(r => r.rows[0] || null);
 
