@@ -7,7 +7,15 @@ const { Pool } = require('pg');
 const app  = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+app.use(cors({
+  origin: function(origin, cb) {
+    // Allow requests with no origin (curl, Postman) and any *.pages.dev or *.workers.dev or localhost
+    if (!origin) return cb(null, true);
+    if (/localhost|127\.0\.0\.1|\.pages\.dev|\.workers\.dev/.test(origin)) return cb(null, true);
+    cb(null, true); // allow all for now — tighten after deploy
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 const FRONTEND = path.join(__dirname, '..', 'frontend');

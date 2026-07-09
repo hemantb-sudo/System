@@ -1,4 +1,8 @@
 
+  var API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? ''
+    : (window.__API_BASE__ || '');
+
         function hideAllPanels() {
             ['org-profile-form','manage-accounts-view','rename-tags-view','user-default-page-view','api-keys-view'].forEach(function(id) {
                 var el = document.getElementById(id);
@@ -423,7 +427,7 @@
                 _pricingSnapshot[key] = newVal;
                 var pricingInp = document.querySelector('[data-pricing-field="' + key + '"]');
                 if (pricingInp) pricingInp.value = newVal;
-                fetch('/api/mets/pricing-change', {
+                fetch(API_BASE + '/api/mets/pricing-change', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ changes: [{ field: key, oldValue: oldVal, newValue: newVal }] })
@@ -582,7 +586,7 @@
                 _pricingSnapshot[key] = newVal;
                 var pricingInp = document.querySelector('[data-pricing-field="' + key + '"]');
                 if (pricingInp) pricingInp.value = newVal;
-                fetch('/api/mets/pricing-change', {
+                fetch(API_BASE + '/api/mets/pricing-change', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ changes: [{ field: key, oldValue: oldVal, newValue: newVal }] })
@@ -671,7 +675,7 @@
                 var pricingInp = document.querySelector('[data-pricing-field="' + key + '"]');
                 if (pricingInp) pricingInp.value = newVal;
                 // Persist to DB + audit log
-                fetch('/api/mets/pricing-change', {
+                fetch(API_BASE + '/api/mets/pricing-change', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ changes: [{ field: key, oldValue: oldVal, newValue: newVal }] })
@@ -708,7 +712,7 @@
             var okBtn = document.getElementById('topup-confirm-ok');
             if (okBtn) { okBtn.textContent = 'Saving…'; okBtn.disabled = true; }
             try {
-                var resp = await fetch('/api/mets/topup', {
+                var resp = await fetch(API_BASE + '/api/mets/topup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pool: _mcTopupSelType, features: _topupPendingFeatures, totalAmount: _topupPendingAmt, poti: _topupPendingPoti, notes: _topupPendingNotes })
@@ -1074,7 +1078,7 @@
         // Base WA keys — used to detect region-specific pricing keys in DB
         var _waBaseKeys = ['WhatsApp Service (CPS)','WhatsApp Marketing (CPS)','WhatsApp Utility (CPS)','WhatsApp Authentication (CPS)'];
         function metsLoadPricing() {
-            fetch('/api/mets/pricing')
+            fetch(API_BASE + '/api/mets/pricing')
                 .then(function(r){ return r.json(); })
                 .then(function(data) {
                     // Store ALL keys from DB so dynamically-added region columns get correct saved values
@@ -1312,7 +1316,7 @@
             btn.textContent = 'Saving\u2026';
             btn.disabled = true;
             try {
-                await fetch('/api/mets/pricing-change', {
+                await fetch(API_BASE + '/api/mets/pricing-change', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ changes: changes })
@@ -1516,7 +1520,7 @@
             return (_revBalances[_revSelPool] && _revBalances[_revSelPool].channels && _revBalances[_revSelPool].channels.whatsapp) || 0;
         }
         function mcLoadRevWaBals(pool, cb) {
-            fetch('/api/mets/wa-region-balances?pool=' + encodeURIComponent(pool))
+            fetch(API_BASE + '/api/mets/wa-region-balances?pool=' + encodeURIComponent(pool))
                 .then(function(r){ return r.json(); })
                 .then(function(rows) {
                     _revWaRegionBals = {};
@@ -1639,7 +1643,7 @@
             if(amount>max){ err.textContent='Cannot exceed '+mcFmt(max)+' METS'; err.style.display='block'; return; }
             if(!reason){ document.getElementById('rev-reason-err').style.display='block'; return; }
             try {
-                var resp = await fetch('/api/mets/reversal', {
+                var resp = await fetch(API_BASE + '/api/mets/reversal', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ pool: _revSelPool, channel: _revSelChannel, amount: amount, reason: reason, notes: (document.getElementById('rev-notes-input') || {}).value || '', region: _revWaSelRegion, category: _revWaSelCat })
@@ -2104,11 +2108,11 @@
             modal.style.display = 'flex';
             modal.style.animation = 'qrev-slide-in 0.25s cubic-bezier(0.32,0.72,0,1)';
             // Load data and render
-            fetch('/api/mets/balances').then(function(r){ return r.json(); }).then(function(balData){
+            fetch(API_BASE + '/api/mets/balances').then(function(r){ return r.json(); }).then(function(balData){
                 return Promise.all([
                     Promise.resolve(balData),
-                    fetch('/api/mets/wa-region-balances').then(function(r){ return r.json(); }),
-                    fetch('/api/mets/sms-type-balances').then(function(r){ return r.json(); })
+                    fetch(API_BASE + '/api/mets/wa-region-balances').then(function(r){ return r.json(); }),
+                    fetch(API_BASE + '/api/mets/sms-type-balances').then(function(r){ return r.json(); })
                 ]);
             }).then(function(results){
                 mcQrevProcessData(results[0], results[1], results[2]);
@@ -2170,7 +2174,7 @@
             try {
                 for (var j = 0; j < toReverse.length; j++) {
                     var r = toReverse[j];
-                    var resp = await fetch('/api/mets/reversal', {
+                    var resp = await fetch(API_BASE + '/api/mets/reversal', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ pool: r.pool, channel: r.channel, amount: r.amount, reason: r.reason, notes: r.notes, region: r.region, category: r.category, smsType: r.smsType })
@@ -2214,7 +2218,7 @@
             if (tbody && tbody.id === 'mc-pricing-tbody' && newVal !== oldVal) {
                 var labelEl = tr.querySelector('.rt-tag-chip');
                 var field = labelEl ? labelEl.textContent.trim() : 'Unknown field';
-                fetch('/api/mets/pricing-change', {
+                fetch(API_BASE + '/api/mets/pricing-change', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ field: field, oldValue: oldVal, newValue: newVal })
@@ -4577,7 +4581,7 @@
     function _transitLoadData() {
         var tbody = document.querySelector('#transit-jobs-table tbody');
         if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:30px;text-align:center;color:#9ca3af;font-size:12.5px;">Loading…</td></tr>';
-        fetch('/api/mets/transit')
+        fetch(API_BASE + '/api/mets/transit')
             .then(function(r){ return r.json(); })
             .then(function(rows){
                 _transitAllRows = rows;
@@ -4758,7 +4762,7 @@
     var _waByRegionCat = {}; // { committed: { '+91-India': { utility: 0, ... }, ... }, ... }
 
     function metsLoadBalances() {
-        fetch('/api/mets/balances')
+        fetch(API_BASE + '/api/mets/balances')
             .then(function(r){ return r.json(); })
             .then(function(data) {
                 // Update _revBalances from API data
@@ -4792,7 +4796,7 @@
                 el = document.getElementById('mets-credits-test-val');  if(el) el.textContent = fmt(data.testing       ? data.testing.total       : 0);
                 el = document.getElementById('mets-softhold-val');      if(el) el.textContent = fmt(data._softHoldTotal || 0);
                 // Also load per-type SMS and WA region balances for the allocation table
-                var p1 = fetch('/api/mets/sms-type-balances')
+                var p1 = fetch(API_BASE + '/api/mets/sms-type-balances')
                     .then(function(r){ return r.json(); })
                     .then(function(rows){
                         _smsByType = {};
@@ -4803,7 +4807,7 @@
                         });
                     })
                     .catch(function(){});
-                var p2 = fetch('/api/mets/wa-region-balances')
+                var p2 = fetch(API_BASE + '/api/mets/wa-region-balances')
                     .then(function(r){ return r.json(); })
                     .then(function(rows){
                         _waByRegionCat = {};
@@ -4833,7 +4837,7 @@
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Loading\u2026</td></tr>';
         _stmtPage    = 0;
         _stmtShowAll = false;
-        fetch('/api/mets/statement')
+        fetch(API_BASE + '/api/mets/statement')
             .then(function(r){ return r.json(); })
             .then(function(rows) {
                 _stmtAllRows = rows;
@@ -4935,7 +4939,7 @@
         var tbody = document.getElementById('comp-tbody');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Loading\u2026</td></tr>';
-        fetch('/api/mets/complementary-report')
+        fetch(API_BASE + '/api/mets/complementary-report')
             .then(function(r){ return r.json(); })
             .then(function(rows) {
                 _compAllRows  = rows;
@@ -5028,7 +5032,7 @@
         var tbody = document.getElementById('testing-report-tbody');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Loading\u2026</td></tr>';
-        fetch('/api/mets/testing-report')
+        fetch(API_BASE + '/api/mets/testing-report')
             .then(function(r){ return r.json(); })
             .then(function(rows) {
                 _testRptAllRows  = rows;
@@ -5114,7 +5118,7 @@
         var tbody = document.getElementById('usage-tbody');
         if (!tbody) return;
         tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#9ca3af;font-size:13px;">Loading\u2026</td></tr>';
-        fetch('/api/mets/usage')
+        fetch(API_BASE + '/api/mets/usage')
             .then(function(r){ return r.json(); })
             .then(function(rows) {
                 _usageAllRows  = rows;
@@ -5201,7 +5205,7 @@
         var container = document.getElementById('mets-audit-timeline');
         if (!container) return;
         container.innerHTML = '<div style="padding:40px;text-align:center;color:#9ca3af;font-size:13px;">Loading\u2026</div>';
-        fetch('/api/mets/audit-logs')
+        fetch(API_BASE + '/api/mets/audit-logs')
             .then(function(r){ return r.json(); })
             .then(function(logs) {
                 _metsAuditAllLogs = logs;
@@ -5258,7 +5262,7 @@
 
     function metsClearAudit() {
         if (!confirm('Clear all audit logs? This cannot be undone.')) return;
-        fetch('/api/mets/audit-logs', {method:'DELETE'})
+        fetch(API_BASE + '/api/mets/audit-logs', {method:'DELETE'})
             .then(function(){
                 _metsAuditAllLogs = [];
                 metsRenderAudit([]);
@@ -5376,7 +5380,7 @@
         var loadEl = document.getElementById('consumption-avail-loading');
         if (loadEl) { loadEl.textContent = 'Calculating…'; loadEl.style.color = '#6b7280'; }
 
-        fetch('/api/mets/available-credits?' + params)
+        fetch(API_BASE + '/api/mets/available-credits?' + params)
             .then(function(r){ return r.json(); })
             .then(function(d) {
                 if (d.error) {
@@ -5459,7 +5463,7 @@
         btn.disabled = true;
         btn.innerHTML = '⏳ Processing…';
 
-        fetch('/api/mets/consume', {
+        fetch(API_BASE + '/api/mets/consume', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
@@ -5532,7 +5536,7 @@
         if (sbBtn) sbBtn.disabled = true;
         if (fbBtn) fbBtn.disabled = true;
 
-        fetch('/api/mets/pingback', {
+        fetch(API_BASE + '/api/mets/pingback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ job_id: _consumptionJobId, status: status }),
@@ -5598,7 +5602,7 @@
 
     // ── Pending Pingbacks helpers ──────────────────────────────────────────────
     function _loadPendingPingbacksBadge() {
-        fetch('/api/mets/transit')
+        fetch(API_BASE + '/api/mets/transit')
         .then(function(r){ return r.json(); })
         .then(function(rows) {
             var cnt   = (rows || []).filter(function(r){ return r.status === 'held'; }).length;
@@ -5615,7 +5619,7 @@
         if (!listEl) return;
         listEl.innerHTML = '<div style="text-align:center;padding:28px;font-size:12.5px;color:#9ca3af;">Loading…</div>';
 
-        fetch('/api/mets/transit')
+        fetch(API_BASE + '/api/mets/transit')
         .then(function(r){ return r.json(); })
         .then(function(rows) {
             var held  = (rows || []).filter(function(r){ return r.status === 'held'; });
@@ -5777,7 +5781,7 @@
         var payload = { job_id: jobId, success_credits: sucCred, failure_credits: faiCred };
         if (extraCred > 0) payload.extra_credits = extraCred;
 
-        fetch('/api/mets/pingback', {
+        fetch(API_BASE + '/api/mets/pingback', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),

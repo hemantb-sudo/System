@@ -9268,7 +9268,7 @@ function persistSettingsToDB() {
       templates: JSON.parse(JSON.stringify(itplCustom))
     }
   };
-  fetch('/api/mets/settings', {
+  fetch(API_BASE + '/api/mets/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -9376,7 +9376,7 @@ function applyAlertSettings(data) {
 }
 
 function loadSettingsFromDB() {
-  fetch('/api/mets/settings')
+  fetch(API_BASE + '/api/mets/settings')
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (!data || !data.settings) return;
