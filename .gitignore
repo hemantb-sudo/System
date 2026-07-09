@@ -8,3 +8,5 @@ frontend/.DS_Store
 backend/.claude/
 frontend/.claude/
 .wrangler/
+.env
+backend/.env
