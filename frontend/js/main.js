@@ -1,7 +1,7 @@
 
-  var API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  var API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? ''
-    : (window.__API_BASE__ || '');
+    : 'https://system-uf5p.onrender.com';
 
         function hideAllPanels() {
             ['org-profile-form','manage-accounts-view','rename-tags-view','user-default-page-view','api-keys-view'].forEach(function(id) {
