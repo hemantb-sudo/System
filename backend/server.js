@@ -449,7 +449,7 @@ app.get('/api/mets/testing-report', async (req, res) => {
 // ── GET /api/mets/audit-logs ──────────────────────────────────────────────────
 app.get('/api/mets/audit-logs', async (req, res) => {
   try {
-    const logs = await q("SELECT * FROM mets_audit_logs WHERE action != 'METS Deduction' ORDER BY ts DESC LIMIT 200");
+    const logs = await q("SELECT * FROM mets_audit_logs ORDER BY ts DESC LIMIT 200");
     res.json(logs);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
