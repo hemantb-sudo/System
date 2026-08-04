@@ -4,10 +4,12 @@
     : 'https://system-uf5p.onrender.com';
 
         function hideAllPanels() {
-            ['org-profile-form','manage-accounts-view','rename-tags-view','user-default-page-view','api-keys-view'].forEach(function(id) {
+            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','api-keys-view'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) { el.classList.remove('active'); el.style.display = ''; }
             });
+            var instSel = document.querySelector('.institute-selector');
+            if (instSel) instSel.style.display = '';
             // Hide all stg-sections (clears inline display:block left by openSection)
             document.querySelectorAll('.stg-section').forEach(function(sec) { sec.style.display = 'none'; });
             // Also hide the section list so it doesn't take flex space
@@ -39,6 +41,12 @@
         }
         function openOrgProfile(el) { _showPanel('org-profile-form', 'Organisation Profile', 'acc-general'); }
         function openManageAccounts() { _showPanel('manage-accounts-view', 'Manage Accounts', 'acc-general'); }
+        function openAccountNotification() {
+            _showPanel('account-notification-view', 'Account Notification', 'acc-general');
+            var instSel = document.querySelector('.institute-selector');
+            if (instSel) instSel.style.display = 'none';
+            if (window.anInit) window.anInit();
+        }
         function openApiKeysView() {
             _showPanel('api-keys-view', 'API Keys', 'acc-integrations');
             setTimeout(function(){ if(window.akInit) window.akInit(); }, 50);
@@ -1414,6 +1422,9 @@
         }
         document.addEventListener('DOMContentLoaded', function(){
             mcInitRevPools(); metsLoadBalances(); metsLoadPricing(); mcInitQuickReversal();
+            // Keep the dashboard balance in sync with recharges/topups made elsewhere
+            // (another session, or directly against the backend) without a manual refresh.
+            setInterval(metsLoadBalances, 10000);
             if (sessionStorage.getItem('reopenMets') === '1') {
                 sessionStorage.removeItem('reopenMets');
                 var sv = document.getElementById('settings-view');
@@ -2420,6 +2431,8 @@
             } else {
                 settingsView.classList.remove('sidebar-collapsed');
             }
+            var instSelBtn = document.querySelector('.institute-selector');
+            if (instSelBtn) instSelBtn.style.display = '';
             stgHome.style.display = 'grid';
             stgDetailWrap.classList.remove('show');
             stgBackBtn.classList.remove('show'); var sep=document.getElementById('stgHdrSep'); if(sep) sep.style.display='none';
@@ -2435,7 +2448,7 @@
             // Show the section list, hide all panels
             hideAllPanels();
             // Explicitly hide non-section panels so they never bleed through
-            ['org-profile-form','manage-accounts-view','rename-tags-view','user-default-page-view','api-keys-view','mets-config-view'].forEach(function(id){
+            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','api-keys-view','mets-config-view'].forEach(function(id){
                 var el = document.getElementById(id); if (el) el.style.display = 'none';
             });
             var dc = document.querySelector('.stg-detail-content');
@@ -3711,6 +3724,8 @@
             if (settingsView && settingsView.classList.contains('open')) {
                 settingsView.classList.remove('open');
             }
+            var instSelPage = document.querySelector('.institute-selector');
+            if (instSelPage) instSelPage.style.display = '';
             // Close METS overlay if open
             var metsOverlay = document.getElementById('mets-overlay');
             if (metsOverlay && metsOverlay.style.display !== 'none') {
@@ -4559,6 +4574,123 @@
             _commActionBtn = null;
         }
     });
+    var _maActionBtn = null;
+    function maActionToggle(btn, e) {
+        e.stopPropagation();
+        var menu = document.getElementById('ma-action-menu');
+        if (_maActionBtn === btn && menu.style.display === 'block') {
+            menu.style.display = 'none';
+            _maActionBtn = null;
+            return;
+        }
+        _maActionBtn = btn;
+        var rect = btn.getBoundingClientRect();
+        menu.style.display = 'block';
+        // Position below button, right-aligned
+        var menuW = 170;
+        var left  = rect.right - menuW;
+        if (left < 8) left = 8;
+        menu.style.top  = (rect.bottom + 6) + 'px';
+        menu.style.left = left + 'px';
+    }
+    function maActionDropdownClick(action) {
+        var savedBtn = _maActionBtn;   // save before nulling
+        document.getElementById('ma-action-menu').style.display = 'none';
+        _maActionBtn = null;
+        var row = savedBtn ? savedBtn.closest('tr') : null;
+        var accountName = row ? row.querySelector('.ma-td-name').textContent : '';
+        var accountId = row ? row.children[0].textContent.trim() : '';
+        if (action === 'edit-details') {
+            console.log('Edit Details clicked for account:', accountName);
+        } else if (action === 'renewal') {
+            console.log('Renewal clicked for account:', accountName);
+        } else if (action === 'notif-settings') {
+            if (window.acnOpenDrawer) acnOpenDrawer(accountId, accountName);
+        }
+    }
+    document.addEventListener('click', function(e) {
+        var menu = document.getElementById('ma-action-menu');
+        if (menu && !menu.contains(e.target) && e.target !== _maActionBtn) {
+            menu.style.display = 'none';
+            _maActionBtn = null;
+        }
+    });
+    function maFilterRows(q) {
+        q = q.toLowerCase();
+        var rows = document.querySelectorAll('#ma-table-body tr');
+        var visible = 0;
+        rows.forEach(function(tr) {
+            if (tr.id === 'ma-no-results-row') return;
+            var match = tr.textContent.toLowerCase().indexOf(q) !== -1;
+            tr.style.display = match ? '' : 'none';
+            if (match) visible++;
+        });
+        var noRes = document.getElementById('ma-no-results-row');
+        if (noRes) noRes.style.display = (q && visible === 0) ? '' : 'none';
+    }
+    var _caNextId = 9000;
+    function openCreateAccountModal() {
+        document.getElementById('create-account-overlay').style.display = 'block';
+        var modal = document.getElementById('create-account-modal');
+        modal.style.display = 'flex';
+        document.getElementById('ca-error').style.display = 'none';
+        document.getElementById('ca-name').value = '';
+        document.getElementById('ca-manager').value = '';
+        document.getElementById('ca-name').focus();
+    }
+    function closeCreateAccountModal() {
+        document.getElementById('create-account-overlay').style.display = 'none';
+        document.getElementById('create-account-modal').style.display = 'none';
+    }
+    function submitCreateAccount() {
+        var name = document.getElementById('ca-name').value.trim();
+        var errEl = document.getElementById('ca-error');
+        if (!name) {
+            errEl.textContent = 'Account Name is required.';
+            errEl.style.display = 'block';
+            return;
+        }
+        var vertical = document.getElementById('ca-vertical').value;
+        var pkg = document.getElementById('ca-package').value;
+        var plan = document.getElementById('ca-plan').value;
+        var manager = document.getElementById('ca-manager').value.trim() || '-';
+
+        var tbody = document.getElementById('ma-table-body');
+        var noRes = document.getElementById('ma-no-results-row');
+        var tr = document.createElement('tr');
+
+        function td(text, opts) {
+            var cell = document.createElement('td');
+            if (opts && opts.style) cell.style.cssText = opts.style;
+            if (opts && opts.className) cell.className = opts.className;
+            cell.textContent = text;
+            return cell;
+        }
+        tr.appendChild(td(String(_caNextId++), { style: 'color:#6b7280' }));
+        tr.appendChild(td(name, { className: 'ma-td-name' }));
+        tr.appendChild(td(manager));
+        tr.appendChild(td(vertical));
+        tr.appendChild(td(pkg));
+        tr.appendChild(td(plan));
+        tr.appendChild(td('-'));
+        var statusTd = document.createElement('td');
+        var badge = document.createElement('span');
+        badge.className = 'ma-status-badge';
+        badge.textContent = 'Active';
+        statusTd.appendChild(badge);
+        tr.appendChild(statusTd);
+        tr.appendChild(td('NA'));
+        var actionTd = document.createElement('td');
+        var actionBtn = document.createElement('button');
+        actionBtn.className = 'ma-action-btn';
+        actionBtn.innerHTML = '&#8943;';
+        actionBtn.onclick = function(e) { maActionToggle(actionBtn, e); };
+        actionTd.appendChild(actionBtn);
+        tr.appendChild(actionTd);
+
+        tbody.insertBefore(tr, noRes);
+        closeCreateAccountModal();
+    }
     window.closeCommLog = function closeCommLog() {
         document.getElementById('comm-log-overlay').style.display = 'none';
         if (_commLogObserver) { _commLogObserver.disconnect(); _commLogObserver = null; }
@@ -5856,3 +5988,730 @@
             if (errEl) { errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block'; }
         });
     }
+
+    /* ────────────────────────────────────────────────────────────
+       Account Notification (Onboarding > Account Notification)
+       Global notification rules (Before Expiry / At Expiry / Churn /
+       Inactive / Inactive→Active) with a multi-step config drawer.
+       Client-side only — no backend persistence yet.
+       ──────────────────────────────────────────────────────────── */
+    var an_notifs = [
+        { id: 'default-before-expiry', title: 'Before Expiry Reminder', type: 'Before Expiry', days: 30, banner: 'Enabled', status: 'Active', updated: 'System Default', scope: 'Global', accounts: ['ALL'], isDefault: true },
+        { id: 'default-at-expiry', title: 'At Expiry Notice', type: 'At Expiry', days: null, banner: 'N/A', status: 'Active', updated: 'System Default', scope: 'Global', accounts: ['ALL'], isDefault: true },
+        { id: 'default-inactive', title: 'Inactive Account Alert', type: 'Inactive', days: null, banner: 'N/A', status: 'Active', updated: 'System Default', scope: 'Global', accounts: ['ALL'], isDefault: true },
+        { id: 'default-churn', title: 'Churn Form Filled Alert', type: 'Churn Form Filled', days: null, banner: 'N/A', status: 'Active', updated: 'System Default', scope: 'Global', accounts: ['ALL'], isDefault: true }
+    ];
+    var an_disableId = null;
+    var _anActionBtn = null, _anActionId = null;
+    var an_step = 0, an_editId = null, an_wiz = {};
+    var an_defaultTypes = ['Before Expiry', 'At Expiry', 'Inactive', 'Churn Form Filled'];
+    var an_accountOverrides = {};
+    var an_filterAccounts = [];
+    var an_activeTab = 'internal';
+    var _anMsTrigger = null;
+    var acn_accountId = null, acn_accountName = '', acn_working = {};
+
+    function anInit() {
+        anCloseAllMenus();
+        anApplyFilters();
+    }
+
+    function anShowPage(id) {
+        document.getElementById('an-empty-page').style.display = (id === 'an-empty-page') ? 'flex' : 'none';
+        document.getElementById('an-list-page').style.display = (id === 'an-list-page') ? 'flex' : 'none';
+    }
+
+    function anToggleBannerFilter() {
+        var ft = document.getElementById('an-f-type').value;
+        var bf = document.getElementById('an-f-banner');
+        bf.style.display = (ft === 'Before Expiry') ? 'inline-block' : 'none';
+        if (ft !== 'Before Expiry') bf.value = '';
+    }
+
+    function anApplyFilters() {
+        anShowPage(an_notifs.length ? 'an-list-page' : 'an-empty-page');
+        var q  = (document.getElementById('an-search-input').value || '').toLowerCase();
+        var ft = document.getElementById('an-f-type').value;
+        var fb = document.getElementById('an-f-banner').value;
+        var fs = document.getElementById('an-f-status').value;
+        var rows = an_notifs.filter(function(n) {
+            var accts = n.accounts || ['ALL'];
+            var matchAcct = !an_filterAccounts.length
+                || accts.indexOf('ALL') !== -1
+                || an_filterAccounts.some(function(a){ return accts.indexOf(a) !== -1; });
+            var matchTab = an_activeTab === 'internal' ? !!n.isDefault : !n.isDefault;
+            return (!q || n.title.toLowerCase().indexOf(q) !== -1)
+                && (!ft || n.type === ft)
+                && (!fb || n.banner === fb)
+                && (!fs || n.status === fs)
+                && matchAcct
+                && matchTab;
+        });
+        rows.sort(function(a, b) { return (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0); });
+        anRenderRows(rows);
+    }
+
+    function anSwitchTab(tab) {
+        an_activeTab = tab;
+        var tOne = document.getElementById('an-tab-internal');
+        var tTwo = document.getElementById('an-tab-accounts');
+        if (tOne) tOne.classList.toggle('active', tab === 'internal');
+        if (tTwo) tTwo.classList.toggle('active', tab === 'accounts');
+        anApplyFilters();
+    }
+
+    function anResetFilters() {
+        document.getElementById('an-search-input').value = '';
+        document.getElementById('an-f-type').value = '';
+        document.getElementById('an-f-banner').value = '';
+        document.getElementById('an-f-status').value = '';
+        an_filterAccounts = [];
+        anUpdateMsTriggerLabel('an-f-accounts-trigger', an_filterAccounts);
+        anToggleBannerFilter();
+        anApplyFilters();
+    }
+
+    /* ── Shared Accounts multiselect (Quick Filter + Wizard) ── */
+    function anAcctList() {
+        var names = [];
+        document.querySelectorAll('#ma-table-body .ma-td-name').forEach(function(td) {
+            var n = td.textContent.trim();
+            if (n && names.indexOf(n) === -1) names.push(n);
+        });
+        return names.sort();
+    }
+    function anUpdateMsTriggerLabel(triggerId, selected) {
+        var el = document.getElementById(triggerId);
+        if (!el) return;
+        var label = !selected.length ? 'All Accounts'
+            : selected.length <= 2 ? selected.join(', ')
+            : selected.length + ' Accounts Selected';
+        el.innerHTML = label + ' <span class="an-ms-caret">&#9662;</span>';
+    }
+    function anOpenMsDD(trigger) {
+        var dd = document.getElementById('an-ms-dd');
+        if (_anMsTrigger === trigger && dd.style.display === 'block') { anCloseMsDD(); return; }
+        _anMsTrigger = trigger;
+        anRenderMsDD();
+        var rect = trigger.getBoundingClientRect();
+        dd.style.display = 'block';
+        dd.style.top = (rect.bottom + 6) + 'px';
+        dd.style.left = rect.left + 'px';
+    }
+    function anCloseMsDD() {
+        var dd = document.getElementById('an-ms-dd');
+        if (dd) dd.style.display = 'none';
+        _anMsTrigger = null;
+    }
+    function anRenderMsDD() {
+        var dd = document.getElementById('an-ms-dd');
+        var list = anAcctList();
+        dd.innerHTML =
+            '<div class="an-ms-dd-actions"><button onclick="anMsSelectAll()">Select All</button><button onclick="anMsClearAll()">Clear All</button></div>' +
+            '<div class="an-ms-list">' + list.map(function(name) {
+                var checked = an_filterAccounts.indexOf(name) !== -1;
+                return '<div class="an-ms-item" onclick="anMsToggle(\'' + name.replace(/'/g, "\\'") + '\')"><input type="checkbox" ' + (checked ? 'checked' : '') + ' onclick="event.stopPropagation();anMsToggle(\'' + name.replace(/'/g, "\\'") + '\')"><span>' + name + '</span></div>';
+            }).join('') + '</div>';
+    }
+    function anMsToggle(name) {
+        var idx = an_filterAccounts.indexOf(name);
+        if (idx > -1) an_filterAccounts.splice(idx, 1); else an_filterAccounts.push(name);
+        anRenderMsDD();
+        anUpdateMsTriggerLabel('an-f-accounts-trigger', an_filterAccounts);
+        anApplyFilters();
+    }
+    function anMsSelectAll() {
+        an_filterAccounts.length = 0;
+        Array.prototype.push.apply(an_filterAccounts, anAcctList());
+        anRenderMsDD();
+        anUpdateMsTriggerLabel('an-f-accounts-trigger', an_filterAccounts);
+        anApplyFilters();
+    }
+    function anMsClearAll() {
+        an_filterAccounts.length = 0;
+        anRenderMsDD();
+        anUpdateMsTriggerLabel('an-f-accounts-trigger', an_filterAccounts);
+        anApplyFilters();
+    }
+    document.addEventListener('click', function(e) {
+        var dd = document.getElementById('an-ms-dd');
+        if (dd && dd.style.display === 'block' && !dd.contains(e.target) && e.target !== _anMsTrigger && (!_anMsTrigger || !_anMsTrigger.contains(e.target))) anCloseMsDD();
+    });
+
+    function anRenderRows(rows) {
+        var tb = document.getElementById('an-table-body');
+        var nr = document.getElementById('an-no-results');
+        tb.innerHTML = '';
+        if (!rows.length) { nr.style.display = an_notifs.length ? 'block' : 'none'; return; }
+        nr.style.display = 'none';
+        rows.forEach(function(n) {
+            var idLit = (typeof n.id === 'string') ? "'" + n.id + "'" : n.id;
+            var sp = '<div class="an-status-toggle' + (n.status === 'Active' ? ' on' : '') + (n.isDefault ? ' disabled' : '') + '"' +
+                (n.isDefault ? '' : ' onclick="anToggleStatus(' + idLit + ')"') +
+                ' title="' + (n.status === 'Active' ? 'Active' : 'Disabled') + '"><div></div></div>';
+            var bp = n.banner === 'Enabled' ? '<span class="an-pill an-pill-blue">Enabled</span>'
+                   : n.banner === 'Disabled' ? '<span class="an-pill an-pill-red">Disabled</span>'
+                   : '<span class="an-pill an-pill-gray">N/A</span>';
+            var accts = n.accounts || ['ALL'];
+            var scopeP = '<span style="color:#374151;">' + (accts.indexOf('ALL') !== -1
+                ? 'All Accounts'
+                : (accts.length === 1 ? accts[0] : accts.length + ' Accounts')) + '</span>';
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+                '<td><div class="an-notif-title">' + n.title + '</div><div class="an-notif-sub">' + n.type + '</div></td>' +
+                '<td>' + n.type + '</td>' +
+                '<td>' + scopeP + '</td>' +
+                '<td style="color:#6b7280;">' + (n.days ? n.days + ' days' : '&#8212;') + '</td>' +
+                '<td>' + bp + '</td>' +
+                '<td>' + sp + '</td>' +
+                '<td style="color:#6b7280;font-size:12px;">' + n.updated + '</td>' +
+                '<td><button class="ma-action-btn" onclick="anActionToggle(this,' + idLit + ',event)">&#8943;</button></td>';
+            tb.appendChild(tr);
+        });
+    }
+
+    function anActionToggle(btn, id, e) {
+        e.stopPropagation();
+        var menu = document.getElementById('an-action-menu');
+        if (_anActionBtn === btn && menu.style.display === 'block') {
+            menu.style.display = 'none';
+            _anActionBtn = null;
+            return;
+        }
+        var n = an_notifs.find(function(x){ return x.id === id; });
+        if (!n) return;
+        _anActionBtn = btn; _anActionId = id;
+        var btnStyle = 'display:flex;align-items:center;gap:9px;width:100%;padding:10px 16px;background:none;border:none;font-size:12.5px;cursor:pointer;text-align:left;font-family:inherit;';
+        menu.innerHTML =
+            '<button onclick="anActionDropdownClick(\'edit\')" style="' + btnStyle + 'color:#374151;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">&#9998; Edit</button>' +
+            (n.isDefault ? '' : (n.status === 'Active'
+                ? '<button onclick="anActionDropdownClick(\'disable\')" style="' + btnStyle + 'color:#dc2626;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'\'">&#10005; Disable</button>'
+                : '<button onclick="anActionDropdownClick(\'enable\')" style="' + btnStyle + 'color:#16a34a;" onmouseover="this.style.background=\'#f0fdf4\'" onmouseout="this.style.background=\'\'">&#10003; Enable</button>'));
+        var rect = btn.getBoundingClientRect();
+        menu.style.display = 'block';
+        var menuW = 150;
+        var left = rect.right - menuW;
+        if (left < 8) left = 8;
+        menu.style.top  = (rect.bottom + 6) + 'px';
+        menu.style.left = left + 'px';
+    }
+
+    function anActionDropdownClick(action) {
+        var id = _anActionId;
+        document.getElementById('an-action-menu').style.display = 'none';
+        _anActionBtn = null; _anActionId = null;
+        if (action === 'edit') anOpenEdit(id);
+        else if (action === 'disable') anOpenModal(id);
+        else if (action === 'enable') anEnableN(id);
+    }
+
+    function anCloseAllMenus() {
+        var menu = document.getElementById('an-action-menu');
+        if (menu) { menu.style.display = 'none'; _anActionBtn = null; }
+    }
+    document.addEventListener('click', function(e) {
+        var menu = document.getElementById('an-action-menu');
+        if (menu && !menu.contains(e.target) && e.target !== _anActionBtn) anCloseAllMenus();
+    });
+
+    function anShowTotal() { anShowToast('Total records: ' + an_notifs.length); }
+
+    function anOpenModal(id) {
+        an_disableId = id;
+        document.getElementById('an-disable-overlay').style.display = 'block';
+        document.getElementById('an-disable-modal').style.display = 'block';
+    }
+    function anCloseModal() {
+        document.getElementById('an-disable-overlay').style.display = 'none';
+        document.getElementById('an-disable-modal').style.display = 'none';
+        an_disableId = null;
+    }
+    function anConfirmDisable() {
+        var n = an_notifs.find(function(x){ return x.id === an_disableId; });
+        if (n) n.status = 'Disabled';
+        anCloseModal();
+        anApplyFilters();
+        anShowToast('Notification disabled');
+    }
+    function anEnableN(id) {
+        var n = an_notifs.find(function(x){ return x.id === id; });
+        if (n) n.status = 'Active';
+        anApplyFilters();
+        anShowToast('Notification enabled');
+    }
+    function anToggleStatus(id) {
+        var n = an_notifs.find(function(x){ return x.id === id; });
+        if (!n || n.isDefault) return;
+        if (n.status === 'Active') anOpenModal(id);
+        else anEnableN(id);
+    }
+
+    /* ── Wizard ── */
+    function anFreshWiz() {
+        return {
+            name: '', type: '', days: '', accounts: [], isDefault: false, chkAM: false, chkSP: false, mails: [],
+            freqType: 'one-time', freqEvery: '1', freqUnit: 'days', freqOn: '', freqTime: '09:00',
+            bannerOn: false, bannerDays: '7',
+            bannerTxt: 'Your subscription will end in {{subscription_days_remaining}} days. To continue using the platform, Connect with your Account Manager.',
+            subjLine: '', body: ''
+        };
+    }
+    var anEmailTpl = {
+        'Before Expiry': { s: 'Your subscription is about to expire', b: 'Hi [Account Admin Name],\n\nThis is a reminder that your subscription will expire in {{subscription_days_remaining}} days.\n\nTo ensure uninterrupted service, please renew your subscription before the expiration date.\n\nThanks and Regards,\nTeam Meritto' },
+        'At Expiry': { s: 'Your subscription has expired', b: "Hi [Account Admin Name],\n\nThis is to inform you that your subscription with Meritto has expired as of {{subscription_end_date}}.\n\nWe've temporarily paused your access to premium features.\n\nPlease renew at the earliest. For assistance, write to support@meritto.com.\n\nTeam Meritto" },
+        'Churn Form Filled': { s: 'Accounts with Churn Form Filled', b: 'Hi Team,\n\nThe following accounts have churn form filled:\n\nAccount ID | Account Name | Associated SPOCs\n\nThanks and Regards,\nMeritto Team' },
+        'Inactive': { s: 'Accounts Marked Inactive', b: 'Hi Team,\n\nThe following accounts have been marked inactive:\n\nAccount ID | Account Name | Inactive Marked On | Associated SPOCs\n\nThanks and Regards,\nMeritto Team' },
+        'Inactive → Active': { s: 'Accounts Moved from Inactive to Active', b: 'Hi Team,\n\nThe following accounts have been moved from inactive to active:\n\nAccount ID | Account Name | Associated SPOCs\n\nThanks and Regards,\nMeritto Team' }
+    };
+    var anDefaultSubj = {
+        'Before Expiry': '{{account_name}} subscription is about to expire in {{subscription_days_remaining}}',
+        'At Expiry': '{{account_name}} subscription has expired',
+        'Inactive': '{{account_name}} has been marked as an inactive account',
+        'Churn Form Filled': 'Churn form filled for {{account_name}}'
+    };
+    var anDefaultBody = {
+        'Before Expiry': 'Hi Team,\n\nThis is to inform you that the subscription for the below account is expiring in {{subscription_days_remaining}}:\n\nAccount Name: {{account_name}}\nAccount ID: {{account_id}}\n\nKindly connect with the client and initiate the renewal process to ensure there is no disruption in services.\n\nThanks and Regards,\nTeam Meritto',
+        'At Expiry': 'Hi Team,\n\nThis is to inform you that the subscription for the below account has expired as of {{subscription_end_date}}:\n\nAccount Name: {{account_name}}\nAccount ID: {{account_id}}\n\nKindly connect with the client and initiate the renewal process at the earliest to avoid extended disruption in services.\n\nThanks and Regards,\nTeam Meritto',
+        'Inactive': 'Hi Team,\n\nThis is to inform you that the below account has been marked as inactive:\n\nAccount Name: {{account_name}}\nAccount ID: {{account_id}}\n\nKindly connect with the client to understand the reason for inactivity and take appropriate action to re-engage the account.\n\nThanks and Regards,\nTeam Meritto',
+        'Churn Form Filled': 'Hi Team,\n\nThis is to inform you that the below account has submitted a churn form:\n\nAccount Name: {{account_name}}\nAccount ID: {{account_id}}\n\nKindly connect with the client at the earliest to understand their concerns and explore retention options.\n\nThanks and Regards,\nTeam Meritto'
+    };
+    var anTypeHints = {
+        'At Expiry': 'Mail triggers on the Subscription End Date. No banner configuration needed for this type.',
+        'Churn Form Filled': 'Mail triggers when churn is marked on an account. No banner configuration for this type.',
+        'Inactive': 'Mail triggers on the date the account is marked inactive. No banner configuration for this type.',
+        'Inactive → Active': 'Mail triggers when the account is again made Active from Inactive. No banner configuration for this type.'
+    };
+    function anGetSteps() {
+        return (an_wiz.type === '' || an_wiz.type === 'Before Expiry')
+            ? ['Notification Config', 'Communication', 'Email Content', 'Banner Settings']
+            : ['Notification Config', 'Communication', 'Email Content'];
+    }
+    function anOpenDrawer(eId) {
+        an_editId = eId || null; an_step = 0;
+        if (eId) {
+            var n = an_notifs.find(function(x){ return x.id === eId; });
+            an_wiz = anFreshWiz();
+            if (n) {
+                an_wiz.name = n.title; an_wiz.type = n.type; an_wiz.days = n.days || ''; an_wiz.bannerOn = n.banner === 'Enabled';
+                an_wiz.isDefault = !!n.isDefault;
+                an_wiz.accounts = (n.accounts || ['ALL']).slice();
+                an_wiz.subjLine = n.subjLine || ''; an_wiz.body = n.body || '';
+                if (an_wiz.isDefault) {
+                    an_wiz.bannerTxt = n.bannerTxt || '{{account_name}} subscription will end in {{subscription_days_remaining}} days.';
+                    an_wiz.subjLine = n.subjLine || anDefaultSubj[an_wiz.type] || anDefaultSubj['Before Expiry'];
+                    an_wiz.body = n.body || anDefaultBody[an_wiz.type] || anDefaultBody['Before Expiry'];
+                    an_wiz.freqType = an_wiz.type === 'Before Expiry' ? (n.freqType || 'recurring') : 'one-time';
+                    an_wiz.freqEvery = n.freqEvery || '10';
+                    an_wiz.freqTime = n.freqTime || '10:00';
+                }
+            }
+            document.getElementById('an-drawer-title').textContent = 'Edit Notification';
+        } else {
+            an_wiz = anFreshWiz();
+            document.getElementById('an-drawer-title').textContent = 'Add Notification (Accounts)';
+        }
+        anCloseMsDD();
+        anRenderDrawer();
+        document.getElementById('an-drawer').style.display = 'flex';
+        document.getElementById('an-drawer-overlay').style.display = 'block';
+    }
+    function anOpenEdit(id) { anOpenDrawer(id); }
+    function anCloseDrawer() {
+        anCloseMsDD();
+        document.getElementById('an-drawer').style.display = 'none';
+        document.getElementById('an-drawer-overlay').style.display = 'none';
+        anHideDrawerErr();
+    }
+    function anRenderStepper() {
+        var steps = anGetSteps();
+        var el = document.getElementById('an-stepper');
+        el.innerHTML = '';
+        steps.forEach(function(s, i) {
+            var d = document.createElement('div');
+            d.className = 'an-step' + (i < an_step ? ' done' : i === an_step ? ' active' : '');
+            d.innerHTML = '<div class="an-step-num">' + (i < an_step ? '&#10003;' : (i + 1)) + '</div><div class="an-step-lbl">' + s + '</div>';
+            el.appendChild(d);
+        });
+    }
+    function anRenderBody() {
+        var steps = anGetSteps();
+        var body = document.getElementById('an-drawer-body');
+        var isInt = ['Churn Form Filled', 'Inactive', 'Inactive → Active'].indexOf(an_wiz.type) !== -1;
+        if (an_step === 0) {
+            var curAcct = an_wiz.isDefault ? 'ALL' : (an_wiz.accounts[0] && an_wiz.accounts[0] !== 'ALL' ? an_wiz.accounts[0] : '');
+            var acctFieldHTML = '<div class="an-fg"><label>Select Account <span style="color:#dc2626;">*</span></label><select id="an-wiz-account-select" ' + (an_wiz.isDefault ? 'disabled' : '') + ' onchange="an_wiz.accounts=[this.value]">' +
+                    (an_wiz.isDefault
+                        ? '<option value="ALL" selected>All Accounts</option>'
+                        : '<option value="" ' + (curAcct === '' ? 'selected' : '') + ' disabled>Select account...</option>' +
+                          anAcctList().map(function(name){ return '<option value="' + name + '" ' + (curAcct === name ? 'selected' : '') + '>' + name + '</option>'; }).join('')) +
+                  '</select>' + (an_wiz.isDefault ? '<span class="an-hint">This is a system default notification — it always applies to all accounts.</span>' : '<span class="an-hint">Select the individual account this notification applies to.</span>') + '</div>';
+            body.innerHTML = '<div class="an-section-card"><div class="an-sec-title">Notification Configuration</div><div class="an-sec-sub">Define the trigger name and type to trigger the notification.</div>' +
+                '<div class="an-fg"><label>Notification Name <span style="color:#dc2626;">*</span></label><input id="an-f-name" placeholder="e.g. 30-Day Renewal Reminder" value="' + an_wiz.name + '"></div>' +
+                acctFieldHTML +
+                '<div class="an-fg"><label>Notification Type <span style="color:#dc2626;">*</span></label><select id="an-wiz-type" onchange="anOnType()"><option value="">Select type...</option>' +
+                    (an_wiz.isDefault ? ['Before Expiry','At Expiry','Churn Form Filled','Inactive','Inactive → Active'] : ['Before Expiry','At Expiry']).map(function(t){ return '<option ' + (an_wiz.type === t ? 'selected' : '') + '>' + t + '</option>'; }).join('') +
+                '</select></div>' +
+                '<div id="an-days-wrap" style="display:' + (an_wiz.type === 'Before Expiry' ? 'block' : 'none') + ';"><div class="an-fg"><label>Days Before Expiry <span style="color:#dc2626;">*</span></label><input id="an-f-days" type="number" min="1" max="90" placeholder="Enter 1–90" value="' + an_wiz.days + '"><span class="an-hint">Trigger: Subscription end date &middot; Range: 1 to 90 days</span></div></div>' +
+                '<div class="an-hint" id="an-type-hint" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:9px 12px;margin-top:-4px;display:' + (an_wiz.type && an_wiz.type !== 'Before Expiry' ? 'block' : 'none') + ';">' + (anTypeHints[an_wiz.type] || '') + '</div></div>';
+        } else if (an_step === 1) {
+            var noRecurring = ['At Expiry', 'Inactive', 'Churn Form Filled'].indexOf(an_wiz.type) !== -1;
+            var isRec = !noRecurring && an_wiz.freqType === 'recurring';
+            var daysArr = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            var selDays = (an_wiz.freqOn || '').split(',').filter(Boolean);
+            var commHTML = '<div class="an-section-card"><div class="an-sec-title">Communication Settings</div><div class="an-sec-sub">Select who receives this notification. All email IDs added in the Custom Mail IDs field below will receive the notification directly.</div>' +
+                (!an_wiz.isDefault && !isInt ? '<div class="an-chk-card locked"><input type="checkbox" checked disabled style="pointer-events:none;"><div><div class="an-chk-lbl">Account Admin <span style="font-size:10.5px;color:#9ca3af;font-weight:400;">(Primary — always included)</span></div><div class="an-chk-sub">Primary recipient for all accounts</div></div></div>' : '') +
+                (an_wiz.isDefault
+                    ? '<div class="an-chk-card locked"><input type="checkbox" id="an-chk-am" checked disabled style="pointer-events:none;"><div><div class="an-chk-lbl">Associated SPOCs <span style="font-size:10.5px;color:#9ca3af;font-weight:400;">(Always included)</span></div><div class="an-chk-sub">Notifies the assigned associated SPOCs</div></div></div>'
+                    : '<div class="an-chk-card" onclick="document.getElementById(\'an-chk-am\').click()"><input type="checkbox" id="an-chk-am" ' + (an_wiz.chkAM || isInt ? 'checked' : '') + ' onclick="event.stopPropagation()"><div><div class="an-chk-lbl">Associated SPOCs</div><div class="an-chk-sub">Notifies the assigned associated SPOCs</div></div></div>') +
+                (an_wiz.isDefault
+                    ? '<div class="an-chk-card locked"><input type="checkbox" id="an-chk-sp" checked disabled style="pointer-events:none;"><div><div class="an-chk-lbl">Account Manager <span style="font-size:10.5px;color:#9ca3af;font-weight:400;">(Always included)</span></div><div class="an-chk-sub">Notifies the assigned account manager</div></div></div>'
+                    : '<div class="an-chk-card" onclick="document.getElementById(\'an-chk-sp\').click()"><input type="checkbox" id="an-chk-sp" ' + (an_wiz.chkSP ? 'checked' : '') + ' onclick="event.stopPropagation()"><div><div class="an-chk-lbl">Management SPOCs</div><div class="an-chk-sub">Notifies management points of contact</div></div></div>') +
+                '<hr style="border:none;border-top:1px solid #f3f4f6;margin:14px 0;">' +
+                '<div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:4px;">Custom Mail IDs <span style="color:#9ca3af;font-weight:400;font-size:11px;">(' + (an_wiz.isDefault ? 'meritto.com / collexo.com only' : 'any valid email') + ' &middot; max 10)</span></div>' +
+                '<div style="font-size:11px;color:#6b7280;margin-bottom:8px;line-height:1.5;">All email IDs added here will receive the notification mail directly.</div>' +
+                '<div style="display:flex;gap:7px;margin-bottom:8px;"><input id="an-mail-inp" placeholder="' + (an_wiz.isDefault ? 'e.g. admin@meritto.com, manager@collexo.com' : 'e.g. admin@university.com, manager@org.com') + '" style="flex:1;border:1.5px solid #d1d5db;border-radius:7px;padding:7px 10px;font-size:12.5px;outline:none;font-family:inherit;" onkeydown="if(event.key===\'Enter\')anAddMail()"><button style="padding:7px 14px;border:1.5px solid #e5e7eb;border-radius:7px;background:#fff;font-size:12.5px;color:#374151;cursor:pointer;font-family:inherit;" onclick="anAddMail()">Add</button></div>' +
+                '<div id="an-mail-tags" style="display:flex;flex-wrap:wrap;gap:5px;min-height:4px;">' + an_wiz.mails.map(function(m, i){ return '<span class="an-mail-tag">' + m + '<button onclick="anRmMail(' + i + ')">&#215;</button></span>'; }).join('') + '</div>' +
+                '<div id="an-mail-err" style="font-size:11px;color:#dc2626;margin-top:4px;display:none;"></div></div>';
+            var freqHTML = '<div class="an-section-card" style="margin-top:0;">' +
+                '<div class="an-sec-title">Frequency Settings</div><div class="an-sec-sub" style="margin-bottom:14px;">Configure how often this notification should be triggered after the event.</div>' +
+                '<div style="display:flex;gap:8px;margin-bottom:14px;">' +
+                    '<div onclick="anSetFreq(\'one-time\')" id="an-freq-opt-one" class="an-freq-opt' + (isRec ? '' : ' sel') + '">' +
+                        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="an-freq-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid ' + (isRec ? '#d1d5db' : '#2563eb') + ';background:' + (isRec ? '#fff' : '#2563eb') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + (isRec ? '' : '<div style="width:5px;height:5px;border-radius:50%;background:#fff;"></div>') + '</div><span class="an-freq-lbl" style="font-size:12.5px;font-weight:600;color:' + (isRec ? '#111827' : '#1d4ed8') + ';">One-time</span></div>' +
+                        '<div style="font-size:11px;color:#6b7280;margin-left:22px;">Send notification once when the trigger event occurs</div></div>' +
+                    (noRecurring ? '' :
+                    '<div onclick="anSetFreq(\'recurring\')" id="an-freq-opt-rec" class="an-freq-opt' + (isRec ? ' sel' : '') + '">' +
+                        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><div class="an-freq-dot" style="width:14px;height:14px;border-radius:50%;border:2px solid ' + (isRec ? '#2563eb' : '#d1d5db') + ';background:' + (isRec ? '#2563eb' : '#fff') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + (isRec ? '<div style="width:5px;height:5px;border-radius:50%;background:#fff;"></div>' : '') + '</div><span class="an-freq-lbl" style="font-size:12.5px;font-weight:600;color:' + (isRec ? '#1d4ed8' : '#111827') + ';">Recurring</span></div>' +
+                        '<div style="font-size:11px;color:#6b7280;margin-left:22px;">Send notification repeatedly at a set interval</div></div>') +
+                '</div>' +
+                '<div id="an-freq-recurring-cfg" style="display:' + (isRec ? 'block' : 'none') + ';">' +
+                    '<div style="margin-bottom:12px;"><div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">Send every</div>' +
+                        '<div style="display:flex;align-items:center;gap:8px;"><input id="an-freq-every" type="number" min="1" max="90" value="' + an_wiz.freqEvery + '" style="width:72px;border:1.5px solid #d1d5db;border-radius:7px;padding:7px 10px;font-size:12.5px;outline:none;font-family:inherit;" oninput="an_wiz.freqEvery=this.value">' +
+                        '<select id="an-freq-unit" style="flex:1;border:1.5px solid #d1d5db;border-radius:7px;padding:7px 10px;font-size:12.5px;color:#111827;outline:none;font-family:inherit;" onchange="an_wiz.freqUnit=this.value;anToggleFreqOn()">' +
+                            '<option value="days"' + (an_wiz.freqUnit === 'days' ? ' selected' : '') + '>Day(s)</option>' +
+                            '<option value="weeks"' + (an_wiz.freqUnit === 'weeks' ? ' selected' : '') + '>Week(s)</option>' +
+                            '<option value="months"' + (an_wiz.freqUnit === 'months' ? ' selected' : '') + '>Month(s)</option>' +
+                        '</select></div>' +
+                        (an_wiz.type === 'Before Expiry' && an_wiz.days ? '<div style="font-size:10.5px;color:#6b7280;margin-top:6px;">Interval must be less than <strong>' + parseInt(an_wiz.days, 10) + ' days</strong> (configured before expiry period). Day(s)=1x, Week(s)=7x, Month(s)=30x.</div>' : '') +
+                    '</div>' +
+                    '<div style="margin-bottom:12px;"><div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">Time of communication trigger</div>' +
+                        '<input id="an-freq-time" type="time" style="width:100%;border:1.5px solid #d1d5db;border-radius:7px;padding:8px 10px;font-size:13px;color:#111827;outline:none;font-family:inherit;background:#fff;cursor:pointer;display:block;">' +
+                        '<span style="font-size:10.5px;color:#9ca3af;margin-top:4px;display:block;">The notification mail will be triggered at this time each interval</span></div>' +
+                    '<div id="an-freq-on-wrap" style="display:' + (an_wiz.freqUnit === 'weeks' ? 'block' : 'none') + ';margin-bottom:12px;"><div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">On day</div>' +
+                        '<div style="display:flex;gap:6px;flex-wrap:wrap;" id="an-freq-days-row">' +
+                            daysArr.map(function(d){ var a = selDays.indexOf(d) > -1; return '<div data-day="' + d + '" onclick="anToggleDay(&quot;' + d + '&quot;)" style="padding:5px 12px;border-radius:20px;font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid ' + (a ? '#2563eb' : '#e5e7eb') + ';background:' + (a ? '#eff6ff' : '#fff') + ';color:' + (a ? '#1d4ed8' : '#374151') + ';">' + d + '</div>'; }).join('') +
+                        '</div><span style="font-size:10.5px;color:#9ca3af;margin-top:4px;display:block;">Select one or more days</span></div>' +
+                '</div>' +
+                '<div id="an-freq-summary" style="display:' + (isRec ? 'none' : 'block') + ';background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:9px 12px;font-size:12px;color:#6b7280;">This notification will be sent <strong>once</strong> when the trigger event occurs.</div>' +
+            '</div>';
+            body.innerHTML = commHTML + freqHTML;
+            var ti = document.getElementById('an-freq-time');
+            if (ti) ti.value = an_wiz.freqTime || '09:00';
+        } else if (steps[steps.length - 1] === 'Banner Settings' && an_step === steps.length - 1) {
+            body.innerHTML = '<div class="an-section-card"><div class="an-sec-title">Banner Settings</div><div class="an-sec-sub">Show a banner stripe to ' + (an_wiz.isDefault ? 'Internal users' : 'account users') + ' as a subscription reminder on the platform.</div>' +
+                '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;"><label style="position:relative;width:34px;height:18px;cursor:pointer;flex-shrink:0;display:inline-block;"><input type="checkbox" id="an-sw-banner" ' + (an_wiz.bannerOn ? 'checked' : '') + ' onchange="anToggleBanner()" style="opacity:0;width:0;height:0;"><span style="position:absolute;inset:0;background:' + (an_wiz.bannerOn ? '#2563eb' : '#d1d5db') + ';border-radius:20px;transition:background .2s;"></span><span style="position:absolute;top:2px;left:' + (an_wiz.bannerOn ? '18px' : '2px') + ';width:14px;height:14px;background:#fff;border-radius:50%;transition:left .2s;"></span></label><span style="font-size:12.5px;color:#374151;font-weight:600;">Enable banner stripe</span><span style="font-size:11px;color:#9ca3af;">Preview shows below when enabled</span></div>' +
+                '<div id="an-banner-cfg" style="display:' + (an_wiz.bannerOn ? 'block' : 'none') + ';">' +
+                    '<div class="an-fg"><label>Show banner how many days before expiry?</label><select id="an-f-bdays" onchange="an_wiz.bannerDays=this.value">' + [1,2,3,5,7,10,14,21,30].map(function(d){ return '<option ' + (an_wiz.bannerDays == d ? 'selected' : '') + '>' + d + '</option>'; }).join('') + '</select><span class="an-hint">Range: 1–30 days before subscription end date</span></div>' +
+                    '<div class="an-fg"><label>Banner Content</label><textarea id="an-banner-editor" rows="3" oninput="anUpdateBannerPreview()">' + an_wiz.bannerTxt + '</textarea><span class="an-hint">Edit the message shown to account users in the banner</span></div>' +
+                    '<div style="margin-bottom:14px;"><div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">Available Tokens <span style="color:#9ca3af;font-weight:400;font-size:11px;">— click to insert into banner</span></div><div style="display:flex;gap:6px;flex-wrap:wrap;">' +
+                        [{token:'{{subscription_days_remaining}}',label:'Days Remaining'},{token:'{{subscription_end_date}}',label:'Subscription End Date'},{token:'{{account_name}}',label:'Account Name'},{token:'{{account_manager}}',label:'Account Manager'}].map(function(t){ return '<span class="an-tok" onclick="anInsertBannerToken(\'' + t.token + '\')">' + t.token + '</span>'; }).join('') +
+                    '</div></div>' +
+                    '<div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">Preview</div>' +
+                    '<div class="an-banner-prev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span id="an-banner-txt">' + an_wiz.bannerTxt + '</span></div>' +
+                '</div></div>';
+        } else {
+            var tpl = anEmailTpl[an_wiz.type] || anEmailTpl['Before Expiry'];
+            if (!an_wiz.subjLine) { an_wiz.subjLine = tpl.s; an_wiz.body = an_wiz.isDefault ? tpl.b.replace('[Account Admin Name]', 'Team') : tpl.b; }
+            var isIntE = ['Churn Form Filled', 'Inactive', 'Inactive → Active'].indexOf(an_wiz.type) !== -1;
+            body.innerHTML = '<div class="an-section-card"><div class="an-sec-title">Email Content</div><div class="an-sec-sub">Review and customise the default email template for this notification.</div>' +
+                '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:14px;">' +
+                    '<div style="display:flex;gap:8px;margin-bottom:5px;"><span style="font-size:11px;color:#9ca3af;min-width:72px;font-weight:600;">From</span><span style="font-size:11.5px;color:#374151;">Meritto &lt;Notifications@meritto.com&gt;</span></div>' +
+                    '<div style="display:flex;gap:8px;margin-bottom:5px;"><span style="font-size:11px;color:#9ca3af;min-width:72px;font-weight:600;">To</span><span style="font-size:11.5px;color:#374151;">' + (an_wiz.isDefault ? 'Associated SPOCs and Account Manager' : (isIntE ? 'Associated SPOCs (Primary)' : 'Account Admin (Primary)')) + '</span></div>' +
+                    '<div style="display:flex;gap:8px;"><span style="font-size:11px;color:#9ca3af;min-width:72px;font-weight:600;">Recipients</span><span style="font-size:11.5px;color:#374151;">All custom mail IDs configured in Communication step</span></div>' +
+                '</div>' +
+                '<div class="an-fg"><label>Subject Line</label><input id="an-f-subj" value="' + an_wiz.subjLine + '" oninput="an_wiz.subjLine=this.value"></div>' +
+                '<div class="an-fg"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><label style="margin:0;">Email Body</label><button style="background:none;border:none;color:#6b7280;font-size:11px;cursor:pointer;padding:4px 8px;border-radius:5px;font-family:inherit;" onclick="anEditBody()">&#9998; Edit</button></div><textarea id="an-f-body" rows="7" oninput="an_wiz.body=this.value">' + an_wiz.body + '</textarea></div>' +
+                '<div><div style="font-size:11.5px;font-weight:600;color:#374151;margin-bottom:6px;">Available Tokens <span style="color:#9ca3af;font-weight:400;font-size:11px;">&#8212; click to insert into body</span></div><div style="display:flex;flex-wrap:wrap;gap:5px;">' +
+                    (an_wiz.isDefault ? ['{{subscription_days_remaining}}','{{subscription_end_date}}','{{account_name}}','{{associated_spocs}}','{{account_manager}}','{{account_id}}'] : ['{{subscription_days_remaining}}','{{subscription_end_date}}','{{account_name}}','{{account_admin_name}}','{{associated_spocs}}','{{account_manager}}','{{account_id}}']).map(function(t){ return '<span class="an-tok" onclick="anInsertTok(\'' + t + '\')">' + t + '</span>'; }).join('') +
+                '</div></div></div>';
+        }
+    }
+    function anRenderDrawer() { anHideDrawerErr(); anRenderStepper(); anRenderBody(); anUpdateFooter(); }
+    function anUpdateFooter() {
+        var steps = anGetSteps();
+        document.getElementById('an-btn-back').style.display = an_step > 0 ? 'inline-flex' : 'none';
+        document.getElementById('an-btn-next').innerHTML = (an_step === steps.length - 1) ? 'Save Configuration' : 'Next &rarr;';
+    }
+    function anOnType() {
+        an_wiz.type = document.getElementById('an-wiz-type').value;
+        an_wiz.subjLine = ''; an_wiz.body = '';
+        document.getElementById('an-days-wrap').style.display = (an_wiz.type === 'Before Expiry') ? 'block' : 'none';
+        var th = document.getElementById('an-type-hint');
+        th.style.display = (an_wiz.type && an_wiz.type !== 'Before Expiry') ? 'block' : 'none';
+        th.textContent = anTypeHints[an_wiz.type] || '';
+        anRenderStepper();
+    }
+    function anStepNext() {
+        var steps = anGetSteps();
+        if (an_step === 0) {
+            an_wiz.name = (document.getElementById('an-f-name') && document.getElementById('an-f-name').value || '').trim();
+            an_wiz.type = (document.getElementById('an-wiz-type') && document.getElementById('an-wiz-type').value) || an_wiz.type;
+            if (!an_wiz.name) { anShowDrawerErr('Please enter a notification name.'); return; }
+            if (an_wiz.isDefault) {
+                an_wiz.accounts = ['ALL'];
+            } else {
+                var acctEl = document.getElementById('an-wiz-account-select');
+                var acctVal = acctEl ? acctEl.value : '';
+                if (!acctVal) { anShowDrawerErr('Please select an account.'); return; }
+                an_wiz.accounts = [acctVal];
+            }
+            if (!an_wiz.type) { anShowDrawerErr('Please select a notification type.'); return; }
+            if (an_wiz.type === 'Before Expiry') {
+                an_wiz.days = (document.getElementById('an-f-days') && document.getElementById('an-f-days').value) || '';
+                if (!an_wiz.days || an_wiz.days < 1 || an_wiz.days > 90) { anShowDrawerErr('Days must be between 1 and 90.'); return; }
+            }
+        }
+        if (an_step === 1) {
+            an_wiz.chkAM = document.getElementById('an-chk-am') ? document.getElementById('an-chk-am').checked : false;
+            an_wiz.chkSP = document.getElementById('an-chk-sp') ? document.getElementById('an-chk-sp').checked : false;
+            an_wiz.freqType = an_wiz.freqType || 'one-time';
+            an_wiz.freqEvery = (document.getElementById('an-freq-every') && document.getElementById('an-freq-every').value) || an_wiz.freqEvery;
+            an_wiz.freqUnit  = (document.getElementById('an-freq-unit')  && document.getElementById('an-freq-unit').value)  || an_wiz.freqUnit;
+            an_wiz.freqTime  = (document.getElementById('an-freq-time')  && document.getElementById('an-freq-time').value)  || an_wiz.freqTime;
+            if (an_wiz.freqType === 'recurring' && an_wiz.type === 'Before Expiry') {
+                var every = parseInt(an_wiz.freqEvery, 10) || 0;
+                var unit = an_wiz.freqUnit;
+                var daysBeforeExpiry = parseInt(an_wiz.days, 10) || 0;
+                var everyInDays = unit === 'days' ? every : unit === 'weeks' ? every * 7 : every * 30;
+                if (every < 1) { anShowDrawerErr('Please enter a valid interval (minimum 1).'); return; }
+                if (everyInDays >= daysBeforeExpiry) {
+                    var unitLabel = unit === 'days' ? 'day(s)' : unit === 'weeks' ? 'week(s)' : 'month(s)';
+                    anShowDrawerErr('Recurring interval (' + every + ' ' + unitLabel + ') must be less than the configured ' + daysBeforeExpiry + ' days before expiry.'); return;
+                }
+            }
+        }
+        if (steps[an_step] === 'Banner Settings') {
+            an_wiz.bannerOn = document.getElementById('an-sw-banner') ? document.getElementById('an-sw-banner').checked : false;
+            an_wiz.bannerDays = (document.getElementById('an-f-bdays') && document.getElementById('an-f-bdays').value) || an_wiz.bannerDays;
+            an_wiz.bannerTxt = (document.getElementById('an-banner-editor') && document.getElementById('an-banner-editor').value) || an_wiz.bannerTxt;
+        }
+        if (an_step === steps.length - 1) {
+            an_wiz.subjLine = (document.getElementById('an-f-subj') && document.getElementById('an-f-subj').value) || an_wiz.subjLine;
+            an_wiz.body = (document.getElementById('an-f-body') && document.getElementById('an-f-body').value) || an_wiz.body;
+            anSaveConfig(); return;
+        }
+        anCloseMsDD();
+        an_step++; anRenderDrawer(); document.getElementById('an-drawer-body').scrollTop = 0;
+    }
+    function anStepPrev() { anCloseMsDD(); if (an_step > 0) { an_step--; anRenderDrawer(); document.getElementById('an-drawer-body').scrollTop = 0; } }
+    function anSaveConfig() {
+        var hasBanner = anGetSteps().indexOf('Banner Settings') !== -1;
+        var now = new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        var existing = an_editId ? an_notifs.find(function(x){ return x.id === an_editId; }) : null;
+        var rec = {
+            id: an_editId || Date.now(), title: an_wiz.name, type: an_wiz.type,
+            days: an_wiz.type === 'Before Expiry' ? parseInt(an_wiz.days, 10) : null,
+            banner: hasBanner ? (an_wiz.bannerOn ? 'Enabled' : 'Disabled') : 'N/A',
+            status: existing ? existing.status : 'Active', updated: now,
+            scope: 'Global', isDefault: existing ? !!existing.isDefault : false,
+            accounts: an_wiz.accounts.slice(),
+            subjLine: an_wiz.subjLine, body: an_wiz.body
+        };
+        if (an_editId) {
+            var idx = an_notifs.findIndex(function(x){ return x.id === an_editId; });
+            if (idx > -1) an_notifs[idx] = rec;
+        } else {
+            an_notifs.unshift(rec);
+        }
+        anCloseDrawer();
+        anApplyFilters();
+        anShowToast('Notification configured successfully');
+    }
+    function anAddMail() {
+        var inp = document.getElementById('an-mail-inp');
+        var v = inp.value.trim();
+        var err = document.getElementById('an-mail-err');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { err.style.display = 'block'; err.textContent = 'Please enter a valid email address.'; return; }
+        if (an_wiz.isDefault && !/@(meritto\.com|collexo\.com)$/i.test(v)) { err.style.display = 'block'; err.textContent = 'Only meritto.com or collexo.com email addresses are allowed for system default notifications.'; return; }
+        if (an_wiz.mails.indexOf(v) !== -1) { err.style.display = 'block'; err.textContent = 'This email is already added.'; return; }
+        if (an_wiz.mails.length >= 10) { err.style.display = 'block'; err.textContent = 'Max 10 custom mail IDs allowed.'; return; }
+        err.style.display = 'none'; an_wiz.mails.push(v); inp.value = '';
+        document.getElementById('an-mail-tags').innerHTML = an_wiz.mails.map(function(m, i){ return '<span class="an-mail-tag">' + m + '<button onclick="anRmMail(' + i + ')">&#215;</button></span>'; }).join('');
+    }
+    function anRmMail(i) {
+        an_wiz.mails.splice(i, 1);
+        document.getElementById('an-mail-tags').innerHTML = an_wiz.mails.map(function(m, j){ return '<span class="an-mail-tag">' + m + '<button onclick="anRmMail(' + j + ')">&#215;</button></span>'; }).join('');
+    }
+    function anToggleBanner() {
+        an_wiz.bannerOn = document.getElementById('an-sw-banner').checked;
+        document.getElementById('an-banner-cfg').style.display = an_wiz.bannerOn ? 'block' : 'none';
+        anRenderBody();
+    }
+    function anInsertBannerToken(t) {
+        var ta = document.getElementById('an-banner-editor');
+        if (!ta) return;
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + t + ta.value.slice(e);
+        an_wiz.bannerTxt = ta.value;
+        ta.focus(); ta.selectionStart = ta.selectionEnd = s + t.length;
+        anUpdateBannerPreview();
+    }
+    function anUpdateBannerPreview() {
+        var v = document.getElementById('an-banner-editor') ? document.getElementById('an-banner-editor').value : '';
+        an_wiz.bannerTxt = v;
+        var p = document.getElementById('an-banner-txt');
+        if (p) p.textContent = v;
+    }
+    function anEditBody() {
+        var v = prompt('Edit email body:', an_wiz.body);
+        if (v) { an_wiz.body = v; document.getElementById('an-f-body').value = v; }
+    }
+    function anInsertTok(t) {
+        var ta = document.getElementById('an-f-body');
+        if (!ta) return;
+        var s = ta.selectionStart, e = ta.selectionEnd;
+        ta.value = ta.value.slice(0, s) + t + ta.value.slice(e);
+        an_wiz.body = ta.value;
+        ta.focus(); ta.selectionStart = ta.selectionEnd = s + t.length;
+    }
+    function anSetFreq(type) {
+        an_wiz.freqType = type;
+        if (type === 'recurring') {
+            setTimeout(function() {
+                var ti = document.getElementById('an-freq-time');
+                if (ti) ti.value = an_wiz.freqTime || '09:00';
+            }, 10);
+        }
+        anRenderBody();
+    }
+    function anToggleFreqOn() {
+        var u = document.getElementById('an-freq-unit') ? document.getElementById('an-freq-unit').value : an_wiz.freqUnit;
+        an_wiz.freqUnit = u;
+        var wrap = document.getElementById('an-freq-on-wrap');
+        if (wrap) wrap.style.display = (u === 'weeks') ? 'block' : 'none';
+    }
+    function anToggleDay(d) {
+        var days = (an_wiz.freqOn || '').split(',').filter(Boolean);
+        var idx = days.indexOf(d);
+        if (idx > -1) days.splice(idx, 1); else days.push(d);
+        an_wiz.freqOn = days.join(',');
+        var row = document.getElementById('an-freq-days-row');
+        if (row) row.querySelectorAll('[data-day]').forEach(function(el) {
+            var active = days.indexOf(el.getAttribute('data-day')) > -1;
+            el.style.border = '1px solid ' + (active ? '#2563eb' : '#e5e7eb');
+            el.style.background = active ? '#eff6ff' : '#fff';
+            el.style.color = active ? '#1d4ed8' : '#374151';
+        });
+    }
+    function anShowDrawerErr(msg) {
+        var b = document.getElementById('an-drawer-err'), t = document.getElementById('an-drawer-err-txt');
+        if (!b || !t) return;
+        t.textContent = msg; b.style.display = 'flex';
+        b.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function anHideDrawerErr() {
+        var b = document.getElementById('an-drawer-err');
+        if (b) b.style.display = 'none';
+    }
+    function anShowToast(msg) {
+        var t = document.getElementById('an-toast');
+        document.getElementById('an-toast-txt').textContent = msg;
+        t.classList.add('show');
+        setTimeout(function(){ t.classList.remove('show'); }, 3200);
+    }
+    window.anInit = anInit;
+
+    /* ────────────────────────────────────────────────────────────
+       Account-level Notification Settings (per-account overrides)
+       Opened from Manage Accounts > row action > "Notification
+       Settings". Every account inherits the global rules above by
+       default; this drawer lets an admin override a rule for one
+       specific account only. Client-side only, keyed by account id.
+       ──────────────────────────────────────────────────────────── */
+    function acnSlug(type) { return type.toLowerCase().replace(/[^a-z0-9]+/g, '-'); }
+
+    function acnDefaultSummary(type) {
+        var d = an_notifs.find(function(x) { return x.type === type && x.isDefault; });
+        if (!d) return 'No global rule configured';
+        var bits = [];
+        if (d.days) bits.push(d.days + ' days before expiry');
+        bits.push(d.status);
+        if (d.banner === 'Enabled') bits.push('Banner enabled');
+        return bits.join(' \u00b7 ');
+    }
+
+    function acnOpenDrawer(accountId, accountName) {
+        acn_accountId = accountId; acn_accountName = accountName;
+        document.getElementById('acn-drawer-sub').textContent = 'Overrides for ' + accountName + ' (' + accountId + ')';
+        var saved = an_accountOverrides[accountId] || {};
+        acn_working = {};
+        an_defaultTypes.forEach(function(t) {
+            acn_working[t] = saved[t]
+                ? { enabled: true, days: saved[t].days, status: saved[t].status, bannerOn: saved[t].bannerOn }
+                : { enabled: false, days: '', status: 'Active', bannerOn: false };
+        });
+        acnRenderBody();
+        document.getElementById('acn-drawer').style.display = 'flex';
+        document.getElementById('acn-drawer-overlay').style.display = 'block';
+    }
+
+    function acnCloseDrawer() {
+        document.getElementById('acn-drawer').style.display = 'none';
+        document.getElementById('acn-drawer-overlay').style.display = 'none';
+    }
+
+    function acnRenderBody() {
+        var body = document.getElementById('acn-drawer-body');
+        var html = '';
+        an_defaultTypes.forEach(function(type) {
+            var w = acn_working[type];
+            var showDays = (type === 'Before Expiry');
+            html += '<div class="an-section-card">' +
+                '<div class="an-sec-title">' + type + '</div>' +
+                '<div class="an-sec-sub">Global default: ' + acnDefaultSummary(type) + '</div>' +
+                '<label class="an-chk-card" style="margin-bottom:' + (w.enabled ? '11px' : '0') + ';">' +
+                    '<input type="checkbox" ' + (w.enabled ? 'checked' : '') + ' onchange="acnToggleOverride(\'' + type + '\')">' +
+                    '<div><div class="an-chk-lbl">Override for ' + acn_accountName + '</div>' +
+                    '<div class="an-chk-sub">Use custom settings for this account instead of the global rule</div></div>' +
+                '</label>' +
+                (w.enabled ? (
+                    '<div style="display:flex;flex-direction:column;gap:12px;">' +
+                    (showDays
+                        ? '<div class="an-fg" style="margin-bottom:0;"><label>Days Before Expiry</label><input type="number" min="1" value="' + w.days + '" onchange="acnUpdateField(\'' + type + '\',\'days\',this.value)"></div>'
+                        : '') +
+                    '<div class="an-fg" style="margin-bottom:0;"><label>Status</label><select onchange="acnUpdateField(\'' + type + '\',\'status\',this.value)"><option' + (w.status === 'Active' ? ' selected' : '') + '>Active</option><option' + (w.status === 'Disabled' ? ' selected' : '') + '>Disabled</option></select></div>' +
+                    (showDays
+                        ? '<label class="an-chk-card" style="margin-bottom:0;"><input type="checkbox" ' + (w.bannerOn ? 'checked' : '') + ' onchange="acnUpdateField(\'' + type + '\',\'bannerOn\',this.checked)"><div><div class="an-chk-lbl">Show Renewal Banner</div><div class="an-chk-sub">Display an in-app banner to this account before expiry</div></div></label>'
+                        : '') +
+                    '</div>'
+                ) : '') +
+            '</div>';
+        });
+        body.innerHTML = html;
+    }
+
+    function acnToggleOverride(type) {
+        var w = acn_working[type];
+        w.enabled = !w.enabled;
+        if (w.enabled && !w.days) {
+            var d = an_notifs.find(function(x) { return x.type === type && x.isDefault; });
+            w.days = (d && d.days) ? d.days : 30;
+        }
+        acnRenderBody();
+    }
+
+    function acnUpdateField(type, field, val) {
+        acn_working[type][field] = (field === 'days') ? parseInt(val, 10) : val;
+    }
+
+    function acnSaveOverrides() {
+        var out = {}, any = false;
+        an_defaultTypes.forEach(function(type) {
+            if (acn_working[type].enabled) { out[type] = acn_working[type]; any = true; }
+        });
+        if (any) an_accountOverrides[acn_accountId] = out;
+        else delete an_accountOverrides[acn_accountId];
+        acnCloseDrawer();
+        anShowToast('Notification settings updated for ' + acn_accountName);
+    }
+
+    window.acnOpenDrawer = acnOpenDrawer;
