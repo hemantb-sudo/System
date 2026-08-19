@@ -2400,6 +2400,15 @@
                 e.preventDefault();
                 document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
                 item.classList.add('active');
+                if (item.id === 'sb-comm-perf') {
+                    if (window.openCommLogList) openCommLogList();
+                    return;
+                }
+                // Close comm-log overlays when navigating to any other section
+                var commLog = document.getElementById('comm-log-overlay');
+                if (commLog && commLog.style.display !== 'none' && window.closeCommLog) closeCommLog();
+                var commDetail = document.getElementById('comm-detail-overlay');
+                if (commDetail && commDetail.style.display !== 'none' && window.closeCommDetail) closeCommDetail();
                 // If it's not the usage item, show dashboard
                 if (item.id !== 'sb-usage') {
                     showPage('dashboard');
@@ -2418,6 +2427,10 @@
             var commLog = document.getElementById('comm-log-overlay');
             if (commLog && commLog.style.display !== 'none') {
                 if (window.closeCommLog) window.closeCommLog();
+            }
+            var commDetail = document.getElementById('comm-detail-overlay');
+            if (commDetail && commDetail.style.display !== 'none') {
+                if (window.closeCommDetail) window.closeCommDetail();
             }
             // Close METS overlay if open so settings appears on top
             var metsOverlay = document.getElementById('mets-overlay');
@@ -4311,10 +4324,14 @@
             if (sb && overlay) overlay.style.left = sb.getBoundingClientRect().width + 'px';
         }
         window.openMetsOverlay = function() {
-            // Close comm-log overlay if open so METS appears on top
+            // Close comm-log overlays if open so METS appears on top
             var commLog = document.getElementById('comm-log-overlay');
             if (commLog && commLog.style.display !== 'none') {
                 if (window.closeCommLog) window.closeCommLog();
+            }
+            var commDetail = document.getElementById('comm-detail-overlay');
+            if (commDetail && commDetail.style.display !== 'none') {
+                if (window.closeCommDetail) window.closeCommDetail();
             }
             // Sync Testing Credits Report tab visibility with toggle state
             var toggleCb = document.getElementById('testing-report-toggle');
@@ -4336,6 +4353,13 @@
         };
     })();
     var _commLogObserver = null;
+    var _commDetailObserver = null;
+    var _commLogRows = [];
+    function _syncCommDetailLeft() {
+        var sb = document.getElementById('sidebar');
+        var overlay = document.getElementById('comm-detail-overlay');
+        if (sb && overlay) overlay.style.left = sb.getBoundingClientRect().width + 'px';
+    }
     function _syncCommLogLeft() {
         var sb = document.getElementById('sidebar');
         var overlay = document.getElementById('comm-log-overlay');
@@ -4413,6 +4437,159 @@
             _commLogObserver.observe(sb);
         }
     }
+    function openCommLogList() {
+        var channelMap = {
+            'EML': { bg:'#eff6ff', icon:'<svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="#2563eb" stroke-width="1.5"/><path d="M2 7l8 5 8-5" stroke="#2563eb" stroke-width="1.5"/></svg>' },
+            'SMS': { bg:'#ecfdf5', icon:'<svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="11" rx="2" stroke="#059669" stroke-width="1.5"/><path d="M6 17l4-2 4 2" stroke="#059669" stroke-width="1.3"/></svg>' },
+            'WA':  { bg:'#f0fdf4', icon:'<svg width="13" height="13" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="#16a34a" stroke-width="1.5"/><path d="M7.5 10c0 1.4 1.1 2.5 2.5 2.5.7 0 1.3-.3 1.8-.7l.9.2-.2-.9c.4-.5.7-1.1.7-1.8C13.2 7.9 11.7 7 10 7c-1.4 0-2.5 1.1-2.5 3z" stroke="#16a34a" stroke-width="1.3"/></svg>' },
+            'AIV': { bg:'#ede9fe', icon:'<svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M10 2v16M6 5v10M2 8v4M14 5v10M18 8v4" stroke="#7c3aed" stroke-width="1.5" stroke-linecap="round"/></svg>' }
+        };
+        var rows = [
+            { job:'EML-10045', preview:'Summer Admission Reminder',    template:'Admission Reminder v2', status:'Completed',  statusColor:'#16a34a', date:'10 Jun, 26  9:30 AM', list:'3', segment:'Open Leads',      audience:'400' },
+            { job:'SMS-20115', preview:'Application Status Update',    template:'Status Update SMS',     status:'Completed',  statusColor:'#16a34a', date:'12 Jun, 26 11:15 AM', list:'2', segment:'Shortlisted',     audience:'300' },
+            { job:'SMS-20087', preview:'Automation Follow-up SMS',     template:'Follow-up Template',    status:'In Progress', statusColor:'#d97706', date:'15 Jun, 26  2:45 PM', list:'1', segment:'-',               audience:'200' },
+            { job:'WA-00325',  preview:'WhatsApp Offer Notification',  template:'Offer Letter WA',       status:'Completed',  statusColor:'#16a34a', date:'11 Jun, 26  4:00 PM', list:'4', segment:'Enrolled',        audience:'100' },
+            { job:'EML-10052', preview:'Automation Welcome Email',     template:'Welcome Email v1',      status:'In Progress', statusColor:'#d97706', date:'15 Jun, 26  8:20 AM', list:'1', segment:'-',               audience:'100' },
+            { job:'AIV-00089', preview:'Mio AI Voice - Outbound',      template:'-',                     status:'In Progress', statusColor:'#d97706', date:'17 Jun, 26 10:05 AM', list:'1', segment:'-',               audience:'100' },
+            { job:'EML-10061', preview:"Happy Women's Day!!! Avail...",template:'Automation Template',   status:'In Progress', statusColor:'#d97706', date:'17 Aug, 26 12:53 PM', list:'1', segment:'-',               audience:'0'   },
+            { job:'SMS-20142', preview:'Fee Payment Reminder',         template:'Fee Reminder SMS',      status:'Completed',  statusColor:'#16a34a', date:'09 Aug, 26 10:10 AM', list:'2', segment:'Fee Due',         audience:'560' },
+            { job:'WA-00341',  preview:'Document Upload Nudge',        template:'Doc Nudge WA',          status:'Failed',     statusColor:'#dc2626', date:'08 Aug, 26  3:35 PM', list:'1', segment:'Incomplete Apps', audience:'75'  },
+            { job:'EML-10078', preview:'Counsellor Assigned Notice',   template:'Counsellor Assigned v1',status:'Completed',  statusColor:'#16a34a', date:'06 Aug, 26  9:05 AM', list:'3', segment:'New Leads',       audience:'212' },
+            { job:'SMS-20150', preview:'Interview Slot Confirmation',  template:'Slot Confirm SMS',      status:'Completed',  statusColor:'#16a34a', date:'05 Aug, 26  1:20 PM', list:'1', segment:'Shortlisted',     audience:'88'  },
+            { job:'AIV-00094', preview:'Mio AI Voice - Reminder Call', template:'-',                     status:'In Progress', statusColor:'#d97706', date:'04 Aug, 26 11:40 AM', list:'1', segment:'-',               audience:'140' }
+        ];
+        _commLogRows = rows;
+
+        var TD     = 'padding:11px 16px;color:#374151;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #f3f4f6;background:#fff;';
+        var TD_SL  = 'padding:11px 16px;color:#374151;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #f3f4f6;position:sticky;left:0;background:#fff;z-index:1;box-shadow:2px 0 4px rgba(0,0,0,0.06);';
+        var TD_SL2 = 'padding:11px 16px;color:#374151;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #f3f4f6;position:sticky;left:50px;background:#fff;z-index:1;box-shadow:2px 0 4px rgba(0,0,0,0.06);';
+        var TD_SR  = 'padding:11px 16px;color:#374151;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #f3f4f6;position:sticky;right:0;background:#fff;z-index:1;box-shadow:-2px 0 4px rgba(0,0,0,0.06);text-align:center;';
+
+        var tbody = document.getElementById('comm-log-tbody');
+        if (tbody) {
+            tbody.innerHTML = rows.map(function(d) {
+                var ch = channelMap[d.job.split('-')[0]] || channelMap['EML'];
+                return '<tr onmouseover="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'#f8fafc\'})" onmouseout="this.querySelectorAll(\'td\').forEach(function(t){t.style.background=\'#fff\'})">' +
+                    '<td style="' + TD_SL + 'width:36px;padding:11px 8px 11px 14px;"><input type="checkbox" style="width:14px;height:14px;cursor:pointer;accent-color:#2563eb;"></td>' +
+                    '<td style="' + TD_SL2 + '">' +
+                      '<div style="display:flex;align-items:center;gap:7px;">' +
+                      '<span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;background:' + ch.bg + ';">' + ch.icon + '</span>' +
+                      '<a href="javascript:void(0)" onclick="openCommDetail(' + "'" + d.job + "'" + ')" style="color:#2563eb;font-size:12.5px;font-weight:600;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\';" onmouseout="this.style.textDecoration=\'none\';">' + d.job + '</a>' +
+                      '</div></td>' +
+                    '<td style="' + TD + '">' + d.preview + '</td>' +
+                    '<td style="' + TD + '">' + d.template + '</td>' +
+                    '<td style="' + TD + '"><span style="color:' + d.statusColor + ';font-weight:600;font-size:12px;">' + d.status + '</span></td>' +
+                    '<td style="' + TD + '">' + d.date + '</td>' +
+                    '<td style="' + TD + '"><a href="javascript:void(0)" style="color:#2563eb;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\';" onmouseout="this.style.textDecoration=\'none\';">' + d.list + '</a></td>' +
+                    '<td style="' + TD + '">' + d.segment + '</td>' +
+                    '<td style="' + TD + '">' + d.audience + '</td>' +
+                    '<td style="' + TD + '">-</td>' +
+                    '<td style="' + TD + '">NA</td>' +
+                    '<td style="' + TD + '">NA</td>' +
+                    '<td style="' + TD + '">-</td>' +
+                    '<td style="' + TD + '">-</td>' +
+                    '<td style="' + TD + '">Internal User</td>' +
+                    '<td style="' + TD + '">-</td>' +
+                    '<td style="' + TD_SR + '">' +
+                    '<button onclick="commActionToggle(this,event)" style="background:none;border:none;cursor:pointer;color:#6b7280;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'" title="Actions"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>' +
+                    '</td>' +
+                    '</tr>';
+            }).join('');
+        }
+        var totalEl = document.getElementById('comm-log-total');
+        if (totalEl) totalEl.textContent = '749';
+
+        var overlay = document.getElementById('comm-log-overlay');
+        _syncCommLogLeft();
+        overlay.style.display = 'block';
+        var sb2 = document.getElementById('sidebar');
+        if (sb2 && window.ResizeObserver && !_commLogObserver) {
+            _commLogObserver = new ResizeObserver(_syncCommLogLeft);
+            _commLogObserver.observe(sb2);
+        }
+    }
+    window.openCommLogList = openCommLogList;
+    var _commDetailTypeMap = { 'EML':'Email', 'SMS':'SMS', 'WA':'Whatsapp', 'AIV':'AI Voice' };
+    var _commDetailCurrent = { type:'Email', sentCount:0 };
+    function openCommDetail(jobId) {
+        var d = _commLogRows.filter(function(r){ return r.job === jobId; })[0] || { template:'Automation Template' };
+        var type = _commDetailTypeMap[jobId.split('-')[0]] || 'Email';
+        var recipients = [
+            { name:'Test MrYogesh',   email:'y*******@meritto.com' },
+            { name:'testing purpose', email:'t*******@meritto.com' }
+        ];
+        _commDetailCurrent = { type:type, sentCount:recipients.length };
+        var statsLabel = document.getElementById('comm-detail-stats-label');
+        if (statsLabel) statsLabel.textContent = type + ' Stats';
+        var statsPanel = document.getElementById('comm-detail-stats');
+        if (statsPanel) statsPanel.style.display = 'none';
+        var TD = 'padding:11px 16px;color:#374151;font-size:12.5px;white-space:nowrap;border-bottom:1px solid #f3f4f6;background:#fff;';
+        var tbody = document.getElementById('comm-detail-tbody');
+        if (tbody) {
+            tbody.innerHTML = recipients.map(function(r) {
+                return '<tr>' +
+                    '<td style="' + TD + '">NA</td>' +
+                    '<td style="' + TD + '">' + jobId.replace(/^[A-Z]+-/, '') + '</td>' +
+                    '<td style="' + TD + '">' + type + '</td>' +
+                    '<td style="' + TD + '">' + r.name + '</td>' +
+                    '<td style="' + TD + '">Lead</td>' +
+                    '<td style="' + TD + '">NA</td>' +
+                    '<td style="' + TD + '">' + d.template + '</td>' +
+                    '<td style="' + TD + '"><a href="javascript:void(0)" style="color:#2563eb;text-decoration:none;">' + r.email + '</a></td>' +
+                    '<td style="' + TD + '">11 Aug 2026 06:00 pm</td>' +
+                    '<td style="' + TD + '"><span style="color:#16a34a;font-weight:600;">Sent</span></td>' +
+                    '<td style="' + TD + 'text-align:center;"><button style="background:none;border:none;cursor:pointer;color:#6b7280;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'" title="Actions"><svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2.2"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.6 5.6l1.4 1.4M13 13l1.4 1.4M5.6 14.4L7 13M13 7l1.4-1.4"/></svg></button></td>' +
+                    '</tr>';
+            }).join('');
+        }
+        var totalEl = document.getElementById('comm-detail-total');
+        if (totalEl) totalEl.textContent = recipients.length;
+        var overlay = document.getElementById('comm-detail-overlay');
+        _syncCommDetailLeft();
+        overlay.style.display = 'block';
+        var sb = document.getElementById('sidebar');
+        if (sb && window.ResizeObserver && !_commDetailObserver) {
+            _commDetailObserver = new ResizeObserver(_syncCommDetailLeft);
+            _commDetailObserver.observe(sb);
+        }
+    }
+    window.openCommDetail = openCommDetail;
+    window.closeCommDetail = function closeCommDetail() {
+        document.getElementById('comm-detail-overlay').style.display = 'none';
+        if (_commDetailObserver) { _commDetailObserver.disconnect(); _commDetailObserver = null; }
+    };
+    function commDetailToggleStats() {
+        var panel = document.getElementById('comm-detail-stats');
+        if (!panel) return;
+        if (panel.style.display === 'flex') { panel.style.display = 'none'; return; }
+        var sent = _commDetailCurrent.sentCount || 0;
+        // Hold METS = sent minus whatever has already been reconciled by a delivery pingback
+        // (confirmed-delivered METS are consumed; failed/undelivered METS are reversed to the wallet).
+        var deliveredCount = sent;
+        var failedCount = 0;
+        var heldMets = Math.max(0, sent - deliveredCount - failedCount);
+        var cards = [
+            { label:'Sent',          value:String(sent),      count:null, color:'#ec4899' },
+            { label:'Delivered',     value:'100.00%',         count:sent, color:'#f59e0b' },
+            { label:'Read',          value:'100.00%',         count:sent, color:'#22c55e' },
+            { label:'Failed',        value:'0%',              count:0,    color:'#ef4444' },
+            { label:'Clicked',       value:'0%',              count:0,    color:'#7c3aed' },
+            { label:'Replied',       value:'0%',              count:0,    color:'#111827' },
+            { label:'Unsubscribed',  value:'0%',              count:0,    color:'#14b8a6' },
+            { label:'Flow Response', value:'0%',              count:0,    color:'#3b82f6' },
+            { label:'On-Hold METS',  value:String(heldMets),  count:null, color:'#d97706' }
+        ];
+        panel.innerHTML = cards.map(function(c) {
+            return '<div style="flex:1;min-width:150px;background:#fff;border:1px solid #e5e9f2;border-radius:10px;padding:14px 16px 12px;border-bottom:3px solid ' + c.color + ';box-shadow:0 1px 3px rgba(0,0,0,0.03);">' +
+                '<div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#6b7280;margin-bottom:8px;white-space:nowrap;">' + c.label +
+                ' <span style="display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;border-radius:50%;border:1px solid #9ca3af;font-size:8.5px;color:#9ca3af;flex-shrink:0;">i</span></div>' +
+                '<div style="font-size:21px;font-weight:800;color:#111827;line-height:1.1;">' + c.value + '</div>' +
+                (c.count !== null ? '<div style="font-size:11.5px;color:#9ca3af;margin-top:3px;">' + c.count + '</div>' : '') +
+                '</div>';
+        }).join('');
+        panel.style.display = 'flex';
+    }
+    window.commDetailToggleStats = commDetailToggleStats;
     var _commActionBtn = null;
     function commActionToggle(btn, e) {
         e.stopPropagation();
@@ -4467,7 +4644,7 @@
             }
         }
 
-        // Read Hold METS dynamically from the Soft Hold METS transit table
+        // Read Hold METS dynamically from the Hold METS transit table
         var holdMetsVal = '—';
         if (resolvedJobId) {
             var transitRows = document.querySelectorAll('#mets-panel-transit tr.transit-row');

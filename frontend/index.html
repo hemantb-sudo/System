@@ -122,7 +122,7 @@
                 <a class="sb-item" href="#"><span class="sb-item-icon">🧾</span><span class="sb-item-label">Purchase Summary</span><span class="sb-tooltip">Purchase Summary</span></a>
                 <a class="sb-item" href="#"><span class="sb-item-icon">↩️</span><span class="sb-item-label">Withdrawal Request Mgr</span><span class="sb-tooltip">Withdrawal Request Mgr</span></a>
                 <a class="sb-item" href="#"><span class="sb-item-icon">🎫</span><span class="sb-item-label">QMS</span><span class="sb-tooltip">QMS</span></a>
-                <a class="sb-item" href="#"><span class="sb-item-icon">📈</span><span class="sb-item-label">Communication Performance</span><span class="sb-tooltip">Communication Performance</span></a>
+                <a class="sb-item" id="sb-comm-perf" href="#"><span class="sb-item-icon">📈</span><span class="sb-item-label">Communication Performance</span><span class="sb-tooltip">Communication Performance</span></a>
                 <a class="sb-item" href="#"><span class="sb-item-icon">🏷️</span><span class="sb-item-label">Manage Scorecard</span><span class="sb-tooltip">Manage Scorecard</span></a>
             </div>
         </aside>
@@ -1718,6 +1718,7 @@
 
     <!-- Communication tab content -->
     <div id="comm-panel-communication" style="margin:20px 28px 28px;">
+        <div style="font-size:13px;color:#111827;margin-bottom:12px;">Total <strong id="comm-log-total">—</strong> Records</div>
         <div style="background:#fff;border:1px solid #e5e9f2;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
             <div style="overflow-x:auto;">
                 <table style="border-collapse:collapse;font-size:12.5px;min-width:1400px;width:100%;">
@@ -1757,6 +1758,63 @@
         </div>
     </div>
 
+</div>
+
+<!-- Communication Logs Detailed Report Overlay -->
+<div id="comm-detail-overlay" style="display:none;position:fixed;right:0;bottom:0;top:52px;z-index:10001;background:#f4f6fa;overflow-y:auto;font-family:inherit;">
+
+    <!-- Page Header -->
+    <div style="background:#fff;border-bottom:1px solid #e5e9f2;padding:0 28px;position:sticky;top:0;z-index:10;">
+        <div style="display:flex;align-items:center;justify-content:space-between;height:58px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <button onclick="closeCommDetail()" style="background:none;border:none;cursor:pointer;color:#6b7280;display:flex;align-items:center;justify-content:center;padding:4px;" title="Back">
+                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M12 15l-5-5 5-5" stroke="#374151" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <span style="font-size:16px;font-weight:700;color:#111827;">Communication Logs Detailed Report</span>
+            </div>
+            <button style="display:flex;align-items:center;gap:6px;border:1.5px solid #2563eb;border-radius:20px;padding:7px 16px;font-size:12.5px;color:#2563eb;background:#fff;cursor:pointer;font-weight:500;">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M5.5 10h9M8 15h4" stroke="#2563eb" stroke-width="1.6" stroke-linecap="round"/></svg>
+                Filter
+            </button>
+        </div>
+    </div>
+
+    <div style="margin:20px 28px 28px;">
+        <div id="comm-detail-stats" style="display:none;gap:14px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;">
+            <!-- Populated by commDetailToggleStats() -->
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:12px;font-weight:600;color:#374151;background:#eef2ff;border:1px solid #e0e7ff;border-radius:20px;padding:6px 14px;">Total <span id="comm-detail-total">—</span> Records</span>
+            <button id="comm-detail-stats-btn" onclick="commDetailToggleStats()" style="display:flex;align-items:center;gap:6px;border:1.5px solid #f59e0b;border-radius:20px;padding:7px 16px;font-size:12.5px;color:#d97706;background:#fff;cursor:pointer;font-weight:600;">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="2" y="4" width="16" height="13" rx="2" stroke="#d97706" stroke-width="1.5"/><path d="M2 7l8 5 8-5" stroke="#d97706" stroke-width="1.5"/></svg>
+                <span id="comm-detail-stats-label">Email Stats</span>
+            </button>
+        </div>
+        <div style="background:#fff;border:1px solid #e5e9f2;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+            <div style="overflow-x:auto;">
+                <table style="border-collapse:collapse;font-size:12.5px;min-width:1200px;width:100%;">
+                    <thead>
+                        <tr>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Automation ID</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Job Id</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Type</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Name</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Module Type</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Opportunity List Name</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Template Name</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">To</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Communication Date</th>
+                            <th style="padding:11px 16px;text-align:left;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Status</th>
+                            <th style="padding:11px 16px;text-align:center;font-weight:600;color:#374151;font-size:11.5px;white-space:nowrap;border-bottom:1px solid #e5e9f2;background:#f8fafc;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comm-detail-tbody">
+                        <!-- Populated by openCommDetail() -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Delivery Report Slide-in Panel -->
@@ -1896,7 +1954,7 @@
                     <div style="border-top:1px solid #e5e9f2;padding-top:10px;">
                         <div class="mets-sub-label" style="color:#475569;">
                             <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style="flex-shrink:0;"><circle cx="6" cy="6" r="5" stroke="#f59e0b" stroke-width="1.3"/><path d="M6 3.5v2.8l1.8 1.2" stroke="#f59e0b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            Soft Hold METS <span class="mets-info-icon" style="border-color:#fcd34d;color:#f59e0b;">i</span>
+                            Hold METS <span class="mets-info-icon" style="border-color:#fcd34d;color:#f59e0b;" data-tip="METS temporarily held for jobs still in progress. Once delivery is confirmed, unused METS are released back, or extra METS are deducted if consumption is higher.">i</span>
                         </div>
                         <div class="mets-sub-val" style="color:#1e293b;"><span id="mets-softhold-val">0</span><span style="color:#94a3b8;font-weight:400;">.000</span></div>
                     </div>
@@ -1997,7 +2055,6 @@
                 <div class="mets-tab" onclick="metsSwitchTab(this,'mets-panel-usage');setTimeout(usageLoadReport,0);">View Usage</div>
                 <div class="mets-tab" onclick="metsSwitchTab(this,'mets-panel-comp');setTimeout(compLoadReport,0);">Complimentary Credits Report</div>
                 <div class="mets-tab" id="tab-testing-report" style="display:none;" onclick="metsSwitchTab(this,'mets-panel-testing-report');setTimeout(testingReportLoad,0);">Testing Credits Report</div>
-                <div class="mets-tab" onclick="metsSwitchTab(this,'mets-panel-transit');setTimeout(_transitLoadData,0);">Soft Hold METS</div>
                 <div class="mets-tab" onclick="metsSwitchTab(this,'mets-panel-audit')">Audit Logs</div>
             </div>
             <div class="mets-tab-content">
@@ -2471,7 +2528,7 @@
                     </div>
                 </div>
 
-                <!-- Soft Hold METS Panel — CHANNEL LIABILITY VIEW -->
+                <!-- Hold METS Panel — CHANNEL LIABILITY VIEW -->
                 <div id="mets-panel-transit" style="display:none;">
                     <!-- Filter bar -->
                     <div style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f3f4f6;">
