@@ -2409,6 +2409,10 @@
                 if (commLog && commLog.style.display !== 'none' && window.closeCommLog) closeCommLog();
                 var commDetail = document.getElementById('comm-detail-overlay');
                 if (commDetail && commDetail.style.display !== 'none' && window.closeCommDetail) closeCommDetail();
+                var workflowOverlayNav = document.getElementById('workflow-overlay');
+                if (workflowOverlayNav && workflowOverlayNav.style.display !== 'none' && window.closeWorkflowBuilder) closeWorkflowBuilder();
+                var workflowDesignerNav = document.getElementById('workflow-designer-overlay');
+                if (workflowDesignerNav && workflowDesignerNav.style.display !== 'none') workflowDesignerNav.style.display = 'none';
                 // If it's not the usage item, show dashboard
                 if (item.id !== 'sb-usage') {
                     showPage('dashboard');
@@ -2437,6 +2441,18 @@
             if (metsOverlay && metsOverlay.style.display !== 'none') {
                 if (window.closeMetsOverlay) closeMetsOverlay();
             }
+            // Close Day Planner overlay if open so settings appears on top
+            var dayPlannerOverlay = document.getElementById('day-planner-overlay');
+            if (dayPlannerOverlay && dayPlannerOverlay.style.display !== 'none') {
+                if (window.closeDayPlanner) closeDayPlanner();
+            }
+            // Close Workflow Builder overlays if open so settings appears on top
+            var workflowOverlaySettings = document.getElementById('workflow-overlay');
+            if (workflowOverlaySettings && workflowOverlaySettings.style.display !== 'none') {
+                if (window.closeWorkflowBuilder) closeWorkflowBuilder();
+            }
+            var workflowDesignerSettings = document.getElementById('workflow-designer-overlay');
+            if (workflowDesignerSettings && workflowDesignerSettings.style.display !== 'none') workflowDesignerSettings.style.display = 'none';
             settingsView.classList.add('open');
             // Sync sidebar collapse state if needed
             if (sidebar.classList.contains('collapsed')) {
@@ -2506,6 +2522,838 @@
             if (dc) dc.style.overflow = (sectionId === 'sec-mets') ? 'hidden' : '';
             document.getElementById(sectionId).style.display = (sectionId === 'sec-mets') ? 'flex' : 'block';
             if (sectionId === 'sec-mets') setTimeout(mcRefreshLiveAudit, 50);
+        }
+
+        // ── Settings persistence (backend-backed) ─────────────────────────────────
+        // Every settings row is keyed by "<enclosing section id>::<row name slug>" and
+        // saved to /api/admin-settings (a generic key/value table), so Configure/Save
+        // actions survive a page reload instead of only living in the DOM.
+        var STG_SETTINGS_CACHE = {};
+
+        function stgSlug(s) {
+            return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+        }
+        function stgRowKey(card) {
+            var section = card.closest('.stg-section');
+            var nameEl = card.querySelector('.stg-row-card-name');
+            var sectionId = section ? section.id : 'unknown';
+            var rowSlug = stgSlug(nameEl ? nameEl.textContent : 'row');
+            return sectionId + '::' + rowSlug;
+        }
+        function stgSaveSetting(key, value) {
+            STG_SETTINGS_CACHE[key] = value;
+            fetch(API_BASE + '/api/admin-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: (function(){ var o = {}; o[key] = value; return o; })() })
+            }).catch(function(){});
+        }
+        function stgApplyCachedSettings() {
+            document.querySelectorAll('.stg-section .stg-row-card').forEach(function(card) {
+                if (card.classList.contains('stg-row-configure-panel')) return;
+                var key = stgRowKey(card);
+                var saved = STG_SETTINGS_CACHE[key];
+                if (!saved || !saved.status) return;
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (!statusEl) return;
+                var cls = saved.status === 'Configured' ? 'stg-status-configured'
+                    : saved.status === 'Pending' ? 'stg-status-pending' : 'stg-status-inactive';
+                statusEl.className = cls;
+                statusEl.textContent = saved.status;
+            });
+        }
+        function stgLoadAllSettings() {
+            return fetch(API_BASE + '/api/admin-settings')
+                .then(function(r){ return r.json(); })
+                .then(function(data){ STG_SETTINGS_CACHE = (data && data.settings) || {}; stgApplyCachedSettings(); })
+                .catch(function(){});
+        }
+        document.addEventListener('DOMContentLoaded', stgLoadAllSettings);
+
+        // Every "Configure" button on a settings row card now genuinely opens up an
+        // inline toggle + Save, right below that same card — same visual format,
+        // no change to the surrounding grid/section/accordion design.
+        function stgConfigureRow(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) {
+                next.remove();
+                return;
+            }
+            var rows = card.parentElement;
+            if (rows) {
+                var openPanel = rows.querySelector('.stg-row-configure-panel');
+                if (openPanel) openPanel.remove();
+            }
+            var nameEl = card.querySelector('.stg-row-card-name');
+            var name = nameEl ? nameEl.textContent.trim() : 'this setting';
+            var toggleLabel = btn.dataset && btn.dataset.toggleLabel ? btn.dataset.toggleLabel : ('Enable ' + name);
+            var statusEl = card.querySelector('[class^="stg-status-"]');
+            var isOn = !!(statusEl && statusEl.textContent.trim() === 'Configured');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">' + toggleLabel + '</div></div></div>' +
+                '<div class="stg-row-card-right" style="gap:14px;">' +
+                    '<div class="mc-toggle' + (isOn ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div>' +
+                    '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveRow(this)">Save</button>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveRow(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var isOn = !!panel.querySelector('.mc-toggle.on');
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = isOn ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = isOn ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { on: isOn, status: isOn ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for CRM > Lead Flow > "Mobile Number validations"
+        // (3 toggles, matches the real product's crawled Lead Flow tab) — reuses the
+        // same .stg-row-card / .mc-toggle visual format as stgConfigureRow, no new CSS.
+        function stgConfigureMobileValidations(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) {
+                next.remove();
+                return;
+            }
+            var rows = card.parentElement;
+            if (rows) {
+                var openPanel = rows.querySelector('.stg-row-configure-panel');
+                if (openPanel) openPanel.remove();
+            }
+            var toggles = [
+                'Applicant Register with unique Mobile No.',
+                'Do not allow duplicate mobile number lead from widget/Facebook Connector',
+                'Do not allow duplicate mobile number lead from Client API'
+            ];
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedFlags = (saved && saved.toggles) || [];
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            var rowsHtml = toggles.map(function (t, i) {
+                var on = savedFlags.length ? !!savedFlags[i] : true;
+                return '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 0;">' +
+                    '<div class="stg-row-card-text" style="display:flex;align-items:center;gap:6px;"><div class="stg-row-card-name" style="font-weight:400;">' + t + '</div><span title="' + t + '" style="color:#9CA3AF;cursor:help;">&#9432;</span></div>' +
+                    '<div class="mc-toggle' + (on ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div>' +
+                '</div>';
+            }).join('');
+            panel.innerHTML =
+                '<div style="width:100%;">' + rowsHtml +
+                '<div style="display:flex;justify-content:flex-end;margin-top:10px;">' +
+                    '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveMobileValidations(this)">Save</button>' +
+                '</div></div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveMobileValidations(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var toggleEls = panel.querySelectorAll('.mc-toggle');
+            var flags = Array.prototype.map.call(toggleEls, function (t) { return t.classList.contains('on'); });
+            var anyOn = flags.some(function (f) { return f; });
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = anyOn ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = anyOn ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { toggles: flags, status: anyOn ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for CRM > Lead Flow > "Registration Attempt configurations"
+        // — real table + "Points to Note" copy crawled from the product, same card format.
+        function stgConfigureRegAttempt(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) {
+                next.remove();
+                return;
+            }
+            var rows = card.parentElement;
+            if (rows) {
+                var openPanel = rows.querySelector('.stg-row-configure-panel');
+                if (openPanel) openPanel.remove();
+            }
+            var tableRows = [
+                ['Add Quick Lead', 'Lead Create Only'],
+                ['Widget', ''],
+                ['Landing Page', 'Lead Create or Upd...'],
+                ['Telephony Inbound', 'Only First Call'],
+                ['Facebook Lead', 'Lead Create or Upd...'],
+                ['Google Lead', 'Lead Create or Upd...'],
+                ['Zapier Lead', 'Lead Create Only'],
+                ['Application Manager (Upload Single Application)', 'Never']
+            ];
+            var trHtml = tableRows.map(function (r) {
+                return '<tr><td style="padding:8px 10px;border-bottom:1px solid #EEF0F3;">' + r[0] + '</td>' +
+                    '<td style="padding:8px 10px;border-bottom:1px solid #EEF0F3;">' + (r[1] || '&mdash;') + '</td>' +
+                    '<td style="padding:8px 10px;border-bottom:1px solid #EEF0F3;color:#9CA3AF;">&mdash;</td>' +
+                    '<td style="padding:8px 10px;border-bottom:1px solid #EEF0F3;color:#9CA3AF;">&mdash;</td></tr>';
+            }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                    '<thead><tr style="background:#F9FAFB;">' +
+                        '<th style="text-align:left;padding:8px 10px;">Lead InFlow</th>' +
+                        '<th style="text-align:left;padding:8px 10px;">Registration Attempt</th>' +
+                        '<th style="text-align:left;padding:8px 10px;">Modified On</th>' +
+                        '<th style="text-align:left;padding:8px 10px;">Modified By</th>' +
+                    '</tr></thead><tbody>' + trHtml + '</tbody></table></div>' +
+                '<div style="margin-top:12px;padding:12px 14px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:6px;font-size:12.5px;color:#374151;line-height:1.6;">' +
+                    '<div style="font-weight:600;margin-bottom:6px;color:#1D4ED8;">Points to Note</div>' +
+                    'APIs / Users can use a registration attempt field key to pass on a registration attempt when sending hits via API. Use the key <code>field_registration_attempt</code> in your API payloads: If the <code>field_registration_attempt</code> is present, its value will increment the registration attempt count. If not present, the system will follow existing logic (e.g. Count on Creation, Count on Creation and Update, Never). Values passed here: Yes | No. This field is optional and maintains backward compatibility.<br><br>' +
+                    'Bulk Offline Upload &mdash; Use the &quot;Field Registration Attempt&quot; key to pass a registration attempt during Bulk Offline Upload. Refer to Bulk Offline Upload guidelines for details.' +
+                '</div>' +
+                '<div style="display:flex;justify-content:flex-end;margin-top:10px;">' +
+                    '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveRow(this)">Save</button>' +
+                '</div></div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        // Closes a configure panel without altering the row's status badge —
+        // used by field-only panels that have no single on/off toggle to reflect back.
+        function stgCloseConfigurePanel(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (panel) panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Security & Compliance > "Login Methods"
+        // — matches the real product's crawled Login Methods tab (Meritto Login + 2FA toggle).
+        function stgConfigureLoginMethods(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var twoFAOn = saved ? !!saved.twoFactorEnabled : false;
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #EEF0F3;">' +
+                        '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Meritto Login</div><div class="stg-row-card-desc">Users can use their email ID and password to log into their Meritto account.</div></div>' +
+                    '</div>' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">' +
+                        '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Enable Two-factor authentication</div><div class="stg-row-card-desc">When this is selected all users are required to use Email 2FA in login.</div></div>' +
+                        '<div class="mc-toggle' + (twoFAOn ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div>' +
+                    '</div>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:10px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveLoginMethods(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveLoginMethods(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var twoFAOn = !!panel.querySelector('.mc-toggle.on');
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) { statusEl.className = 'stg-status-configured'; statusEl.textContent = 'Configured'; }
+                stgSaveSetting(stgRowKey(card), { twoFactorEnabled: twoFAOn, status: 'Configured' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Security & Compliance > "Session"
+        // — matches the real product's Session tab (idle session timeout dropdown).
+        function stgConfigureSession(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedTimeout = (saved && saved.timeout) || 'Never';
+            var opts = ['Never', '15 minutes', '30 minutes', '1 hour', '4 hours', '8 hours'];
+            var optsHtml = opts.map(function (o) { return '<option' + (o === savedTimeout ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Idle Session Timeout</div><div class="stg-row-card-desc">Triggers automatic logout after a defined period of user inactivity to protect sensitive information.</div></div>' +
+                    '<select id="stgSessionTimeoutSelect" style="margin-top:10px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;color:#334155;background:#fff;">' + optsHtml + '</select>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveSession(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveSession(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var select = panel.querySelector('#stgSessionTimeoutSelect');
+            var timeout = select ? select.value : 'Never';
+            var isSet = timeout !== 'Never';
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = isSet ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = isSet ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { timeout: timeout, status: isSet ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Account Setup > "Limits"
+        // — reflects the real product's Report Builder/Opportunity/Field Sync/Campaign limits.
+        function stgConfigureLimits(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var fields = [
+                ['No. of Reports Allowed', ''],
+                ['No of Dashboards', ''],
+                ['No. of Dashlets in a Dashboard', ''],
+                ['No of Custom Metrics', ''],
+                ['Limit of Opportunity List', '50'],
+                ['Limit of Active Opportunity List', '50'],
+                ['Limit of Fields in an Opportunity List', '150'],
+                ['Limit of Campaign', '100']
+            ];
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedVals = (saved && saved.values) || [];
+            var rowsHtml = fields.map(function (f, i) {
+                var val = (savedVals[i] !== undefined && savedVals[i] !== '') ? savedVals[i] : f[1];
+                return '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:7px 0;">' +
+                    '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">' + f[0] + '</div></div>' +
+                    '<input type="text" value="' + val + '" placeholder="Enter value" style="width:120px;padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;text-align:right;">' +
+                '</div>';
+            }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' + rowsHtml +
+                '<div style="display:flex;justify-content:flex-end;margin-top:10px;">' +
+                    '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveLimits(this)">Save</button>' +
+                '</div></div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveLimits(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var inputs = panel.querySelectorAll('input[type="text"]');
+            var values = Array.prototype.map.call(inputs, function (i) { return i.value; });
+            var anySet = values.some(function (v) { return v !== ''; });
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = anySet ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = anySet ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { values: values, status: anySet ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Account Setup > "Telephony Version Config"
+        function stgConfigureTelephonyVersion(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedVersion = (saved && saved.version) || 'Select';
+            var vOpts = ['Select', 'V1', 'V2'].map(function (o) { return '<option' + (o === savedVersion ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div style="padding:10px 14px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:6px;font-size:12.5px;color:#374151;margin-bottom:14px;">' +
+                        '<strong>Call Note:</strong> Upgrading from V1 to V2 (or vice versa) will impact your integration, requiring changes to all endpoints and to be re-configured on the vendor panel.' +
+                    '</div>' +
+                    '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Version</div></div>' +
+                    '<select id="stgTelephonyVersionSelect" style="margin-top:8px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;color:#334155;background:#fff;">' + vOpts + '</select>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveTelephonyVersion(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveTelephonyVersion(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var select = panel.querySelector('#stgTelephonyVersionSelect');
+            var version = select ? select.value : 'Select';
+            var isSet = version !== 'Select';
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = isSet ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = isSet ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { version: version, status: isSet ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Selects one Business Hours tile (24x7 / 24x5 / Custom) and clears the others —
+        // used by the bespoke Business Hours configure panel below.
+        function stgSelectBizHourTile(el) {
+            var siblings = el.parentElement.children;
+            for (var i = 0; i < siblings.length; i++) {
+                siblings[i].style.borderColor = '#E2E8F0';
+                siblings[i].style.background = '#fff';
+                siblings[i].style.color = '#64748B';
+                siblings[i].style.fontWeight = '400';
+            }
+            el.style.borderColor = '#2979d4';
+            el.style.background = '#EFF6FF';
+            el.style.color = '#2979d4';
+            el.style.fontWeight = '600';
+        }
+
+        // Bespoke inline-expand panel for Account Setup > "Business Hours"
+        function stgConfigureBusinessHours(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedMode = (saved && saved.mode) || '24 hours / 7';
+            var savedWeekStart = (saved && saved.weekStart) || 'Monday';
+            var tileBase = 'flex:1;text-align:center;padding:14px 8px;border-radius:8px;cursor:pointer;font-size:12.5px;border:1px solid #E2E8F0;color:#64748B;';
+            var tileActive = 'border-color:#2979d4;background:#EFF6FF;color:#2979d4;font-weight:600;';
+            var modes = ['24 hours / 7', '24 hours / 5', 'Custom hours'];
+            var tilesHtml = modes.map(function (m) {
+                return '<div onclick="stgSelectBizHourTile(this)" style="' + tileBase + (m === savedMode ? tileActive : '') + '">' + m + '</div>';
+            }).join('');
+            var weekOpts = ['Monday', 'Sunday'].map(function (o) { return '<option' + (o === savedWeekStart ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div style="display:flex;gap:12px;margin-bottom:16px;">' + tilesHtml + '</div>' +
+                    '<div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Week Starts on</div></div>' +
+                    '<select id="stgBizHoursWeekStart" style="margin-top:8px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;color:#334155;background:#fff;">' + weekOpts + '</select>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveBusinessHours(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveBusinessHours(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var tiles = panel.querySelectorAll('div[onclick^="stgSelectBizHourTile"]');
+            var activeTile = Array.prototype.find.call(tiles, function (t) { return t.style.fontWeight === '600'; });
+            var mode = activeTile ? activeTile.textContent.trim() : '24 hours / 7';
+            var weekStart = panel.querySelector('#stgBizHoursWeekStart');
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) { statusEl.className = 'stg-status-configured'; statusEl.textContent = 'Configured'; }
+                stgSaveSetting(stgRowKey(card), { mode: mode, weekStart: weekStart ? weekStart.value : 'Monday', status: 'Configured' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Account Setup > "Allocation Quota"
+        function stgConfigureAllocationQuota(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedFlags = (saved && saved.toggles) || [false, false, false];
+            var hierarchyLabels = [
+                'Show only Reportees name to Managers while Reassigning leads',
+                'Show only Reportees name to Managers while Reassigning Applications',
+                'Show only Reportees name to Managers while Reassigning Opportunities'
+            ];
+            var hierarchyHtml = hierarchyLabels.map(function (label, i) {
+                return '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">' + label + '</div></div><div class="mc-toggle' + (savedFlags[i] ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div></div>';
+            }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div class="stg-row-card-text" style="margin-bottom:6px;"><div class="stg-row-card-name" style="font-weight:600;">Hierarchy Allocation</div></div>' +
+                    hierarchyHtml +
+                    '<div style="margin-top:12px;padding-top:12px;border-top:1px solid #EEF0F3;font-size:12.5px;color:#6B7280;">Lead &amp; Application Allocation Quota let you cap how many leads/applications a user can hold, by user or by permission level. No allocation flow has been created yet.</div>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveAllocationQuota(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveAllocationQuota(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var toggleEls = panel.querySelectorAll('.mc-toggle');
+            var flags = Array.prototype.map.call(toggleEls, function (t) { return t.classList.contains('on'); });
+            var anyOn = flags.some(function (f) { return f; });
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = anyOn ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = anyOn ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { toggles: flags, status: anyOn ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Bespoke inline-expand panel for Account Setup > "Check-In/Check-Out"
+        function stgConfigureCheckInOut(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var savedFlags = (saved && saved.toggles) || [false, false];
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Enable Check-in/ check-out pop up</div></div><div class="mc-toggle' + (savedFlags[0] ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div></div>' +
+                    '<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;">Enable Auto Check-In/Auto Check-Out</div><div class="stg-row-card-desc">If turned off, users must check-in manually. The system will automatically check them out at 11:59 PM by default.</div></div><div class="mc-toggle' + (savedFlags[1] ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div></div>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveCheckInOut(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveCheckInOut(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var toggleEls = panel.querySelectorAll('.mc-toggle');
+            var flags = Array.prototype.map.call(toggleEls, function (t) { return t.classList.contains('on'); });
+            var anyOn = flags.some(function (f) { return f; });
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = anyOn ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = anyOn ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { toggles: flags, status: anyOn ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
+        }
+
+        // Real data crawled from CRM > Lead Stage > "Lead Stage and Sub stage Configurations".
+        var LEAD_STAGES = [
+            { name: 'Cold', score: -10, subs: ['Asked To Call Back'] },
+            { name: 'Warm', score: 10, subs: ['Asked To Call Back'] },
+            { name: 'Hot', score: 10, subs: ['Will Submit Soon', 'Asked To Call Back'] },
+            { name: 'Submitted', score: 10, subs: ['Application Submitted'] },
+            { name: 'Closed', score: -10, subs: ['Invalid Email', 'Not interested', 'Wrong Number', 'Taken Admission Elsewhere'] },
+            { name: 'Not Reachable', score: 0, subs: ['Number Busy', 'Number Switched Off', 'Not Picking'] }
+        ];
+        var stgLeadStageNextIdx = LEAD_STAGES.length;
+
+        function stgLeadScoreOptions(sel) {
+            var out = '';
+            for (var i = 10; i >= -10; i--) { out += '<option' + (i === sel ? ' selected' : '') + '>' + i + '</option>'; }
+            return out;
+        }
+
+        // Swaps a stage/sub-stage name between its read-only label and an editable
+        // text input — mirrors the real product's pencil-to-checkmark save affordance.
+        function stgEditLeadStageName(el) {
+            var wrap = el.parentElement;
+            var span = wrap.querySelector('.stg-lstage-name-text');
+            var input = wrap.querySelector('.stg-lstage-name-input');
+            if (!span || !input) return;
+            if (input.style.display === 'none') {
+                input.style.display = '';
+                input.value = span.textContent;
+                input.focus();
+                span.style.display = 'none';
+                el.innerHTML = '&#10003;';
+            } else {
+                span.textContent = input.value;
+                span.style.display = '';
+                input.style.display = 'none';
+                el.innerHTML = '&#9998;';
+            }
+        }
+
+        function stgToggleLeadSubstages(el, idx) {
+            var rows = document.querySelectorAll('.stg-lstage-sub-' + idx);
+            var showing = rows.length && rows[0].style.display !== 'none';
+            rows.forEach(function (r) { r.style.display = showing ? 'none' : ''; });
+            el.style.transform = showing ? '' : 'rotate(180deg)';
+        }
+
+        function stgAddLeadSubstage(el, idx) {
+            var tr = el.closest('tr');
+            var newRow = document.createElement('tr');
+            newRow.className = 'stg-lstage-sub-' + idx;
+            newRow.style.background = '#FAFBFC';
+            newRow.innerHTML =
+                '<td style="padding:8px 10px 8px 34px;color:#475569;">&#8627; <input type="text" placeholder="New sub stage" style="border:none;border-bottom:1px solid #E2E8F0;background:transparent;font-size:13px;color:#334155;padding:2px 4px;"></td>' +
+                '<td style="padding:8px 10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;"><option>No</option><option>Yes</option></select></td>' +
+                '<td></td><td></td>' +
+                '<td style="padding:8px 10px;"><div class="mc-toggle on" onclick="this.classList.toggle(\'on\')"><div></div></div></td>' +
+                '<td></td>';
+            tr.parentElement.insertBefore(newRow, tr);
+        }
+
+        function stgAddLeadStage() {
+            var idx = stgLeadStageNextIdx++;
+            var tbody = document.getElementById('stgLeadStageBody');
+            if (!tbody) return;
+            var tr = document.createElement('tr');
+            tr.style.borderTop = '1px solid #EEF0F3';
+            tr.innerHTML =
+                '<td style="padding:10px;"><div style="display:flex;align-items:center;gap:8px;"><span style="color:#CBD5E1;">&#8942;&#8942;</span>' +
+                    '<div><span class="stg-lstage-name-text" style="font-weight:600;">New Stage</span><input class="stg-lstage-name-input" type="text" value="New Stage" style="display:none;border:none;border-bottom:1px solid #2979d4;font-size:13px;font-weight:600;color:#334155;width:120px;"> <span onclick="stgEditLeadStageName(this)" style="cursor:pointer;color:#9CA3AF;font-size:11px;">&#9998;</span><div style="font-size:11.5px;color:#9CA3AF;">0 Substage</div></div></div></td>' +
+                '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;"><option>No</option><option>Yes</option></select></td>' +
+                '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;"><option>No</option><option>Yes</option></select></td>' +
+                '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;">' + stgLeadScoreOptions(0) + '</select></td>' +
+                '<td style="padding:10px;"><div class="mc-toggle on" onclick="this.classList.toggle(\'on\')"><div></div></div></td>' +
+                '<td style="padding:10px;text-align:right;"><span onclick="stgToggleLeadSubstages(this,' + idx + ')" style="cursor:pointer;color:#6B7280;">&#9662;</span></td>';
+            var addSubRow = document.createElement('tr');
+            addSubRow.className = 'stg-lstage-sub-' + idx;
+            addSubRow.style.display = 'none';
+            addSubRow.style.background = '#FAFBFC';
+            addSubRow.innerHTML = '<td colspan="6" style="padding:6px 10px 12px 34px;"><a href="javascript:void(0)" onclick="stgAddLeadSubstage(this,' + idx + ')" style="font-size:12.5px;color:#2979d4;text-decoration:none;">+ Add New Sub Stage</a></td>';
+            tbody.appendChild(tr);
+            tbody.appendChild(addSubRow);
+        }
+
+        // Bespoke inline-expand panel for CRM > Lead Stage > "Lead Stage and Sub stage Configurations"
+        // — full drag-ordered stage/sub-stage builder matching the real product's crawled UI.
+        // Normalizes a stage's `subs` entries to {name, followUp, active} objects —
+        // the static LEAD_STAGES seed data uses plain strings, saved/restored data uses objects.
+        function stgNormalizeSubs(subs) {
+            return (subs || []).map(function (s) {
+                return (typeof s === 'string') ? { name: s, followUp: 'No', active: true } : s;
+            });
+        }
+
+        function stgConfigureLeadStages(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var stagesData = (saved && saved.stages && saved.stages.length) ? saved.stages : LEAD_STAGES;
+
+            var bodyHtml = stagesData.map(function (st, i) {
+                var subs = stgNormalizeSubs(st.subs);
+                var followUp = st.followUp || 'No';
+                var subReq = st.subStageRequired || 'No';
+                var active = (st.active !== undefined) ? st.active : true;
+                var yn = function (sel) { return '<option' + (sel === 'No' ? ' selected' : '') + '>No</option><option' + (sel === 'Yes' ? ' selected' : '') + '>Yes</option>'; };
+                var stageRow =
+                    '<tr style="border-top:1px solid #EEF0F3;">' +
+                        '<td style="padding:10px;"><div style="display:flex;align-items:center;gap:8px;"><span style="color:#CBD5E1;">&#8942;&#8942;</span>' +
+                            '<div><span class="stg-lstage-name-text" style="font-weight:600;">' + st.name + '</span><input class="stg-lstage-name-input" type="text" value="' + st.name + '" style="display:none;border:none;border-bottom:1px solid #2979d4;font-size:13px;font-weight:600;color:#334155;width:120px;"> <span onclick="stgEditLeadStageName(this)" style="cursor:pointer;color:#9CA3AF;font-size:11px;">&#9998;</span><div style="font-size:11.5px;color:#9CA3AF;">' + subs.length + ' Substage' + (subs.length !== 1 ? 's' : '') + '</div></div></div></td>' +
+                        '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;">' + yn(followUp) + '</select></td>' +
+                        '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;">' + yn(subReq) + '</select></td>' +
+                        '<td style="padding:10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;">' + stgLeadScoreOptions(st.score) + '</select></td>' +
+                        '<td style="padding:10px;"><div class="mc-toggle' + (active ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div></td>' +
+                        '<td style="padding:10px;text-align:right;"><span onclick="stgToggleLeadSubstages(this,' + i + ')" style="cursor:pointer;color:#6B7280;">&#9662;</span></td>' +
+                    '</tr>';
+                var subRows = subs.map(function (sub) {
+                    return '<tr class="stg-lstage-sub-' + i + '" style="display:none;background:#FAFBFC;">' +
+                        '<td style="padding:8px 10px 8px 34px;color:#475569;">&#8627; <span class="stg-lstage-name-text">' + sub.name + '</span><input class="stg-lstage-name-input" type="text" value="' + sub.name + '" style="display:none;border:none;border-bottom:1px solid #2979d4;font-size:13px;color:#334155;"> <span onclick="stgEditLeadStageName(this)" style="cursor:pointer;color:#9CA3AF;font-size:11px;">&#9998;</span></td>' +
+                        '<td style="padding:8px 10px;"><select style="padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:12.5px;">' + yn(sub.followUp || 'No') + '</select></td>' +
+                        '<td></td><td></td>' +
+                        '<td style="padding:8px 10px;"><div class="mc-toggle' + (sub.active !== false ? ' on' : '') + '" onclick="this.classList.toggle(\'on\')"><div></div></div></td>' +
+                        '<td></td>' +
+                    '</tr>';
+                }).join('');
+                var addSubRow = '<tr class="stg-lstage-sub-' + i + '" style="display:none;background:#FAFBFC;"><td colspan="6" style="padding:6px 10px 12px 34px;"><a href="javascript:void(0)" onclick="stgAddLeadSubstage(this,' + i + ')" style="font-size:12.5px;color:#2979d4;text-decoration:none;">+ Add New Sub Stage</a></td></tr>';
+                return stageRow + subRows + addSubRow;
+            }).join('');
+
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;overflow-x:auto;">' +
+                    '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+                        '<thead><tr style="background:#F9FAFB;color:#6B7280;font-size:12px;">' +
+                            '<th style="text-align:left;padding:8px 10px;">Stage</th>' +
+                            '<th style="text-align:left;padding:8px 10px;">Follow up Required</th>' +
+                            '<th style="text-align:left;padding:8px 10px;">Sub Stage Required</th>' +
+                            '<th style="text-align:left;padding:8px 10px;">Select Score</th>' +
+                            '<th style="text-align:left;padding:8px 10px;">Active</th>' +
+                            '<th></th>' +
+                        '</tr></thead>' +
+                        '<tbody id="stgLeadStageBody">' + bodyHtml + '</tbody>' +
+                    '</table>' +
+                    '<div style="margin-top:10px;"><a href="javascript:void(0)" onclick="stgAddLeadStage()" style="font-size:12.5px;color:#2979d4;text-decoration:none;">+ Add New Stage</a></div>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveLeadStages(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        // Walks the rendered stage table and reconstructs a plain-data snapshot
+        // (stage name/follow-up/sub-stage-required/score/active + each substage's
+        // name/follow-up/active), so a Save can be persisted and later restored exactly.
+        function stgSerializeLeadStages(panel) {
+            var tbody = panel.querySelector('#stgLeadStageBody');
+            if (!tbody) return [];
+            var stages = [];
+            var current = null;
+            Array.prototype.forEach.call(tbody.children, function (tr) {
+                var isSubRow = /(^|\s)stg-lstage-sub-\d+(\s|$)/.test(tr.className);
+                var nameEl = tr.querySelector('.stg-lstage-name-text');
+                if (!isSubRow) {
+                    var selects = tr.querySelectorAll('select');
+                    var toggle = tr.querySelector('.mc-toggle');
+                    current = {
+                        name: nameEl ? nameEl.textContent.trim() : 'Stage',
+                        followUp: selects[0] ? selects[0].value : 'No',
+                        subStageRequired: selects[1] ? selects[1].value : 'No',
+                        score: selects[2] ? parseInt(selects[2].value, 10) : 0,
+                        active: toggle ? toggle.classList.contains('on') : true,
+                        subs: []
+                    };
+                    stages.push(current);
+                } else if (nameEl && current) {
+                    var subSelect = tr.querySelector('select');
+                    var subToggle = tr.querySelector('.mc-toggle');
+                    current.subs.push({
+                        name: nameEl.textContent.trim(),
+                        followUp: subSelect ? subSelect.value : 'No',
+                        active: subToggle ? subToggle.classList.contains('on') : true
+                    });
+                }
+            });
+            return stages;
+        }
+
+        function stgSaveLeadStages(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var stages = stgSerializeLeadStages(panel);
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) { statusEl.className = 'stg-status-configured'; statusEl.textContent = 'Configured'; }
+                stgSaveSetting(stgRowKey(card), { stages: stages, status: 'Configured' });
+            }
+            panel.remove();
+        }
+
+        function stgLeadConditionRowHtml(saved) {
+            saved = saved || {};
+            var selectedStages = saved.stages || [];
+            var thenVal = saved.then || 'Select options';
+            var performedBy = saved.performedBy || '';
+            var stageOptions = LEAD_STAGES.map(function (s) {
+                return '<option' + (selectedStages.indexOf(s.name) !== -1 ? ' selected' : '') + '>' + s.name + '</option>';
+            }).join('');
+            var thenOpts = ['Select options', 'Stage cannot be changed', 'Stage can only be changed', 'Stage cannot be marked down', 'Follow up cannot be changed']
+                .map(function (o) { return '<option' + (o === thenVal ? ' selected' : '') + '>' + o + '</option>'; }).join('');
+            return '<div style="display:flex;gap:20px;margin-bottom:14px;flex-wrap:wrap;">' +
+                '<div style="flex:1;min-width:160px;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;font-size:12.5px;color:#6B7280;">If Lead Stage is</div></div><select class="stg-lcond-stages" multiple style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;height:70px;">' + stageOptions + '</select></div>' +
+                '<div style="flex:1;min-width:200px;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;font-size:12.5px;color:#6B7280;">Then</div></div><select class="stg-lcond-then" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;">' + thenOpts + '</select></div>' +
+                '<div style="flex:1;min-width:160px;"><div class="stg-row-card-text"><div class="stg-row-card-name" style="font-weight:400;font-size:12.5px;color:#6B7280;">Performed By</div></div><input type="text" class="stg-lcond-performedby" value="' + performedBy + '" placeholder="Nothing selected" style="width:100%;margin-top:4px;padding:8px 10px;border:1px solid #E2E8F0;border-radius:6px;font-size:13px;"></div>' +
+            '</div>';
+        }
+
+        function stgAddLeadCondition() {
+            var list = document.getElementById('stgLeadConditionsList');
+            if (!list) return;
+            var div = document.createElement('div');
+            div.innerHTML = stgLeadConditionRowHtml();
+            list.appendChild(div.firstChild);
+        }
+
+        // Bespoke inline-expand panel for CRM > Lead Stage > "Conditional Logics on Lead stage"
+        // — matches the real product's If/Then/Performed-By rule builder.
+        function stgConfigureLeadStageConditions(btn) {
+            var card = btn.closest('.stg-row-card');
+            if (!card) return;
+            var next = card.nextElementSibling;
+            if (next && next.classList.contains('stg-row-configure-panel')) { next.remove(); return; }
+            var rows = card.parentElement;
+            if (rows) { var openPanel = rows.querySelector('.stg-row-configure-panel'); if (openPanel) openPanel.remove(); }
+            var saved = STG_SETTINGS_CACHE[stgRowKey(card)];
+            var conditions = (saved && saved.conditions && saved.conditions.length) ? saved.conditions : [{}];
+            var listHtml = conditions.map(function (c) { return stgLeadConditionRowHtml(c); }).join('');
+            var panel = document.createElement('div');
+            panel.className = 'stg-row-card stg-row-configure-panel';
+            panel.innerHTML =
+                '<div style="width:100%;">' +
+                    '<div id="stgLeadConditionsList">' + listHtml + '</div>' +
+                    '<div style="margin-top:4px;"><a href="javascript:void(0)" onclick="stgAddLeadCondition()" style="font-size:12.5px;color:#2979d4;text-decoration:none;">+ Add More Condition</a></div>' +
+                    '<div style="display:flex;justify-content:flex-end;margin-top:14px;">' +
+                        '<button class="stg-row-card-btn" style="border-color:#2979d4;color:#2979d4;" onclick="stgSaveLeadStageConditions(this)">Save</button>' +
+                    '</div>' +
+                '</div>';
+            card.insertAdjacentElement('afterend', panel);
+        }
+
+        function stgSaveLeadStageConditions(btn) {
+            var panel = btn.closest('.stg-row-configure-panel');
+            if (!panel) return;
+            var card = panel.previousElementSibling;
+            var rowsEls = panel.querySelectorAll('#stgLeadConditionsList > div');
+            var conditions = Array.prototype.map.call(rowsEls, function (row) {
+                var stageSel = row.querySelector('.stg-lcond-stages');
+                var thenSel = row.querySelector('.stg-lcond-then');
+                var perfInp = row.querySelector('.stg-lcond-performedby');
+                var stages = stageSel ? Array.prototype.map.call(stageSel.selectedOptions, function (o) { return o.value; }) : [];
+                return { stages: stages, then: thenSel ? thenSel.value : 'Select options', performedBy: perfInp ? perfInp.value : '' };
+            });
+            var anySet = conditions.some(function (c) { return c.stages.length || (c.then && c.then !== 'Select options') || c.performedBy; });
+            if (card) {
+                var statusEl = card.querySelector('[class^="stg-status-"]');
+                if (statusEl) {
+                    statusEl.className = anySet ? 'stg-status-configured' : 'stg-status-inactive';
+                    statusEl.textContent = anySet ? 'Configured' : 'Not Set';
+                }
+                stgSaveSetting(stgRowKey(card), { conditions: conditions, status: anySet ? 'Configured' : 'Not Set' });
+            }
+            panel.remove();
         }
 
         const sparklineConfig = {
@@ -2625,10 +3473,20 @@
                 { label: 'Organisation Profile',  category: 'Onboarding',            icon: '🏛️', action: function(){ openOrgProfile(null); } },
                 { label: 'Manage Accounts',        category: 'Onboarding',            icon: '👥', action: function(){ openManageAccounts(); } },
                 { label: 'Rename Tags',            category: 'Account Setup',         icon: '🏷️', action: function(){ openRenameTagsView(); } },
-                { label: 'User Default Page',      category: 'Account Setup',         icon: '⚙️', action: null },
-                { label: 'Custom Fields',          category: 'Account Setup',         icon: '⚙️', action: null },
-                { label: 'Display Preferences',    category: 'Account Setup',         icon: '⚙️', action: null },
-                { label: 'Notification Settings',  category: 'Account Setup',         icon: '🔔', action: null },
+                { label: 'User Default Page',      category: 'Account Setup',         icon: '⚙️', action: function(){ openUserDefaultPage(); } },
+                { label: 'Custom Fields',          category: 'Account Setup',         icon: '⚙️', action: function(){ openSection('sec-accsettings-extra','acc-accsettings'); } },
+                { label: 'Display Preferences',    category: 'Account Setup',         icon: '⚙️', action: function(){ openSection('sec-accsettings-extra','acc-accsettings'); } },
+                { label: 'Notification Settings',  category: 'Account Setup',         icon: '🔔', action: function(){ openSection('sec-accsettings-extra','acc-accsettings'); } },
+                { label: 'Lead Verification Settings', category: 'CRM',               icon: '✅', action: function(){ openSection('sec-crm-leadflow','acc-crm'); } },
+                { label: 'Mobile Number validations',  category: 'CRM',               icon: '📱', action: function(){ openSection('sec-crm-leadflow','acc-crm'); } },
+                { label: 'Registration Attempt configurations', category: 'CRM',      icon: '📝', action: function(){ openSection('sec-crm-leadflow','acc-crm'); } },
+                { label: 'Lead Stage',             category: 'CRM',                   icon: '🎯', action: function(){ openSection('sec-crm-leadstage','acc-crm'); } },
+                { label: 'Conversion Funnel',      category: 'CRM',                   icon: '📊', action: function(){ openSection('sec-crm-funnel','acc-crm'); } },
+                { label: 'Campaign Settings',      category: 'CRM',                   icon: '📣', action: function(){ openSection('sec-crm-campaign','acc-crm'); } },
+                { label: 'Lead Score',             category: 'CRM',                   icon: '📊', action: function(){ openSection('sec-crm-score','acc-crm'); } },
+                { label: 'Lead Allocation',        category: 'CRM',                   icon: '🎯', action: function(){ openSection('sec-crm-allocation','acc-crm'); } },
+                { label: 'Agent',                  category: 'CRM',                   icon: '👤', action: function(){ openSection('sec-crm-agent','acc-crm'); } },
+                { label: 'Custom Flow',            category: 'CRM',                   icon: '🔀', action: function(){ openSection('sec-crm-customflow','acc-crm'); } },
                 { label: 'User Management',        category: 'Users & Teams',         icon: '👤', action: function(){ openSection('sec-users','acc-users'); } },
                 { label: 'Role Hierarchy',         category: 'Users & Teams',         icon: '👥', action: function(){ openSection('sec-users','acc-users'); } },
                 { label: 'Permission Groups',      category: 'Users & Teams',         icon: '🔑', action: function(){ openSection('sec-users','acc-users'); } },
@@ -3157,6 +4015,15 @@
                 _orig_openSection(sectionId, accordionId);
                 var labelMap = {
                     'sec-mets':         'METS',
+                    'sec-accsettings-extra': 'Account Setup',
+                    'sec-crm-leadflow': 'Lead Flow',
+                    'sec-crm-leadstage': 'Lead Stage',
+                    'sec-crm-funnel': 'Conversion Funnel',
+                    'sec-crm-campaign': 'Campaign Settings',
+                    'sec-crm-score': 'Lead Score',
+                    'sec-crm-allocation': 'Lead Allocation',
+                    'sec-crm-agent': 'Agent',
+                    'sec-crm-customflow': 'Custom Flow',
                     'sec-users':        'User Management',
                     'sec-security':     'Security & Compliance',
                     'sec-comms':        'Communication',
@@ -3744,6 +4611,18 @@
             if (metsOverlay && metsOverlay.style.display !== 'none') {
                 if (window.closeMetsOverlay) closeMetsOverlay();
             }
+            // Close Day Planner overlay if open
+            var dayPlannerOverlayPg = document.getElementById('day-planner-overlay');
+            if (dayPlannerOverlayPg && dayPlannerOverlayPg.style.display !== 'none') {
+                if (window.closeDayPlanner) closeDayPlanner();
+            }
+            // Close Workflow Builder overlays if open
+            var workflowOverlayPg = document.getElementById('workflow-overlay');
+            if (workflowOverlayPg && workflowOverlayPg.style.display !== 'none') {
+                if (window.closeWorkflowBuilder) closeWorkflowBuilder();
+            }
+            var workflowDesignerPg = document.getElementById('workflow-designer-overlay');
+            if (workflowDesignerPg && workflowDesignerPg.style.display !== 'none') workflowDesignerPg.style.display = 'none';
 
             var dashboard = document.getElementById('page-dashboard');
             var usage = document.getElementById('page-usage');
@@ -4333,6 +5212,18 @@
             if (commDetail && commDetail.style.display !== 'none') {
                 if (window.closeCommDetail) window.closeCommDetail();
             }
+            // Close Day Planner overlay if open so METS appears on top
+            var dayPlannerOverlayMets = document.getElementById('day-planner-overlay');
+            if (dayPlannerOverlayMets && dayPlannerOverlayMets.style.display !== 'none') {
+                if (window.closeDayPlanner) closeDayPlanner();
+            }
+            // Close Workflow Builder overlays if open so METS appears on top
+            var workflowOverlayMets = document.getElementById('workflow-overlay');
+            if (workflowOverlayMets && workflowOverlayMets.style.display !== 'none') {
+                if (window.closeWorkflowBuilder) closeWorkflowBuilder();
+            }
+            var workflowDesignerMets = document.getElementById('workflow-designer-overlay');
+            if (workflowDesignerMets && workflowDesignerMets.style.display !== 'none') workflowDesignerMets.style.display = 'none';
             // Sync Testing Credits Report tab visibility with toggle state
             var toggleCb = document.getElementById('testing-report-toggle');
             var tab = document.getElementById('tab-testing-report');
@@ -4563,7 +5454,7 @@
         if (!panel) return;
         if (panel.style.display === 'flex') { panel.style.display = 'none'; return; }
         var sent = _commDetailCurrent.sentCount || 0;
-        // Hold METS = sent minus whatever has already been reconciled by a delivery pingback
+        // On-Hold METS = sent minus whatever has already been reconciled by a delivery pingback
         // (confirmed-delivered METS are consumed; failed/undelivered METS are reversed to the wallet).
         var deliveredCount = sent;
         var failedCount = 0;
@@ -4644,19 +5535,7 @@
             }
         }
 
-        // Read Hold METS dynamically from the Hold METS transit table
         var holdMetsVal = '—';
-        if (resolvedJobId) {
-            var transitRows = document.querySelectorAll('#mets-panel-transit tr.transit-row');
-            transitRows.forEach(function(row) {
-                var link = row.querySelector('a');
-                if (link && link.textContent.trim() === resolvedJobId) {
-                    // Columns: td[0]=JobID, td[1]=Request Date, td[2]=Feature, td[3]=Hold METS
-                    var tds = row.querySelectorAll('td');
-                    if (tds[3]) holdMetsVal = tds[3].textContent.trim();
-                }
-            });
-        }
 
         // Adjusted METS config per job
         var deltaMap = {
@@ -4670,7 +5549,7 @@
         var dCfg = deltaMap[resolvedJobId] || { type: 'pending' };
         var mets = { hold: holdMetsVal, type: dCfg.type, delta: dCfg.delta, rev: dCfg.rev, over: dCfg.over };
 
-        // Populate Hold METS
+        // Populate On-hold METS
         var holdEl = document.getElementById('dr-hold-mets');
         if (holdEl) holdEl.textContent = mets.hold;
 
@@ -4880,190 +5759,6 @@
             if (btn)   { btn.style.borderBottomColor = active ? '#2563eb' : 'transparent'; btn.style.color = active ? '#2563eb' : '#6b7280'; btn.style.fontWeight = active ? '600' : '400'; }
             if (panel) panel.style.display = active ? 'block' : 'none';
         });
-    }
-    // ── Transit Pagination (API-driven) ────────────────────────────────────────
-    var _transitPage     = 1;
-    var _transitPerPage  = 20;
-    var _transitFiltered = [];
-    var _transitAllRows  = [];   // data from API
-
-    function _transitLoadData() {
-        var tbody = document.querySelector('#transit-jobs-table tbody');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="4" style="padding:30px;text-align:center;color:#9ca3af;font-size:12.5px;">Loading…</td></tr>';
-        fetch(API_BASE + '/api/mets/transit')
-            .then(function(r){ return r.json(); })
-            .then(function(rows){
-                _transitAllRows = rows;
-                _transitPage = 1;
-                _transitRender();
-            })
-            .catch(function(){
-                _transitAllRows = [];
-                _transitRender();
-            });
-    }
-
-    function _transitGetFiltered() {
-        var selected = _getSelectedFeatures();
-        var fromVal  = document.getElementById('transit-filter-date-from').value;
-        var toVal    = document.getElementById('transit-filter-date-to').value;
-        return _transitAllRows.filter(function(row) {
-            var featureOk = selected.length === 0 || selected.indexOf(row.feature || '') !== -1;
-            var rowDate   = row.ts ? new Date(row.ts * 1000).toISOString().slice(0, 10) : '';
-            var fromOk    = !fromVal || rowDate >= fromVal;
-            var toOk      = !toVal   || rowDate <= toVal;
-            return featureOk && fromOk && toOk;
-        });
-    }
-
-    function _transitRender() {
-        _transitFiltered = _transitGetFiltered();
-        var total   = _transitFiltered.length;
-        var perPage = _transitPerPage;
-        var maxPage = Math.max(1, Math.ceil(total / perPage));
-        if (_transitPage > maxPage) _transitPage = maxPage;
-
-        // Rebuild tbody
-        var tbody = document.querySelector('#transit-jobs-table tbody');
-        if (tbody) {
-            var start = (_transitPage - 1) * perPage;
-            var end   = Math.min(start + perPage, total);
-            var html  = '';
-            for (var i = start; i < end; i++) {
-                var row = _transitFiltered[i];
-                var dt  = row.ts ? new Date(row.ts * 1000) : new Date();
-                var iso = dt.toISOString().slice(0, 10);
-                var dtStr = _fmtDate(iso) + '&nbsp;&nbsp;' + dt.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true}).toLowerCase();
-                var feature = row.feature || '—';
-                html += '<tr class="transit-row" data-feature="' + feature + '" data-date="' + iso + '" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background=\'#f8fafc\'" onmouseout="this.style.background=\'\'">'
-                    + '<td style="padding:13px 16px;"><a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration=\'underline\'" onmouseout="this.style.textDecoration=\'none\'">' + row.job_id + '</a></td>'
-                    + '<td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">' + dtStr + '</td>'
-                    + '<td style="padding:13px 16px;"><span style="font-size:13px;color:#111827;">' + feature + '</span></td>'
-                    + '<td style="padding:13px 16px;text-align:center;color:#111827;">' + row.held_amount + '</td>'
-                    + '</tr>';
-            }
-            if (html === '') {
-                html = '<tr><td colspan="4" style="padding:40px;text-align:center;color:#9ca3af;font-size:13px;">No active soft holds</td></tr>';
-            }
-            tbody.innerHTML = html;
-        }
-
-        // Update total records pill
-        var tot = document.getElementById('transit-total-records');
-        if (tot) tot.textContent = 'Total Records ' + total;
-
-        // Update page info
-        var info = document.getElementById('transit-page-info');
-        if (info) info.textContent = 'Page ' + _transitPage + ' of ' + maxPage;
-
-        // Prev / Next buttons
-        var prev = document.getElementById('transit-prev-btn');
-        var next = document.getElementById('transit-next-btn');
-        if (prev) { prev.disabled = _transitPage <= 1; prev.style.opacity = _transitPage <= 1 ? '0.4' : '1'; prev.style.cursor = _transitPage <= 1 ? 'default' : 'pointer'; }
-        if (next) { next.disabled = _transitPage >= maxPage; next.style.opacity = _transitPage >= maxPage ? '0.4' : '1'; next.style.cursor = _transitPage >= maxPage ? 'default' : 'pointer'; }
-
-        // Page number buttons
-        var pnDiv = document.getElementById('transit-page-numbers');
-        if (pnDiv) {
-            pnDiv.innerHTML = '';
-            var start_p = Math.max(1, _transitPage - 2);
-            var end_p   = Math.min(maxPage, _transitPage + 2);
-            for (var p = start_p; p <= end_p; p++) {
-                (function(pg){
-                    var btn = document.createElement('button');
-                    btn.textContent = pg;
-                    btn.onclick = function(){ _transitPage = pg; _transitRender(); };
-                    btn.style.cssText = 'border:1.5px solid ' + (pg === _transitPage ? '#2563eb' : '#e5e9f2') + ';background:' + (pg === _transitPage ? '#2563eb' : '#fff') + ';color:' + (pg === _transitPage ? '#fff' : '#374151') + ';border-radius:7px;width:32px;height:32px;font-size:12px;cursor:pointer;font-weight:' + (pg === _transitPage ? '600' : '400') + ';';
-                    pnDiv.appendChild(btn);
-                })(p);
-            }
-        }
-    }
-
-    function metsToggleFeatureDropdown(e) {
-        e.stopPropagation();
-        var dd = document.getElementById('transit-feature-dropdown');
-        dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
-    }
-    document.addEventListener('click', function(e) {
-        var wrapper = document.getElementById('transit-feature-wrapper');
-        var dd = document.getElementById('transit-feature-dropdown');
-        if (dd && wrapper && !wrapper.contains(e.target)) {
-            dd.style.display = 'none';
-        }
-    });
-    function _getSelectedFeatures() {
-        return Array.from(document.querySelectorAll('.transit-feature-chk:checked')).map(function(c){ return c.value; });
-    }
-    function metsTransitFilter() {
-        var selected  = _getSelectedFeatures();
-        var fromVal   = document.getElementById('transit-filter-date-from').value;
-        var toVal     = document.getElementById('transit-filter-date-to').value;
-        var hasDate   = fromVal || toVal;
-        var hasFilter = selected.length > 0 || hasDate;
-        document.getElementById('transit-filter-reset').style.display = hasFilter ? 'inline' : 'none';
-        // Update button label
-        var btn = document.getElementById('transit-feature-btn');
-        if (btn) {
-            if (selected.length === 0)       btn.textContent = 'All Features';
-            else if (selected.length === 1)  btn.textContent = selected[0];
-            else                             btn.textContent = selected.length + ' selected';
-        }
-        _transitPage = 1;
-        _transitRender();
-    }
-    function metsToggleDateDropdown(e) {
-        e.stopPropagation();
-        var dd = document.getElementById('transit-date-dropdown');
-        dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
-    }
-    document.addEventListener('click', function(e) {
-        var dw = document.getElementById('transit-date-wrapper');
-        var dd = document.getElementById('transit-date-dropdown');
-        if (dd && dw && !dw.contains(e.target)) dd.style.display = 'none';
-    });
-    function _fmtDate(d) {
-        if (!d) return '';
-        var parts = d.split('-');
-        var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        return parts[2] + ' ' + months[parseInt(parts[1],10)-1] + ' ' + parts[0];
-    }
-    function metsApplyDateRange() {
-        var from = document.getElementById('transit-filter-date-from').value;
-        var to   = document.getElementById('transit-filter-date-to').value;
-        var btn  = document.getElementById('transit-date-btn');
-        if (from || to) {
-            var label = (from ? _fmtDate(from) : '...') + ' – ' + (to ? _fmtDate(to) : '...');
-            if (btn) btn.textContent = label;
-        } else {
-            if (btn) btn.textContent = 'Select date range';
-        }
-        document.getElementById('transit-date-dropdown').style.display = 'none';
-        metsTransitFilter();
-    }
-    function metsTransitClearDate() {
-        var f = document.getElementById('transit-filter-date-from');
-        var t = document.getElementById('transit-filter-date-to');
-        if (f) f.value = '';
-        if (t) t.value = '';
-        var btn = document.getElementById('transit-date-btn');
-        if (btn) btn.textContent = 'Select date range';
-        document.getElementById('transit-date-dropdown').style.display = 'none';
-        metsTransitFilter();
-    }
-    function metsTransitReset() {
-        document.querySelectorAll('.transit-feature-chk').forEach(function(c){ c.checked = false; });
-        var btn = document.getElementById('transit-feature-btn');
-        if (btn) btn.textContent = 'All Features';
-        var df = document.getElementById('transit-filter-date-from');
-        var dt = document.getElementById('transit-filter-date-to');
-        if (df) df.value = '';
-        if (dt) dt.value = '';
-        var dbtn = document.getElementById('transit-date-btn');
-        if (dbtn) dbtn.textContent = 'Select date range';
-        document.getElementById('transit-filter-reset').style.display = 'none';
-        _transitPage = 1;
-        _transitRender();
     }
     // ── METS Balance loader ─────────────────────────────────────────────────────
     var _metsAuditAllLogs = [];
@@ -5580,8 +6275,6 @@
             });
     }
 
-    function metsTransitNextPage() { _transitPage++; _transitRender(); }
-    function metsTransitPrevPage() { _transitPage--; _transitRender(); }
 
     function metsSelectPlan(group, plan) {
         document.querySelectorAll('tr[data-group="' + group + '"]').forEach(function(row) {
@@ -5605,7 +6298,7 @@
         el.closest('.mets-tabs-row').querySelectorAll('.mets-tab').forEach(function(t){ t.classList.remove('active'); });
         el.classList.add('active');
         // Update panels
-        ['mets-panel-alloc','mets-panel-addon','mets-panel-stmt','mets-panel-usage','mets-panel-comp','mets-panel-testing-report','mets-panel-transit','mets-panel-audit'].forEach(function(id){
+        ['mets-panel-alloc','mets-panel-addon','mets-panel-stmt','mets-panel-usage','mets-panel-comp','mets-panel-testing-report','mets-panel-audit'].forEach(function(id){
             var p = document.getElementById(id);
             if (p) p.style.display = (id === panelId) ? 'block' : 'none';
         });
@@ -5868,9 +6561,6 @@
             document.getElementById('consumption-step-pending').style.display = 'none';
             metsLoadBalances();
             _loadPendingPingbacksBadge();
-            if (document.getElementById('mets-panel-transit') && document.getElementById('mets-panel-transit').style.display !== 'none') {
-                _transitLoadData();
-            }
             if (isSuccess) {
                 usageLoadReport();
             }
@@ -6152,9 +6842,6 @@
                     if (cnt > 0) { badge.textContent = cnt; } else { badge.style.display = 'none'; }
                 }
                 metsLoadBalances();
-                if (document.getElementById('mets-panel-transit') && document.getElementById('mets-panel-transit').style.display !== 'none') {
-                    _transitLoadData();
-                }
                 if (isConsumed) {
                     usageLoadReport();
                 }
@@ -6892,3 +7579,1601 @@
     }
 
     window.acnOpenDrawer = acnOpenDrawer;
+
+    // ── Day Planner ────────────────────────────────────────────────────────────
+    // A day-wise task planner (localStorage-backed) plus a "Team Tracker" list for
+    // tasks owned by other teams that the user has no dependency on but wants to
+    // keep visibility on. Opened from the calendar icon beside "Ask Mio AI".
+    var DP_STORAGE_KEY = 'dayPlannerData_v1';
+    var dpSelectedDate = dpToDateKey(new Date());
+    var dpWeekAnchor = new Date();
+    // Team Tracker statuses (unrelated to the per-task statuses below).
+    var DP_STATUS_OPTIONS = ['Pending', 'In Progress', 'Blocked', 'Done'];
+    var DP_STATUS_COLORS = { 'Pending': '#f59e0b', 'In Progress': '#2979d4', 'Blocked': '#e24b4a', 'Done': '#16a34a' };
+    var DP_STATUS_BG = { 'Pending': '#FFFBEB', 'In Progress': '#EFF6FF', 'Blocked': '#FEF2F2', 'Done': '#F0FDF4' };
+    // My Day task statuses — a task keeps "carrying forward" onto every day you look
+    // at (today included) until its status is set to Closed, at which point it is
+    // only visible on the specific day it was closed. Users can add their own status
+    // beyond the built-ins via the "+ Add new status…" option. "Me" marks a task as
+    // still on the user's own plate (shown in "My Tasks"); every other status means
+    // it has moved to another team/stage (shown under "Team").
+    var DP_TASK_STATUSES = ['Me', 'At Product', 'In Dev', 'In QA', 'At Ops', 'At CS', 'Closed'];
+    var DP_TASK_STATUS_COLORS = { 'Me': '#4f46e5', 'At Product': '#7c3aed', 'In Dev': '#2979d4', 'In QA': '#f59e0b', 'At Ops': '#0d9488', 'At CS': '#db2777', 'Closed': '#16a34a' };
+    var DP_TASK_STATUS_BG = { 'Me': '#EEF2FF', 'At Product': '#F5F3FF', 'In Dev': '#EFF6FF', 'In QA': '#FFFBEB', 'At Ops': '#F0FDFA', 'At CS': '#FDF2F8', 'Closed': '#F0FDF4' };
+    var DP_TASK_STATUS_DEFAULT_COLOR = '#64748b';
+    var DP_TASK_STATUS_DEFAULT_BG = '#F8FAFC';
+    var DP_ICON_CALENDAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    var DP_ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+
+    function dpToDateKey(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    // Day Planner data now lives in Postgres (dp_tasks / dp_tracker_items /
+    // dp_custom_statuses, via /api/day-planner) instead of localStorage. Every
+    // call site in this file still reads/writes through dpLoadData()/dpSaveData()
+    // synchronously, so rather than rewriting all of them to be async, this is a
+    // write-through cache: DP_REMOTE_CACHE is the in-memory source of truth,
+    // dpLoadRemote() populates it once on page load, and dpSaveData() updates it
+    // immediately (so the UI never waits on the network) while persisting to the
+    // backend in the background. localStorage is kept only as an offline cache —
+    // it's the backend that's authoritative, not the browser.
+    var DP_REMOTE_CACHE = null;
+    function dpLoadData() {
+        if (DP_REMOTE_CACHE) return DP_REMOTE_CACHE;
+        return { taskList: [], tracker: [], customTaskStatuses: [] };
+    }
+    function dpSetLocalCache(data) {
+        if (!data.taskList) data.taskList = [];
+        if (!data.tracker) data.tracker = [];
+        if (!data.customTaskStatuses) data.customTaskStatuses = [];
+        DP_REMOTE_CACHE = data;
+        try { localStorage.setItem(DP_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+    function dpSaveData(data) {
+        dpSetLocalCache(data);
+        fetch(API_BASE + '/api/day-planner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).catch(function (e) { /* offline-safe — local cache is already updated */ });
+    }
+    // Fetches the persisted state from the backend once on load. If the backend
+    // is unreachable, starts empty rather than falling back to old local data.
+    // Coalesces concurrent calls into a single in-flight request rather than
+    // firing one GET per caller.
+    var _dpLoadRemotePromise = null;
+    function dpLoadRemote() {
+        if (_dpLoadRemotePromise) return _dpLoadRemotePromise;
+        _dpLoadRemotePromise = fetch(API_BASE + '/api/day-planner')
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                dpSetLocalCache({
+                    taskList: (res && res.taskList) || [],
+                    tracker: (res && res.tracker) || [],
+                    customTaskStatuses: (res && res.customTaskStatuses) || []
+                });
+            })
+            .catch(function (e) {
+                dpSetLocalCache({ taskList: [], tracker: [], customTaskStatuses: [] });
+            })
+            .finally(function () { _dpLoadRemotePromise = null; });
+        return _dpLoadRemotePromise;
+    }
+    function dpEsc(s) {
+        return String(s || '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    // A task with status "Closed" is only visible on the day it was closed; any other
+    // status means the task carries forward onto every day from its start date on.
+    function dpVisibleTasksForDate(data, dateKey) {
+        return (data.taskList || []).filter(function (t) {
+            if (t.status === 'Closed') return t.closedDate === dateKey;
+            return t.startDate <= dateKey;
+        });
+    }
+
+    function dpFormatDate(key) {
+        if (!key) return '';
+        var d = new Date(key + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // Builds the <option> list for a task's status <select>: the 6 built-ins, any
+    // custom statuses the user has added, then a trailing "+ Add new status…" entry.
+    function dpTaskStatusOptions(data, current) {
+        var all = DP_TASK_STATUSES.concat(data.customTaskStatuses || []);
+        var opts = all.map(function (s) { return '<option' + (s === current ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+        opts += '<option value="__add_new__">+ Add new status…</option>';
+        return opts;
+    }
+
+    // Handles a task's status <select> changing — including the special "add a new
+    // status" option, which prompts for a name, persists it for reuse, and applies it.
+    // viewedDateKey is the day the change happened on: the day this task will now be
+    // pinned to if the new status is "Closed".
+    window.dpSetTaskStatus = function (id, value, viewedDateKey) {
+        var data = dpLoadData();
+        if (value === '__add_new__') {
+            var name = window.prompt('Name the new status:');
+            if (!name || !name.trim()) { dpRenderTasks(); dashRenderMyTasks(); return; }
+            name = name.trim();
+            if (!data.customTaskStatuses) data.customTaskStatuses = [];
+            var known = DP_TASK_STATUSES.concat(data.customTaskStatuses);
+            if (known.indexOf(name) === -1) data.customTaskStatuses.push(name);
+            value = name;
+        }
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (t) {
+            t.status = value;
+            t.closedDate = (value === 'Closed') ? (viewedDateKey || dpToDateKey(new Date())) : null;
+        }
+        dpSaveData(data);
+        if (t) {
+            wfRunTriggers('Task Status Changed', { taskId: id });
+            if (value === 'Closed') wfRunTriggers('Task Closed', { taskId: id });
+            else if (value !== 'Me') wfRunTriggers('Task Moved to Team', { taskId: id });
+        }
+        dpRenderTasks();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+    };
+
+    // Updates a task's Start Date or Expected Closure Date (Actual Close Date is not
+    // editable here — it is set automatically by dpSetTaskStatus when a task closes).
+    window.dpSetTaskDate = function (id, field, value) {
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (t) t[field] = value || null;
+        dpSaveData(data);
+        dpRenderTasks();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+    };
+
+    // Recomputes the three summary cards at the top of the page — today's tasks,
+    // this week's completion, and a status breakdown of tracked team tasks.
+    function dpRenderStats() {
+        var data = dpLoadData();
+        var todayKey = dpToDateKey(new Date());
+        var todayTasks = dpVisibleTasksForDate(data, todayKey);
+        var todayDone = todayTasks.filter(function (t) { return t.status === 'Closed'; }).length;
+        var todayFractionEl = document.getElementById('dpStatTodayFraction');
+        var todayPctEl = document.getElementById('dpStatTodayPct');
+        var todayPct = todayTasks.length ? Math.round((todayDone / todayTasks.length) * 100) : 0;
+        if (todayFractionEl) todayFractionEl.textContent = todayDone + ' / ' + todayTasks.length;
+        if (todayPctEl) todayPctEl.textContent = todayPct + '%';
+        var ring = document.getElementById('dpTodayRing');
+        if (ring) {
+            var circumference = 113;
+            ring.style.strokeDashoffset = String(circumference * (1 - todayPct / 100));
+        }
+
+        // A "week" here means Monday through Friday only.
+        var anchor = new Date(dpWeekAnchor);
+        var dow = anchor.getDay();
+        var monday = new Date(anchor);
+        monday.setDate(anchor.getDate() - ((dow + 6) % 7));
+        var mondayKey = dpToDateKey(monday);
+        var friday = new Date(monday);
+        friday.setDate(monday.getDate() + 4);
+        var fridayKey = dpToDateKey(friday);
+        // "This week" counts each task once (not once per carried-forward day): any
+        // task open at some point this week, plus any task actually closed this week.
+        var weekTasks = (data.taskList || []).filter(function (t) {
+            if (t.status === 'Closed') return t.closedDate >= mondayKey && t.closedDate <= fridayKey;
+            return t.startDate <= fridayKey;
+        });
+        var weekTotal = weekTasks.length;
+        var weekDone = weekTasks.filter(function (t) { return t.status === 'Closed'; }).length;
+        var weekFractionEl = document.getElementById('dpStatWeekFraction');
+        if (weekFractionEl) weekFractionEl.textContent = weekDone + ' / ' + weekTotal;
+
+        var trackerTotalEl = document.getElementById('dpStatTrackerTotal');
+        var trackerBreakdownEl = document.getElementById('dpStatTrackerBreakdown');
+        if (trackerTotalEl) trackerTotalEl.textContent = data.tracker.length;
+        if (trackerBreakdownEl) {
+            var counts = {};
+            DP_STATUS_OPTIONS.forEach(function (s) { counts[s] = 0; });
+            data.tracker.forEach(function (t) { if (counts[t.status] !== undefined) counts[t.status]++; });
+            trackerBreakdownEl.innerHTML = DP_STATUS_OPTIONS.map(function (s) {
+                var color = DP_STATUS_COLORS[s] || '#94a3b8';
+                return '<span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';margin-right:4px;"></span>' + s + ': ' + counts[s] + '</span>';
+            }).join('');
+        }
+    }
+
+    var _dpObserver = null;
+    function _syncDpLeft() {
+        var sb = document.getElementById('sidebar');
+        var overlay = document.getElementById('day-planner-overlay');
+        if (sb && overlay) overlay.style.left = sb.getBoundingClientRect().width + 'px';
+    }
+    window.openDayPlanner = function () {
+        var mets = document.getElementById('mets-overlay');
+        if (mets && mets.style.display !== 'none' && window.closeMetsOverlay) closeMetsOverlay();
+        var commLog = document.getElementById('comm-log-overlay');
+        if (commLog && commLog.style.display !== 'none' && window.closeCommLog) closeCommLog();
+        var commDetail = document.getElementById('comm-detail-overlay');
+        if (commDetail && commDetail.style.display !== 'none' && window.closeCommDetail) closeCommDetail();
+        var workflowOverlayDp = document.getElementById('workflow-overlay');
+        if (workflowOverlayDp && workflowOverlayDp.style.display !== 'none' && window.closeWorkflowBuilder) closeWorkflowBuilder();
+        var workflowDesignerDp = document.getElementById('workflow-designer-overlay');
+        if (workflowDesignerDp && workflowDesignerDp.style.display !== 'none') workflowDesignerDp.style.display = 'none';
+        var settingsView = document.getElementById('settings-view');
+        if (settingsView && settingsView.classList.contains('open')) settingsView.classList.remove('open');
+        var overlay = document.getElementById('day-planner-overlay');
+        if (!overlay) return;
+        _syncDpLeft();
+        overlay.style.display = 'block';
+        var sb = document.getElementById('sidebar');
+        if (sb && window.ResizeObserver && !_dpObserver) {
+            _dpObserver = new ResizeObserver(_syncDpLeft);
+            _dpObserver.observe(sb);
+        }
+        wfProcessPendingRuns();
+        dpSelectedDate = dpToDateKey(new Date());
+        dpWeekAnchor = new Date();
+        dpSwitchTab('myday');
+        dpRenderDateStrip();
+        dpRenderTasks();
+        dpRenderTracker();
+    };
+    window.closeDayPlanner = function () {
+        var overlay = document.getElementById('day-planner-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (_dpObserver) { _dpObserver.disconnect(); _dpObserver = null; }
+        var agentPanel = document.getElementById('dpAgentPanel');
+        if (agentPanel) agentPanel.style.display = 'none';
+    };
+
+    window.dpSwitchTab = function (tab) {
+        var myDay = document.getElementById('dpPanelMyDay');
+        var tracker = document.getElementById('dpPanelTracker');
+        var myDayBtn = document.getElementById('dpTabMyDayBtn');
+        var trackerBtn = document.getElementById('dpTabTrackerBtn');
+        if (myDay) myDay.style.display = tab === 'myday' ? '' : 'none';
+        if (tracker) tracker.style.display = tab === 'tracker' ? '' : 'none';
+        if (myDayBtn) myDayBtn.classList.toggle('active', tab === 'myday');
+        if (trackerBtn) trackerBtn.classList.toggle('active', tab === 'tracker');
+        if (tab === 'tracker') dpRenderTracker();
+        // Switching tabs jumps back to the top of the page so the stats cards and
+        // tab row are visible, instead of staying wherever the previous tab was scrolled to.
+        var overlay = document.getElementById('day-planner-overlay');
+        if (overlay) overlay.scrollTop = 0;
+    };
+
+    function dpRenderDateStrip() {
+        var strip = document.getElementById('dpDateStrip');
+        if (!strip) return;
+        var anchor = new Date(dpWeekAnchor);
+        var dow = anchor.getDay();
+        var monday = new Date(anchor);
+        monday.setDate(anchor.getDate() - ((dow + 6) % 7));
+        var days = [];
+        for (var i = 0; i < 5; i++) {
+            var d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            days.push(d);
+        }
+        var todayKey = dpToDateKey(new Date());
+        var data = dpLoadData();
+        strip.innerHTML = days.map(function (d) {
+            var key = dpToDateKey(d);
+            var isSel = key === dpSelectedDate;
+            var isToday = key === todayKey;
+            var hasTasks = dpVisibleTasksForDate(data, key).length > 0;
+            var dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+            return '<div class="dp-day-pill' + (isSel ? ' dp-day-pill-active' : '') + '" onclick="dpSelectDate(\'' + key + '\')">' +
+                '<div class="dp-day-name">' + dayName + '</div>' +
+                '<div class="dp-day-num' + (isToday && !isSel ? ' dp-day-today' : '') + '">' + d.getDate() + '</div>' +
+                (hasTasks ? '<div class="dp-day-dot"></div>' : '') +
+            '</div>';
+        }).join('');
+        var label = document.getElementById('dpWeekLabel');
+        if (label) {
+            label.textContent = days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+                ' – ' + days[4].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+    }
+
+    window.dpSelectDate = function (key) {
+        dpSelectedDate = key;
+        dpRenderDateStrip();
+        dpRenderTasks();
+    };
+    window.dpShiftWeek = function (delta) {
+        dpWeekAnchor.setDate(dpWeekAnchor.getDate() + delta * 7);
+        dpRenderDateStrip();
+    };
+    window.dpGoToday = function () {
+        dpWeekAnchor = new Date();
+        dpSelectedDate = dpToDateKey(new Date());
+        dpRenderDateStrip();
+        dpRenderTasks();
+    };
+
+    // Renders one task's full card (title, status, delete, date chips) — shared by
+    // both the "My Tasks" and "Team" groups in the My Day list.
+    function dpTaskRowHtml(t, data, viewedDateKey) {
+        var isClosed = t.status === 'Closed';
+        var color = DP_TASK_STATUS_COLORS[t.status] || DP_TASK_STATUS_DEFAULT_COLOR;
+        var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
+        return '<div class="dp-task-row' + (isClosed ? ' dp-task-done' : '') + '" style="border-left-color:' + color + ';">' +
+            '<div class="dp-task-top">' +
+                '<div class="dp-task-text">' +
+                    '<div class="dp-task-title">' + dpEsc(t.title) + '</div>' +
+                    (t.description ? '<div class="dp-task-desc">' + dpEsc(t.description) + '</div>' : '') +
+                    (t.time ? '<div class="dp-task-time">' + dpEsc(t.time) + '</div>' : '') +
+                '</div>' +
+                '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value, \'' + viewedDateKey + '\')">' + dpTaskStatusOptions(data, t.status) + '</select>' +
+                '<div class="dp-task-del" onclick="dpDeleteTask(\'' + t.id + '\')">&times;</div>' +
+            '</div>' +
+            '<div class="dp-task-dates">' +
+                '<div class="dp-date-chip dp-date-chip-start"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Start</span><input type="date" class="dp-date-chip-input" value="' + (t.startDate || '') + '" onchange="dpSetTaskDate(\'' + t.id + '\',\'startDate\',this.value)"></div>' +
+                '<div class="dp-date-chip dp-date-chip-expected"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Expected</span><input type="date" class="dp-date-chip-input" value="' + (t.expectedCloseDate || '') + '" onchange="dpSetTaskDate(\'' + t.id + '\',\'expectedCloseDate\',this.value)"></div>' +
+                '<div class="dp-date-chip' + (t.closedDate ? ' dp-date-chip-actual-set' : ' dp-date-chip-actual-empty') + '"><span class="dp-date-chip-icon">' + DP_ICON_CHECK + '</span><span class="dp-date-chip-label">Closed</span><span class="dp-date-chip-value">' + (t.closedDate ? dpFormatDate(t.closedDate) : '—') + '</span></div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    // The My Day list only shows tasks still marked "Me" — once a task's status
+    // moves to another team/stage (or Closed), it belongs in the Team Tracker tab
+    // instead (see dpRenderTracker's dpTrackerTeamTaskList section).
+    function dpRenderTasks() {
+        var data = dpLoadData();
+        var list = document.getElementById('dpTaskList');
+        if (!list) return;
+        var startDefaultInput = document.getElementById('dpNewTaskStart');
+        if (startDefaultInput && document.activeElement !== startDefaultInput) startDefaultInput.value = dpSelectedDate;
+        var tasks = dpVisibleTasksForDate(data, dpSelectedDate).filter(function (t) { return t.status === 'Me'; });
+        var dateObj = new Date(dpSelectedDate + 'T00:00:00');
+        var heading = document.getElementById('dpSelectedDateLabel');
+        if (heading) heading.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        dpRenderStats();
+        if (!tasks.length) {
+            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>No personal tasks planned for this day yet. Add one above — tasks assigned to another team show in the Team Tracker tab.</div></div>';
+            return;
+        }
+        list.innerHTML = tasks.map(function (t) { return dpTaskRowHtml(t, data, dpSelectedDate); }).join('');
+    }
+
+    // Core task-creation logic, shared by the DOM-driven "+ Add Task" form and
+    // the Day Planner Agent's programmatic task creation. Returns the new id.
+    function dpCreateTask(opts) {
+        var data = dpLoadData();
+        var newTaskId = 'tk_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        data.taskList.push({
+            id: newTaskId,
+            title: opts.title, description: opts.description || '', time: opts.time || '',
+            startDate: opts.startDate || dpSelectedDate,
+            expectedCloseDate: opts.expectedCloseDate || null,
+            status: opts.status || 'Me', closedDate: null
+        });
+        dpSaveData(data);
+        wfRunTriggers('Task Added', { taskId: newTaskId });
+        dpRenderTasks();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+        return newTaskId;
+    }
+    window.dpAddTask = function () {
+        var input = document.getElementById('dpNewTaskInput');
+        var timeInput = document.getElementById('dpNewTaskTime');
+        var startInput = document.getElementById('dpNewTaskStart');
+        var expectedInput = document.getElementById('dpNewTaskExpected');
+        var descInput = document.getElementById('dpNewTaskDesc');
+        if (!input) return;
+        var title = input.value.trim();
+        if (!title) return;
+        dpCreateTask({
+            title: title,
+            description: descInput ? descInput.value.trim() : '',
+            time: timeInput ? timeInput.value : '',
+            startDate: (startInput && startInput.value) ? startInput.value : dpSelectedDate,
+            expectedCloseDate: (expectedInput && expectedInput.value) ? expectedInput.value : null
+        });
+        input.value = '';
+        if (descInput) descInput.value = '';
+        if (timeInput) timeInput.value = '';
+        if (expectedInput) expectedInput.value = '';
+        if (startInput) startInput.value = dpSelectedDate;
+        closeAddTaskModal();
+    };
+    window.openAddTaskModal = function () {
+        var modal = document.getElementById('dpAddTaskModal');
+        if (!modal) return;
+        var startInput = document.getElementById('dpNewTaskStart');
+        if (startInput && !startInput.value) startInput.value = dpSelectedDate;
+        modal.style.display = 'flex';
+        setTimeout(function () {
+            var input = document.getElementById('dpNewTaskInput');
+            if (input) input.focus();
+        }, 50);
+    };
+    window.closeAddTaskModal = function () {
+        var modal = document.getElementById('dpAddTaskModal');
+        if (modal) modal.style.display = 'none';
+    };
+    window.dpDeleteTask = function (id) {
+        var data = dpLoadData();
+        data.taskList = (data.taskList || []).filter(function (x) { return x.id !== id; });
+        dpSaveData(data);
+        dpRenderTasks();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+    };
+
+    // ── Team Tracker: tasks owned by other teams, no dependency on the user ────
+    // Two sources feed this tab: (1) My Day tasks whose status is no longer "Me"
+    // (they moved to another team/stage), shown live in dpTrackerTeamTaskList; and
+    // (2) items manually tracked below via dpAddTracker, in data.tracker.
+    function dpRenderTracker() {
+        var data = dpLoadData();
+        dpRenderStats();
+
+        var teamListEl = document.getElementById('dpTrackerTeamTaskList');
+        var teamCountEl = document.getElementById('dpTrackerTeamCount');
+        if (teamListEl) {
+            var todayKey = dpToDateKey(new Date());
+            var teamTasks = dpVisibleTasksForDate(data, todayKey).filter(function (t) { return t.status !== 'Me'; });
+            if (teamCountEl) teamCountEl.textContent = teamTasks.length;
+            teamListEl.innerHTML = teamTasks.length
+                ? teamTasks.map(function (t) { return dpTaskRowHtml(t, data, todayKey); }).join('')
+                : '<div class="dp-empty-inline">No My Day tasks have moved to another team/stage right now.</div>';
+        }
+
+        var list = document.getElementById('dpTrackerList');
+        if (!list) return;
+        if (!data.tracker.length) {
+            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg><div>Nothing being tracked yet. Add a task owned by another team above.</div></div>';
+            return;
+        }
+        list.innerHTML = data.tracker.map(function (t) {
+            var color = DP_STATUS_COLORS[t.status] || '#94a3b8';
+            var bg = DP_STATUS_BG[t.status] || '#F8FAFC';
+            var statusOpts = DP_STATUS_OPTIONS.map(function (s) {
+                return '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>';
+            }).join('');
+            return '<div class="dp-tracker-row">' +
+                '<div class="dp-tracker-main">' +
+                    '<div class="dp-tracker-title">' + dpEsc(t.title) + '</div>' +
+                    '<div class="dp-tracker-meta"><span class="dp-team-chip">' + dpEsc(t.team) + '</span>' + (t.dueDate ? '<span>Due ' + dpEsc(t.dueDate) + '</span>' : '') + '</div>' +
+                    (t.notes ? '<div class="dp-tracker-notes">' + dpEsc(t.notes) + '</div>' : '') +
+                '</div>' +
+                '<select class="dp-tracker-status" style="background:' + bg + ';color:' + color + ';" onchange="dpUpdateTrackerStatus(\'' + t.id + '\', this.value)">' + statusOpts + '</select>' +
+                '<div class="dp-task-del" onclick="dpDeleteTracker(\'' + t.id + '\')">&times;</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    // Core tracker-item-creation logic, shared by the DOM-driven "+ Track Task"
+    // form and the Day Planner Agent. Returns the new id.
+    function dpCreateTrackerItem(opts) {
+        var data = dpLoadData();
+        var newId = 'tr_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        data.tracker.push({
+            id: newId,
+            title: opts.title,
+            team: opts.team || 'Other Team',
+            status: opts.status || 'Pending',
+            dueDate: opts.dueDate || '',
+            notes: opts.notes || ''
+        });
+        dpSaveData(data);
+        dpRenderTracker();
+        return newId;
+    }
+    window.dpAddTracker = function () {
+        var titleInp = document.getElementById('dpTrackerTitleInput');
+        var teamInp = document.getElementById('dpTrackerTeamInput');
+        var dueInp = document.getElementById('dpTrackerDueInput');
+        var notesInp = document.getElementById('dpTrackerNotesInput');
+        if (!titleInp) return;
+        var title = titleInp.value.trim();
+        if (!title) return;
+        dpCreateTrackerItem({
+            title: title,
+            team: teamInp ? teamInp.value.trim() : '',
+            dueDate: dueInp ? dueInp.value : '',
+            notes: notesInp ? notesInp.value.trim() : ''
+        });
+        titleInp.value = '';
+        if (teamInp) teamInp.value = '';
+        if (dueInp) dueInp.value = '';
+        if (notesInp) notesInp.value = '';
+        closeTrackerAddModal();
+    };
+    window.openTrackerAddModal = function () {
+        var modal = document.getElementById('dpTrackerAddModal');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        setTimeout(function () {
+            var input = document.getElementById('dpTrackerTitleInput');
+            if (input) input.focus();
+        }, 50);
+    };
+    window.closeTrackerAddModal = function () {
+        var modal = document.getElementById('dpTrackerAddModal');
+        if (modal) modal.style.display = 'none';
+    };
+    window.dpUpdateTrackerStatus = function (id, status) {
+        var data = dpLoadData();
+        var t = data.tracker.find(function (x) { return x.id === id; });
+        if (t) { t.status = status; dpSaveData(data); dpRenderTracker(); }
+    };
+    window.dpDeleteTracker = function (id) {
+        var data = dpLoadData();
+        data.tracker = data.tracker.filter(function (x) { return x.id !== id; });
+        dpSaveData(data);
+        dpRenderTracker();
+    };
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            var addModal = document.getElementById('dpAddTaskModal');
+            if (addModal && addModal.style.display !== 'none') { closeAddTaskModal(); return; }
+            var trackerModal = document.getElementById('dpTrackerAddModal');
+            if (trackerModal && trackerModal.style.display !== 'none') { closeTrackerAddModal(); return; }
+            var wfDesigner = document.getElementById('workflow-designer-overlay');
+            if (wfDesigner && wfDesigner.style.display !== 'none') { closeWorkflowEditor(); return; }
+            var wfList = document.getElementById('workflow-overlay');
+            if (wfList && wfList.style.display !== 'none') { closeWorkflowBuilder(); return; }
+            var overlay = document.getElementById('day-planner-overlay');
+            if (overlay && overlay.style.display !== 'none') closeDayPlanner();
+        }
+    });
+
+    // ── Dashboard "My Tasks" widget ─────────────────────────────────────────────
+    // Shares the same localStorage-backed store as the Day Planner (today's date
+    // bucket), so adding/checking off a task here or in the Day Planner stays in
+    // sync. Only tasks still marked "Me" show here — once a task's status moves to
+    // another team/stage (or Closed), it drops off this widget and shows under the
+    // "Team" group in the Day Planner's My Day list instead.
+    function dashRenderMyTasks() {
+        var list = document.getElementById('dashMyTasksList');
+        if (!list) return;
+        var data = dpLoadData();
+        var todayKey = dpToDateKey(new Date());
+        var tasks = dpVisibleTasksForDate(data, todayKey).filter(function (t) { return t.status === 'Me'; });
+        var counterEl = document.getElementById('dashMyTasksCounter');
+        if (counterEl) counterEl.textContent = tasks.length ? String(tasks.length) : '';
+        if (!tasks.length) {
+            list.innerHTML = '<div class="task-item"><div class="task-text" style="color:#b8bec7;">No personal tasks for today. Add one below.</div></div>';
+            return;
+        }
+        list.innerHTML = tasks.map(function (t) {
+            var isClosed = t.status === 'Closed';
+            var color = DP_TASK_STATUS_COLORS[t.status] || DP_TASK_STATUS_DEFAULT_COLOR;
+            var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
+            return '<div class="dtask-row">' +
+                '<div class="task-text' + (isClosed ? ' dtask-done-text' : '') + '" style="flex:1;">' + dpEsc(t.title) + '</div>' +
+                '<select class="dp-task-status dp-task-status-sm" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value, \'' + todayKey + '\')">' + dpTaskStatusOptions(data, t.status) + '</select>' +
+                '<div class="dtask-del" onclick="dashDeleteQuickTask(\'' + t.id + '\')">&times;</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    window.dashAddQuickTask = function () {
+        var input = document.getElementById('dashQuickTaskInput');
+        if (!input) return;
+        var title = input.value.trim();
+        if (!title) return;
+        var data = dpLoadData();
+        var todayKey = dpToDateKey(new Date());
+        var newTaskId = 'tk_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        data.taskList.push({
+            id: newTaskId,
+            title: title, description: '', time: '', startDate: todayKey, expectedCloseDate: null, status: 'Me', closedDate: null
+        });
+        dpSaveData(data);
+        wfRunTriggers('Task Added', { taskId: newTaskId });
+        input.value = '';
+        dashRenderMyTasks();
+        dpRenderDateStrip();
+        if (dpSelectedDate === todayKey) dpRenderTasks();
+    };
+    window.dashDeleteQuickTask = function (id) {
+        var data = dpLoadData();
+        data.taskList = (data.taskList || []).filter(function (x) { return x.id !== id; });
+        dpSaveData(data);
+        dashRenderMyTasks();
+        dpRenderDateStrip();
+        var todayKey = dpToDateKey(new Date());
+        if (dpSelectedDate === todayKey) dpRenderTasks();
+    };
+
+    // Hydrate both caches from the backend on load (no more local demo seeding —
+    // My Day/Team Tracker/Workflow Builder now start from whatever is actually
+    // persisted in Postgres, or empty if there's nothing there yet / the backend
+    // is unreachable). Both must finish before wfProcessPendingRuns() runs: a due
+    // "Wait" step can mutate Day Planner tasks, and since dpSaveData() persists
+    // the *whole* task list, running it against an unhydrated (empty) DP cache
+    // would overwrite real data with just the resumed step's change.
+    document.addEventListener('DOMContentLoaded', function () {
+        Promise.all([dpLoadRemote(), wfLoadRemote()]).then(function () {
+            wfProcessPendingRuns();
+            dashRenderMyTasks();
+        });
+    });
+
+    /* ═══════════════════════════════════════
+       WORKFLOW BUILDER
+       Lets the user configure "when X happens in the Day Planner, do Y then Z"
+       automations — a trigger tied to My Day task events plus an ordered list
+       of steps that act on those same tasks. Its own page, reached via the
+       "Workflows" CTA on the Day Planner page. Persisted to Postgres via
+       /api/workflows, and — unlike a purely cosmetic
+       mock — active workflows actually run: wfRunTriggers() is called from
+       dpAddTask/dashAddQuickTask (trigger "Task Added") and dpSetTaskStatus
+       (triggers "Task Status Changed", "Task Closed", "Task Moved to Team"),
+       and each step directly edits the Day Planner's task data.
+    ═══════════════════════════════════════ */
+    var WF_STORAGE_KEY = 'workflowBuilderData_v1';
+    var WF_TRIGGERS = ['Task Added', 'Task Status Changed', 'Task Closed', 'Task Moved to Team'];
+    var WF_STEP_TYPES = ['Add Follow-up Task', 'Set Status To', 'Set Expected Closure (+days)', 'Wait (days)', 'Show Notification'];
+    var WF_STEP_PLACEHOLDERS = {
+        'Add Follow-up Task': 'Heading for the new task…',
+        'Set Status To': 'e.g. In Dev, At CS, Closed…',
+        'Set Expected Closure (+days)': 'Days from now, e.g. 2',
+        'Wait (days)': 'Days to wait, e.g. 2',
+        'Show Notification': 'Message to log…'
+    };
+    var wfEditingId = null;   // id of the workflow being edited, null while creating a new one
+    var wfDraftSteps = [];    // steps currently in the editor modal, not yet saved
+
+    // Same write-through cache pattern as Day Planner's dpLoadData/dpSaveData —
+    // see the comment above those. Workflow data lives in Postgres (wf_workflows /
+    // wf_steps / wf_log / wf_pending_runs, via /api/workflows).
+    var WF_REMOTE_CACHE = null;
+    function wfLoadData() {
+        if (WF_REMOTE_CACHE) return WF_REMOTE_CACHE;
+        return { workflows: [], log: [], pending: [] };
+    }
+    function wfSetLocalCache(data) {
+        if (!data.workflows) data.workflows = [];
+        if (!data.log) data.log = [];
+        if (!data.pending) data.pending = [];
+        WF_REMOTE_CACHE = data;
+        try { localStorage.setItem(WF_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+    function wfSaveData(data) {
+        wfSetLocalCache(data);
+        fetch(API_BASE + '/api/workflows', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).catch(function (e) { /* offline-safe — local cache is already updated */ });
+    }
+    // Same in-flight coalescing as dpLoadRemote above.
+    var _wfLoadRemotePromise = null;
+    function wfLoadRemote() {
+        if (_wfLoadRemotePromise) return _wfLoadRemotePromise;
+        _wfLoadRemotePromise = fetch(API_BASE + '/api/workflows')
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                wfSetLocalCache({
+                    workflows: (res && res.workflows) || [],
+                    log: (res && res.log) || [],
+                    pending: (res && res.pending) || []
+                });
+            })
+            .catch(function (e) {
+                wfSetLocalCache({ workflows: [], log: [], pending: [] });
+            })
+            .finally(function () { _wfLoadRemotePromise = null; });
+        return _wfLoadRemotePromise;
+    }
+
+    // Runs w.steps starting at startIndex, mutating dpData/wfData in place. Stops
+    // at the first "Wait (days)" step and schedules a pending resume instead of
+    // blocking — there's no real background scheduler, so the wait is honored by
+    // wfProcessPendingRuns() checking again on a later page load, once the target
+    // date has arrived. Steps mutate Day Planner data directly (not through
+    // dpSetTaskStatus/dpAddTask) so a step can never re-fire another trigger —
+    // that keeps every pass safe, with no risk of automation loops.
+    function wfExecuteSteps(w, startIndex, ctx, dpData, wfData) {
+        var todayKey = dpToDateKey(new Date());
+        var steps = w.steps || [];
+        var result = { dpChanged: false, wfDataChanged: false };
+        for (var i = startIndex; i < steps.length; i++) {
+            var step = steps[i];
+            if (step.type === 'Wait (days)') {
+                var waitDays = parseInt(step.detail, 10);
+                if (!isNaN(waitDays) && waitDays > 0) {
+                    var resumeDate = new Date();
+                    resumeDate.setDate(resumeDate.getDate() + waitDays);
+                    wfData.pending.push({
+                        id: 'pend_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                        workflowId: w.id,
+                        workflowName: w.name,
+                        taskId: ctx.taskId || null,
+                        resumeAt: dpToDateKey(resumeDate),
+                        nextStepIndex: i + 1
+                    });
+                    result.wfDataChanged = true;
+                    return result;
+                }
+                continue; // zero/invalid wait — treat as a no-op and keep going
+            } else if (step.type === 'Add Follow-up Task') {
+                dpData.taskList.push({
+                    id: 'tk_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                    title: step.detail || 'Follow-up task',
+                    description: 'Auto-created by workflow "' + w.name + '"',
+                    time: '', startDate: todayKey, expectedCloseDate: null, status: 'Me', closedDate: null
+                });
+                result.dpChanged = true;
+            } else if (step.type === 'Set Status To' && ctx.taskId && step.detail) {
+                var t1 = dpData.taskList.find(function (x) { return x.id === ctx.taskId; });
+                if (t1) {
+                    t1.status = step.detail;
+                    t1.closedDate = (step.detail === 'Closed') ? todayKey : null;
+                    result.dpChanged = true;
+                }
+            } else if (step.type === 'Set Expected Closure (+days)' && ctx.taskId) {
+                var t2 = dpData.taskList.find(function (x) { return x.id === ctx.taskId; });
+                var eDays = parseInt(step.detail, 10);
+                if (t2 && !isNaN(eDays)) {
+                    var ed = new Date();
+                    ed.setDate(ed.getDate() + eDays);
+                    t2.expectedCloseDate = dpToDateKey(ed);
+                    result.dpChanged = true;
+                }
+            } else if (step.type === 'Show Notification') {
+                wfData.log.unshift({ ts: Date.now(), message: step.detail || ('Workflow "' + w.name + '" ran') });
+                wfData.log = wfData.log.slice(0, 20);
+                result.wfDataChanged = true;
+            }
+        }
+        return result;
+    }
+
+    // Runs every active workflow whose trigger matches triggerName against the
+    // task in ctx.taskId (called from dpAddTask/dpSetTaskStatus).
+    function wfRunTriggers(triggerName, ctx) {
+        var wfData = wfLoadData();
+        var matched = wfData.workflows.filter(function (w) { return w.active && w.trigger === triggerName; });
+        if (!matched.length) return;
+        var dpData = dpLoadData();
+        var dpChanged = false, wfDataChanged = false;
+        matched.forEach(function (w) {
+            var result = wfExecuteSteps(w, 0, ctx, dpData, wfData);
+            if (result.dpChanged) dpChanged = true;
+            if (result.wfDataChanged) wfDataChanged = true;
+        });
+        if (dpChanged) dpSaveData(dpData);
+        if (wfDataChanged) wfSaveData(wfData);
+    }
+
+    // Resumes any pending "Wait" runs whose resumeAt date has arrived. Called on
+    // every page load (and whenever the Workflow Builder or Day Planner opens)
+    // since nothing here runs in the background between visits.
+    function wfProcessPendingRuns() {
+        var wfData = wfLoadData();
+        if (!wfData.pending.length) return;
+        var todayKey = dpToDateKey(new Date());
+        var due = wfData.pending.filter(function (p) { return p.resumeAt <= todayKey; });
+        if (!due.length) return;
+        var dpData = dpLoadData();
+        var dpChanged = false;
+        due.forEach(function (p) {
+            var w = wfData.workflows.find(function (x) { return x.id === p.workflowId; });
+            if (!w || !w.active) return;
+            var result = wfExecuteSteps(w, p.nextStepIndex, { taskId: p.taskId }, dpData, wfData);
+            if (result.dpChanged) dpChanged = true;
+        });
+        // Drop the entries just processed; any fresh entry wfExecuteSteps pushed
+        // above (a resumed run hitting another Wait) always has a future resumeAt,
+        // so it survives this filter untouched.
+        wfData.pending = wfData.pending.filter(function (p) { return p.resumeAt > todayKey; });
+        if (dpChanged) dpSaveData(dpData);
+        wfSaveData(wfData);
+    }
+
+    // The Workflow Builder is its own full page (like Day Planner/METS), opened
+    // via the "Workflows" CTA on the Day Planner page rather than a tab inside it.
+    var _wfObserver = null;
+    function _syncWfLeft() {
+        var sb = document.getElementById('sidebar');
+        var overlay = document.getElementById('workflow-overlay');
+        if (sb && overlay) overlay.style.left = sb.getBoundingClientRect().width + 'px';
+    }
+    window.openWorkflowBuilder = function () {
+        var mets = document.getElementById('mets-overlay');
+        if (mets && mets.style.display !== 'none' && window.closeMetsOverlay) closeMetsOverlay();
+        var dayPlanner = document.getElementById('day-planner-overlay');
+        if (dayPlanner && dayPlanner.style.display !== 'none' && window.closeDayPlanner) closeDayPlanner();
+        var commLog = document.getElementById('comm-log-overlay');
+        if (commLog && commLog.style.display !== 'none' && window.closeCommLog) closeCommLog();
+        var commDetail = document.getElementById('comm-detail-overlay');
+        if (commDetail && commDetail.style.display !== 'none' && window.closeCommDetail) closeCommDetail();
+        var settingsView = document.getElementById('settings-view');
+        if (settingsView && settingsView.classList.contains('open')) settingsView.classList.remove('open');
+        var designer = document.getElementById('workflow-designer-overlay');
+        if (designer) designer.style.display = 'none';
+        var overlay = document.getElementById('workflow-overlay');
+        if (!overlay) return;
+        _syncWfLeft();
+        overlay.style.display = 'block';
+        var sb = document.getElementById('sidebar');
+        if (sb && window.ResizeObserver && !_wfObserver) {
+            _wfObserver = new ResizeObserver(_syncWfLeft);
+            _wfObserver.observe(sb);
+        }
+        wfProcessPendingRuns();
+        wfRenderList();
+    };
+    window.closeWorkflowBuilder = function () {
+        var overlay = document.getElementById('workflow-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (_wfObserver) { _wfObserver.disconnect(); _wfObserver = null; }
+    };
+
+    function wfRenderStats(data) {
+        var totalEl = document.getElementById('wfStatTotal');
+        var activeEl = document.getElementById('wfStatActive');
+        var stepsEl = document.getElementById('wfStatSteps');
+        if (totalEl) totalEl.textContent = data.workflows.length;
+        if (activeEl) activeEl.textContent = data.workflows.filter(function (w) { return w.active; }).length;
+        if (stepsEl) stepsEl.textContent = data.workflows.reduce(function (sum, w) { return sum + w.steps.length; }, 0);
+    }
+
+    function wfRenderLog(data) {
+        var container = document.getElementById('wfLogList');
+        if (!container) return;
+        if (!data.log || !data.log.length) {
+            container.innerHTML = '<div class="dp-empty-inline">No automation activity yet.</div>';
+            return;
+        }
+        container.innerHTML = data.log.map(function (entry) {
+            var d = new Date(entry.ts);
+            var timeStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            return '<div class="wf-step-row" style="background:#fff;">' +
+                '<div class="wf-step-body" style="align-items:center;">' +
+                    '<div style="font-size:12.5px;color:#334155;">' + dpEsc(entry.message) + '</div>' +
+                '</div>' +
+                '<div style="font-size:11px;color:#94a3b8;flex-shrink:0;white-space:nowrap;">' + timeStr + '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function wfRenderPending(data) {
+        var container = document.getElementById('wfPendingList');
+        if (!container) return;
+        if (!data.pending.length) {
+            container.innerHTML = '<div class="dp-empty-inline">Nothing waiting right now.</div>';
+            return;
+        }
+        var sorted = data.pending.slice().sort(function (a, b) { return a.resumeAt < b.resumeAt ? -1 : 1; });
+        container.innerHTML = sorted.map(function (p) {
+            var w = data.workflows.find(function (x) { return x.id === p.workflowId; });
+            var name = w ? w.name : (p.workflowName || 'Workflow');
+            return '<div class="wf-step-row" style="background:#fff;">' +
+                '<div class="wf-step-num wfd-node-num-wait">&#9203;</div>' +
+                '<div class="wf-step-body" style="align-items:center;">' +
+                    '<div style="font-weight:600;color:#334155;font-size:12.5px;">' + dpEsc(name) + '</div>' +
+                    '<div style="color:#94a3b8;font-size:12.5px;">Resumes ' + dpFormatDate(p.resumeAt) + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    function wfRenderList() {
+        var data = wfLoadData();
+        wfRenderStats(data);
+        wfRenderPending(data);
+        wfRenderLog(data);
+        var list = document.getElementById('wfWorkflowList');
+        if (!list) return;
+        if (!data.workflows.length) {
+            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V12a2 2 0 0 0 2 2h3"/><path d="M19 8.5V12a2 2 0 0 0-2 2h-3"/></svg><div>No workflows yet. Click "+ New Workflow" to automate your first trigger.</div></div>';
+            return;
+        }
+        list.innerHTML = data.workflows.map(function (w) {
+            var stepsHtml = w.steps.map(function (s, i) {
+                var isWait = s.type === 'Wait (days)';
+                return '<div class="wf-step-row" style="background:#fff;">' +
+                    '<div class="wf-step-num' + (isWait ? ' wfd-node-num-wait' : '') + '">' + (i + 1) + '</div>' +
+                    '<div class="wf-step-body" style="align-items:center;">' +
+                        '<div style="font-weight:600;color:#334155;font-size:12.5px;">' + dpEsc(s.type) + '</div>' +
+                        (s.detail ? '<div style="color:#64748b;font-size:12.5px;">' + dpEsc(s.detail) + (isWait ? ' day(s)' : '') + '</div>' : '') +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            return '<div class="wf-workflow-card">' +
+                '<div class="wf-workflow-top">' +
+                    '<div>' +
+                        '<div class="wf-workflow-name">' + dpEsc(w.name) + '</div>' +
+                        '<div class="wf-workflow-meta">' +
+                            '<span class="wf-trigger-badge">' + dpEsc(w.trigger) + '</span>' +
+                            '<span class="wf-step-count-badge">' + w.steps.length + ' step' + (w.steps.length === 1 ? '' : 's') + '</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="wf-workflow-actions">' +
+                        '<button class="wf-status-toggle ' + (w.active ? 'active' : 'paused') + '" onclick="wfToggleActive(\'' + w.id + '\')">' + (w.active ? 'Active' : 'Paused') + '</button>' +
+                        '<button class="dp-back-btn" style="padding:6px 12px;font-size:12px;" onclick="openWorkflowEditor(\'' + w.id + '\')">Edit</button>' +
+                        '<div class="dp-task-del" onclick="wfDeleteWorkflow(\'' + w.id + '\')">&times;</div>' +
+                    '</div>' +
+                '</div>' +
+                (w.steps.length ? '<div class="wf-step-list">' + stepsHtml + '</div>' : '') +
+            '</div>';
+        }).join('');
+    }
+
+    window.wfToggleActive = function (id) {
+        var data = wfLoadData();
+        var w = data.workflows.find(function (x) { return x.id === id; });
+        if (w) { w.active = !w.active; wfSaveData(data); wfRenderList(); }
+    };
+    window.wfDeleteWorkflow = function (id) {
+        var data = wfLoadData();
+        data.workflows = data.workflows.filter(function (x) { return x.id !== id; });
+        wfSaveData(data);
+        wfRenderList();
+    };
+
+    var _wfdObserver = null;
+    function _syncWfdLeft() {
+        var sb = document.getElementById('sidebar');
+        var overlay = document.getElementById('workflow-designer-overlay');
+        if (sb && overlay) overlay.style.left = sb.getBoundingClientRect().width + 'px';
+    }
+    window.openWorkflowEditor = function (id) {
+        var overlay = document.getElementById('workflow-designer-overlay');
+        if (!overlay) return;
+        var listOverlay = document.getElementById('workflow-overlay');
+        if (listOverlay) listOverlay.style.display = 'none';
+        var titleEl = document.getElementById('wfEditorTitle');
+        var nameInput = document.getElementById('wfNameInput');
+        var triggerInput = document.getElementById('wfTriggerInput');
+        if (id) {
+            var data = wfLoadData();
+            var w = data.workflows.find(function (x) { return x.id === id; });
+            if (!w) return;
+            wfEditingId = id;
+            if (titleEl) titleEl.textContent = 'Edit Workflow';
+            if (nameInput) nameInput.value = w.name;
+            if (triggerInput) triggerInput.value = w.trigger;
+            wfDraftSteps = w.steps.map(function (s) { return { id: s.id, type: s.type, detail: s.detail }; });
+        } else {
+            wfEditingId = null;
+            if (titleEl) titleEl.textContent = 'New Workflow';
+            if (nameInput) nameInput.value = '';
+            if (triggerInput) triggerInput.value = WF_TRIGGERS[0];
+            wfDraftSteps = [];
+        }
+        wfdSyncTriggerLabel();
+        wfRenderStepsEditor();
+        _syncWfdLeft();
+        overlay.style.display = 'block';
+        var sb = document.getElementById('sidebar');
+        if (sb && window.ResizeObserver && !_wfdObserver) {
+            _wfdObserver = new ResizeObserver(_syncWfdLeft);
+            _wfdObserver.observe(sb);
+        }
+        setTimeout(function () { if (nameInput) nameInput.focus(); }, 50);
+    };
+    window.closeWorkflowEditor = function () {
+        var overlay = document.getElementById('workflow-designer-overlay');
+        if (overlay) overlay.style.display = 'none';
+        if (_wfdObserver) { _wfdObserver.disconnect(); _wfdObserver = null; }
+        if (window.openWorkflowBuilder) openWorkflowBuilder();
+    };
+    window.wfdSyncTriggerLabel = function () {
+        var sel = document.getElementById('wfTriggerInput');
+        var label = document.getElementById('wfdTriggerLabel');
+        if (sel && label) label.textContent = sel.value;
+    };
+
+    // Renders the drag-and-drop step nodes inside the designer canvas.
+    function wfRenderStepsEditor() {
+        var container = document.getElementById('wfStepsEditor');
+        var emptyHint = document.getElementById('wfdEmptyDropHint');
+        if (!container) return;
+        if (emptyHint) emptyHint.style.display = wfDraftSteps.length ? 'none' : 'block';
+        container.innerHTML = wfDraftSteps.map(function (s, i) {
+            var typeOpts = WF_STEP_TYPES.map(function (t) {
+                return '<option' + (t === s.type ? ' selected' : '') + '>' + t + '</option>';
+            }).join('');
+            var placeholder = WF_STEP_PLACEHOLDERS[s.type] || 'Details…';
+            var isWait = s.type === 'Wait (days)';
+            return '<div class="wfd-connector"></div>' +
+                '<div class="wfd-node' + (isWait ? ' wfd-node-wait' : '') + '" draggable="true" data-step-id="' + s.id + '" ondragstart="wfdNodeDragStart(event)" ondragover="wfdNodeDragOver(event)" ondragleave="wfdNodeDragLeave(event)" ondrop="wfdNodeDrop(event)" ondragend="wfdNodeDragEnd(event)">' +
+                    '<div class="wfd-node-drag-handle" title="Drag to reorder">&#8942;&#8942;</div>' +
+                    '<div class="wfd-node-num' + (isWait ? ' wfd-node-num-wait' : '') + '">' + (isWait ? '&#9203;' : (i + 1)) + '</div>' +
+                    '<div class="wfd-node-body">' +
+                        '<select class="dp-input wf-step-type-select" style="width:100%;margin-bottom:6px;" onchange="wfUpdateStep(\'' + s.id + '\',\'type\',this.value)">' + typeOpts + '</select>' +
+                        '<input type="text" class="dp-input" style="width:100%;" placeholder="' + placeholder + '" value="' + dpEsc(s.detail || '') + '" oninput="wfUpdateStep(\'' + s.id + '\',\'detail\',this.value)">' +
+                    '</div>' +
+                    '<div class="dp-task-del" onclick="wfDeleteStep(\'' + s.id + '\')">&times;</div>' +
+                '</div>';
+        }).join('');
+    }
+
+    window.wfUpdateStep = function (id, field, value) {
+        var s = wfDraftSteps.find(function (x) { return x.id === id; });
+        if (s) s[field] = value;
+        if (field === 'type') wfRenderStepsEditor();
+    };
+    window.wfDeleteStep = function (id) {
+        wfDraftSteps = wfDraftSteps.filter(function (x) { return x.id !== id; });
+        wfRenderStepsEditor();
+    };
+
+    // ── Drag-and-drop engine for the workflow designer canvas ──────────────────
+    // Two drag sources: a palette chip (adds a new step) and an existing node
+    // (reorders it). The payload's "source" field tells drop handlers which.
+    function wfdParsePayload(event) {
+        try {
+            var raw = event.dataTransfer.getData('text/plain');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
+    }
+    window.wfdPaletteDragStart = function (event) {
+        var stepType = event.currentTarget.getAttribute('data-step-type');
+        event.dataTransfer.setData('text/plain', JSON.stringify({ source: 'palette', stepType: stepType }));
+        event.dataTransfer.effectAllowed = 'copy';
+    };
+    window.wfdNodeDragStart = function (event) {
+        var stepId = event.currentTarget.getAttribute('data-step-id');
+        event.dataTransfer.setData('text/plain', JSON.stringify({ source: 'node', stepId: stepId }));
+        event.dataTransfer.effectAllowed = 'move';
+        event.currentTarget.classList.add('wfd-dragging');
+    };
+    window.wfdNodeDragEnd = function (event) {
+        event.currentTarget.classList.remove('wfd-dragging');
+    };
+    window.wfdNodeDragOver = function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.add('wfd-drop-target');
+    };
+    window.wfdNodeDragLeave = function (event) {
+        event.currentTarget.classList.remove('wfd-drop-target');
+    };
+    window.wfdNodeDrop = function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.classList.remove('wfd-drop-target');
+        var payload = wfdParsePayload(event);
+        if (!payload) return;
+        var targetId = event.currentTarget.getAttribute('data-step-id');
+        var targetIdx = wfDraftSteps.findIndex(function (x) { return x.id === targetId; });
+        if (targetIdx < 0) return;
+        var rect = event.currentTarget.getBoundingClientRect();
+        var before = (event.clientY - rect.top) < (rect.height / 2);
+        var insertIdx = before ? targetIdx : targetIdx + 1;
+
+        if (payload.source === 'node') {
+            var fromIdx = wfDraftSteps.findIndex(function (x) { return x.id === payload.stepId; });
+            if (fromIdx < 0 || fromIdx === targetIdx) return;
+            var moved = wfDraftSteps.splice(fromIdx, 1)[0];
+            if (fromIdx < insertIdx) insertIdx--;
+            wfDraftSteps.splice(insertIdx, 0, moved);
+        } else if (payload.source === 'palette') {
+            wfDraftSteps.splice(insertIdx, 0, { id: 'st_' + Date.now() + '_' + Math.floor(Math.random() * 1000), type: payload.stepType, detail: '' });
+        }
+        wfRenderStepsEditor();
+    };
+    window.wfdCanvasDragOver = function (event) {
+        event.preventDefault();
+    };
+    window.wfdCanvasDrop = function (event) {
+        // Only reached for drops on the canvas background, not on a node — node
+        // drops call stopPropagation() so they never bubble up to here.
+        event.preventDefault();
+        var payload = wfdParsePayload(event);
+        if (!payload) return;
+        if (payload.source === 'palette') {
+            wfDraftSteps.push({ id: 'st_' + Date.now() + '_' + Math.floor(Math.random() * 1000), type: payload.stepType, detail: '' });
+        } else if (payload.source === 'node') {
+            var fromIdx = wfDraftSteps.findIndex(function (x) { return x.id === payload.stepId; });
+            if (fromIdx >= 0) wfDraftSteps.push(wfDraftSteps.splice(fromIdx, 1)[0]);
+        }
+        wfRenderStepsEditor();
+    };
+
+    // Creates a workflow directly (no editor/draft-step state involved) — used
+    // by the Day Planner Agent. steps defaults to none; add them later in the
+    // Workflow Builder's drag-and-drop designer. Returns the new id.
+    function wfCreateWorkflow(name, trigger, steps) {
+        var data = wfLoadData();
+        var newId = 'wf_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        data.workflows.push({
+            id: newId,
+            name: name,
+            trigger: WF_TRIGGERS.indexOf(trigger) !== -1 ? trigger : WF_TRIGGERS[0],
+            active: true,
+            steps: steps || []
+        });
+        wfSaveData(data);
+        return newId;
+    }
+    window.wfSaveWorkflow = function () {
+        var nameInput = document.getElementById('wfNameInput');
+        var triggerInput = document.getElementById('wfTriggerInput');
+        if (!nameInput) return;
+        var name = nameInput.value.trim();
+        if (!name) return;
+        var data = wfLoadData();
+        var savedSteps = wfDraftSteps.map(function (s) { return { id: s.id, type: s.type, detail: s.detail }; });
+        if (wfEditingId) {
+            var w = data.workflows.find(function (x) { return x.id === wfEditingId; });
+            if (w) {
+                w.name = name;
+                w.trigger = triggerInput.value;
+                w.steps = savedSteps;
+            }
+        } else {
+            data.workflows.push({
+                id: 'wf_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                name: name,
+                trigger: triggerInput.value,
+                active: true,
+                steps: savedSteps
+            });
+        }
+        wfSaveData(data);
+        wfRenderList();
+        closeWorkflowEditor();
+    };
+
+    /* ═══════════════════════════════════════
+       DAY PLANNER AGENT
+       A floating chat widget on the Day Planner page. This is a rule-based
+       command interpreter, not an LLM — it matches a fixed set of phrasings
+       against the same functions the UI itself calls (dpCreateTask,
+       dpSetTaskStatus, dpDeleteTask, dpCreateTrackerItem, wfCreateWorkflow,
+       wfToggleActive, ...), so anything it does is exactly what a click would
+       have done. Unrecognized phrasing gets a "type help" fallback rather than
+       a guess.
+    ═══════════════════════════════════════ */
+    var DP_AGENT_WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    var DP_AGENT_DATE_WORD = '(?:today|tomorrow|in \\d+ days?|\\d{4}-\\d{2}-\\d{2}|sunday|monday|tuesday|wednesday|thursday|friday|saturday)';
+
+    function dpAgentFindTask(query) {
+        var data = dpLoadData();
+        var q = (query || '').trim().toLowerCase();
+        if (!q) return null;
+        var tasks = data.taskList || [];
+        var exact = tasks.find(function (t) { return t.title.toLowerCase() === q; });
+        if (exact) return exact;
+        var partial = tasks.filter(function (t) {
+            return t.title.toLowerCase().indexOf(q) !== -1 || q.indexOf(t.title.toLowerCase()) !== -1;
+        });
+        return partial.length ? partial[0] : null;
+    }
+    function dpAgentFindTrackerItem(query) {
+        var data = dpLoadData();
+        var q = (query || '').trim().toLowerCase();
+        if (!q) return null;
+        var items = data.tracker || [];
+        var exact = items.find(function (t) { return t.title.toLowerCase() === q; });
+        if (exact) return exact;
+        var partial = items.filter(function (t) { return t.title.toLowerCase().indexOf(q) !== -1; });
+        return partial.length ? partial[0] : null;
+    }
+    function dpAgentFindWorkflow(query) {
+        var data = wfLoadData();
+        var q = (query || '').trim().toLowerCase();
+        if (!q) return null;
+        var items = data.workflows || [];
+        var exact = items.find(function (w) { return w.name.toLowerCase() === q; });
+        if (exact) return exact;
+        var partial = items.filter(function (w) { return w.name.toLowerCase().indexOf(q) !== -1; });
+        return partial.length ? partial[0] : null;
+    }
+
+    // Resolves "today" / "tomorrow" / a weekday name / "in N days" / a literal
+    // YYYY-MM-DD to a dateKey. Returns null for anything unrecognized.
+    function dpAgentParseDate(phrase) {
+        if (!phrase) return null;
+        var p = phrase.trim().toLowerCase();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(p)) return p;
+        var today = new Date();
+        if (p === 'today') return dpToDateKey(today);
+        if (p === 'tomorrow') { var d = new Date(today); d.setDate(d.getDate() + 1); return dpToDateKey(d); }
+        var inDays = p.match(/^in\s+(\d+)\s+days?$/);
+        if (inDays) { var d2 = new Date(today); d2.setDate(d2.getDate() + parseInt(inDays[1], 10)); return dpToDateKey(d2); }
+        var wIdx = DP_AGENT_WEEKDAYS.indexOf(p);
+        if (wIdx !== -1) {
+            var d3 = new Date(today);
+            var delta = (wIdx - d3.getDay() + 7) % 7;
+            if (delta === 0) delta = 7; // a weekday name always means the NEXT one, even if today matches
+            d3.setDate(d3.getDate() + delta);
+            return dpToDateKey(d3);
+        }
+        return null;
+    }
+
+    // Matches a status name against the built-ins/existing customs case-
+    // insensitively; if it's genuinely new, registers it exactly like the
+    // "+ Add new status…" dropdown option does, so it's usable everywhere after.
+    function dpAgentResolveStatus(raw) {
+        var data = dpLoadData();
+        var known = DP_TASK_STATUSES.concat(data.customTaskStatuses || []);
+        var match = known.find(function (s) { return s.toLowerCase() === raw.toLowerCase(); });
+        if (match) return match;
+        if (!data.customTaskStatuses) data.customTaskStatuses = [];
+        data.customTaskStatuses.push(raw);
+        dpSaveData(data);
+        return raw;
+    }
+
+    function dpAgentHelpText() {
+        return 'Here’s what I can do:\n' +
+            '• Add a task to call the vendor tomorrow\n' +
+            '• Close the client follow-up task\n' +
+            '• Set the client follow-up task to In Dev\n' +
+            '• Delete the task old draft\n' +
+            '• Set expected closure of client follow-up to 3 days\n' +
+            '• Track design review for Engineering due friday\n' +
+            '• Create a workflow named Auto Follow-up when Task Closed\n' +
+            '• Activate / Pause / Delete the workflow Auto Follow-up\n' +
+            '• Go to today / next week / last week / friday\n' +
+            '• What are my tasks today? / How many tasks are open? / List workflows';
+    }
+
+    var DP_AGENT_RULES = [
+        // ── Add task ──────────────────────────────────────────────────────
+        {
+            re: new RegExp('^(?:add|create|new)\\s+(?:a\\s+)?task(?:\\s+(?:to|called|named|titled))?\\s+["“]?(.+?)["”]?(?:\\s+(?:for\\s+|on\\s+)?(' + DP_AGENT_DATE_WORD + '))?$', 'i'),
+            run: function (m) {
+                var title = m[1].trim();
+                var dateKey = dpAgentParseDate(m[2]) || dpSelectedDate;
+                dpCreateTask({ title: title, startDate: dateKey });
+                return 'Added "' + title + '" to My Day for ' + dpFormatDate(dateKey) + '.';
+            }
+        },
+        {
+            re: new RegExp('^remind me to\\s+(.+?)(?:\\s+(?:for\\s+|on\\s+)?(' + DP_AGENT_DATE_WORD + '))?$', 'i'),
+            run: function (m) {
+                var title = m[1].trim();
+                var dateKey = dpAgentParseDate(m[2]) || dpSelectedDate;
+                dpCreateTask({ title: title, startDate: dateKey });
+                return 'Added "' + title + '" to My Day for ' + dpFormatDate(dateKey) + '.';
+            }
+        },
+        // ── Close task ────────────────────────────────────────────────────
+        {
+            re: /^(?:close|complete|finish)\s+(?:the\s+)?(?:task\s+)?["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var t = dpAgentFindTask(m[1]);
+                if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
+                dpSetTaskStatus(t.id, 'Closed', dpToDateKey(new Date()));
+                return 'Closed "' + t.title + '".';
+            }
+        },
+        // ── Expected closure (checked before the generic "set X to Y" status
+        // rule below, since "set expected closure of X to N days" would
+        // otherwise match that broader pattern first) ──────────────────────
+        {
+            re: /^set\s+(?:the\s+)?expected\s+closure\s+(?:of|for)\s+["“]?(.+?)["”]?\s+(?:to|in)\s+(\d+)\s+days?$/i,
+            run: function (m) {
+                var t = dpAgentFindTask(m[1]);
+                if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
+                var d = new Date();
+                d.setDate(d.getDate() + parseInt(m[2], 10));
+                dpSetTaskDate(t.id, 'expectedCloseDate', dpToDateKey(d));
+                return 'Set expected closure for "' + t.title + '" to ' + dpFormatDate(dpToDateKey(d)) + '.';
+            }
+        },
+        // ── Set status ────────────────────────────────────────────────────
+        {
+            re: /^(?:set|change|move|mark)\s+(?:the\s+)?(?:task\s+)?["“]?(.+?)["”]?\s+(?:status\s+)?to\s+["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var t = dpAgentFindTask(m[1]);
+                if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
+                var status = dpAgentResolveStatus(m[2].trim());
+                dpSetTaskStatus(t.id, status, dpToDateKey(new Date()));
+                return 'Set "' + t.title + '" to "' + status + '".';
+            }
+        },
+        // ── Delete task ───────────────────────────────────────────────────
+        {
+            re: /^(?:delete|remove)\s+(?:the\s+)?task\s+["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var t = dpAgentFindTask(m[1]);
+                if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
+                dpDeleteTask(t.id);
+                return 'Deleted "' + t.title + '".';
+            }
+        },
+        // ── Navigation ────────────────────────────────────────────────────
+        { re: /^(?:go to|show|jump to)\s+today$/i, run: function () { dpGoToday(); return 'Jumped to today.'; } },
+        { re: /^(?:go to|show)\s+next week$/i, run: function () { dpShiftWeek(1); return 'Showing next week.'; } },
+        { re: /^(?:go to|show)\s+(?:last|previous)\s+week$/i, run: function () { dpShiftWeek(-1); return 'Showing last week.'; } },
+        {
+            re: /^(?:show|go to)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/i,
+            run: function (m) {
+                var key = dpAgentParseDate(m[1]);
+                dpSelectDate(key);
+                return 'Showing ' + dpFormatDate(key) + '.';
+            }
+        },
+        // ── Team Tracker ──────────────────────────────────────────────────
+        {
+            re: new RegExp('^track\\s+(?:a\\s+)?(?:task\\s+)?["“]?(.+?)["”]?\\s+for\\s+(?:team\\s+)?([^,]+?)(?:\\s+due\\s+(' + DP_AGENT_DATE_WORD + '))?$', 'i'),
+            run: function (m) {
+                var due = dpAgentParseDate(m[3]) || '';
+                var title = m[1].trim(), team = m[2].trim();
+                dpCreateTrackerItem({ title: title, team: team, dueDate: due });
+                return 'Tracking "' + title + '" for ' + team + (due ? ' (due ' + dpFormatDate(due) + ')' : '') + '.';
+            }
+        },
+        // ── Workflows ─────────────────────────────────────────────────────
+        {
+            re: /^create\s+(?:a\s+)?workflow\s+(?:named\s+|called\s+)?["“]?(.+?)["”]?\s+(?:triggered by|when|on)\s+(.+)$/i,
+            run: function (m) {
+                var triggerRaw = m[2].trim().toLowerCase();
+                var trigger = WF_TRIGGERS.find(function (t) { return t.toLowerCase() === triggerRaw; }) || WF_TRIGGERS[0];
+                var name = m[1].trim();
+                wfCreateWorkflow(name, trigger, []);
+                return 'Created workflow "' + name + '" (trigger: ' + trigger + '). Add steps for it in the Workflow Builder.';
+            }
+        },
+        {
+            re: /^(?:activate|enable|turn on|resume)\s+(?:the\s+)?workflow\s+["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var w = dpAgentFindWorkflow(m[1]);
+                if (!w) return 'I couldn’t find a workflow matching "' + m[1] + '".';
+                if (!w.active) wfToggleActive(w.id);
+                return '"' + w.name + '" is now active.';
+            }
+        },
+        {
+            re: /^(?:pause|disable|deactivate|turn off)\s+(?:the\s+)?workflow\s+["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var w = dpAgentFindWorkflow(m[1]);
+                if (!w) return 'I couldn’t find a workflow matching "' + m[1] + '".';
+                if (w.active) wfToggleActive(w.id);
+                return '"' + w.name + '" is now paused.';
+            }
+        },
+        {
+            re: /^delete\s+(?:the\s+)?workflow\s+["“]?(.+?)["”]?$/i,
+            run: function (m) {
+                var w = dpAgentFindWorkflow(m[1]);
+                if (!w) return 'I couldn’t find a workflow matching "' + m[1] + '".';
+                wfDeleteWorkflow(w.id);
+                return 'Deleted workflow "' + w.name + '".';
+            }
+        },
+        {
+            re: /^(?:list|show)\s+workflows$/i,
+            run: function () {
+                var data = wfLoadData();
+                if (!data.workflows.length) return 'No workflows yet.';
+                return data.workflows.map(function (w) {
+                    return '• ' + w.name + ' — ' + (w.active ? 'Active' : 'Paused') + ' (' + w.trigger + ')';
+                }).join('\n');
+            }
+        },
+        // ── Queries ───────────────────────────────────────────────────────
+        {
+            re: /^(?:what are|show|list)\s+my\s+tasks(?:\s+today)?\??$/i,
+            run: function () {
+                var data = dpLoadData();
+                var todayKey = dpToDateKey(new Date());
+                var tasks = dpVisibleTasksForDate(data, todayKey).filter(function (t) { return t.status === 'Me'; });
+                if (!tasks.length) return 'No personal tasks for today.';
+                return tasks.map(function (t) { return '• "' + t.title + '" (' + t.status + ')'; }).join('\n');
+            }
+        },
+        {
+            re: /^(?:how many|count)\s+(?:open\s+)?tasks(?:\s+are\s+open)?\??$/i,
+            run: function () {
+                var data = dpLoadData();
+                var todayKey = dpToDateKey(new Date());
+                var tasks = dpVisibleTasksForDate(data, todayKey);
+                var open = tasks.filter(function (t) { return t.status !== 'Closed'; }).length;
+                return tasks.length + ' task(s) visible today, ' + open + ' still open.';
+            }
+        },
+        { re: /^help\??$/i, run: function () { return dpAgentHelpText(); } }
+    ];
+
+    // Tries each rule in order and runs the first one whose pattern matches the
+    // whole (trailing-punctuation-stripped) input.
+    function dpAgentProcess(text) {
+        var input = (text || '').trim();
+        if (!input) return '';
+        var stripped = input.replace(/[.!]+$/, '');
+        for (var i = 0; i < DP_AGENT_RULES.length; i++) {
+            var m = stripped.match(DP_AGENT_RULES[i].re);
+            if (m) {
+                try { return DP_AGENT_RULES[i].run(m); }
+                catch (e) { return 'Something went wrong running that — try rephrasing.'; }
+            }
+        }
+        return 'I didn’t catch that. Type "help" to see what I can do.';
+    }
+
+    window.toggleDpAgent = function () {
+        var panel = document.getElementById('dpAgentPanel');
+        if (!panel) return;
+        var isOpen = panel.style.display !== 'none';
+        if (isOpen) { panel.style.display = 'none'; return; }
+        panel.style.display = 'flex';
+        var messages = document.getElementById('dpAgentMessages');
+        if (messages && !messages.children.length) {
+            dpAgentAppendMessage('agent', 'Hi! I can add/close/update tasks, track team work, and manage workflows for you. Type "help" for examples.');
+        }
+        setTimeout(function () {
+            var input = document.getElementById('dpAgentInput');
+            if (input) input.focus();
+        }, 50);
+    };
+    function dpAgentAppendMessage(role, text) {
+        var list = document.getElementById('dpAgentMessages');
+        if (!list) return;
+        var row = document.createElement('div');
+        row.className = 'dp-agent-msg dp-agent-msg-' + role;
+        row.textContent = text;
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+        return row;
+    }
+    function dpAgentSetTyping(on) {
+        var existing = document.getElementById('dpAgentTyping');
+        if (existing) existing.remove();
+        if (!on) return;
+        var row = dpAgentAppendMessage('agent', '…');
+        if (row) row.id = 'dpAgentTyping';
+    }
+
+    /* ── LLM mode (DeepSeek, via the backend proxy at /api/agent/chat) ──────
+       Tool *execution* stays client-side — the LLM only decides which tool to
+       call; DP_AGENT_TOOL_HANDLERS below runs the same functions the UI uses.
+       Falls back to the rule-based dpAgentProcess() if no API key is
+       configured server-side, so the agent still works either way. */
+    var dpAgentHistory = [];
+    var dpAgentLLMUnavailable = false; // set once "not_configured" is seen, to stop retrying every turn
+    var DP_AGENT_MAX_TURNS = 5;
+
+    function dpAgentBuildContext() {
+        var dpData = dpLoadData();
+        var wfData = wfLoadData();
+        return {
+            today: dpToDateKey(new Date()),
+            tasks: (dpData.taskList || []).map(function (t) {
+                return { id: t.id, title: t.title, status: t.status, startDate: t.startDate, expectedCloseDate: t.expectedCloseDate, closedDate: t.closedDate };
+            }),
+            tracker: (dpData.tracker || []).map(function (t) {
+                return { id: t.id, title: t.title, team: t.team, status: t.status, dueDate: t.dueDate };
+            }),
+            customStatuses: dpData.customTaskStatuses || [],
+            workflows: (wfData.workflows || []).map(function (w) {
+                return { id: w.id, name: w.name, trigger: w.trigger, active: w.active, stepCount: (w.steps || []).length };
+            })
+        };
+    }
+
+    var DP_AGENT_TOOL_HANDLERS = {
+        add_task: function (args) {
+            var id = dpCreateTask({ title: args.title, description: args.description || '', startDate: args.date || dpSelectedDate, status: args.status || 'Me' });
+            return { ok: true, task_id: id };
+        },
+        set_task_status: function (args) {
+            var data = dpLoadData();
+            var t = data.taskList.find(function (x) { return x.id === args.task_id; });
+            if (!t) return { ok: false, error: 'task not found' };
+            var status = dpAgentResolveStatus(String(args.status || ''));
+            dpSetTaskStatus(t.id, status, dpToDateKey(new Date()));
+            return { ok: true };
+        },
+        delete_task: function (args) {
+            var data = dpLoadData();
+            var t = data.taskList.find(function (x) { return x.id === args.task_id; });
+            if (!t) return { ok: false, error: 'task not found' };
+            dpDeleteTask(t.id);
+            return { ok: true };
+        },
+        set_expected_closure: function (args) {
+            var data = dpLoadData();
+            var t = data.taskList.find(function (x) { return x.id === args.task_id; });
+            if (!t) return { ok: false, error: 'task not found' };
+            dpSetTaskDate(t.id, 'expectedCloseDate', args.date);
+            return { ok: true };
+        },
+        add_tracker_item: function (args) {
+            var id = dpCreateTrackerItem({ title: args.title, team: args.team, dueDate: args.due_date || '', notes: args.notes || '' });
+            return { ok: true, tracker_id: id };
+        },
+        create_workflow: function (args) {
+            var id = wfCreateWorkflow(args.name, args.trigger, []);
+            return { ok: true, workflow_id: id };
+        },
+        toggle_workflow: function (args) {
+            var data = wfLoadData();
+            var w = data.workflows.find(function (x) { return x.id === args.workflow_id; });
+            if (!w) return { ok: false, error: 'workflow not found' };
+            if (w.active !== !!args.active) wfToggleActive(w.id);
+            return { ok: true };
+        },
+        delete_workflow: function (args) {
+            var data = wfLoadData();
+            var w = data.workflows.find(function (x) { return x.id === args.workflow_id; });
+            if (!w) return { ok: false, error: 'workflow not found' };
+            wfDeleteWorkflow(w.id);
+            return { ok: true };
+        },
+        navigate_date: function (args) {
+            var key = (args.date === 'today') ? dpToDateKey(new Date()) : args.date;
+            dpSelectDate(key);
+            return { ok: true };
+        }
+    };
+
+    function dpAgentCallLLM(messages) {
+        return fetch(API_BASE + '/api/agent/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: messages, context: dpAgentBuildContext() })
+        }).then(function (r) { return r.json(); });
+    }
+
+    function dpAgentStepLLM(turn) {
+        if (turn >= DP_AGENT_MAX_TURNS) {
+            dpAgentSetTyping(false);
+            dpAgentAppendMessage('agent', 'I hit my step limit working on that — try breaking it into smaller requests.');
+            return;
+        }
+        return dpAgentCallLLM(dpAgentHistory).then(function (res) {
+            if (!res || !res.ok) {
+                dpAgentSetTyping(false);
+                if (res && res.code === 'not_configured') {
+                    dpAgentLLMUnavailable = true;
+                    dpAgentHistory.pop(); // drop the user turn we just queued for the LLM
+                    dpAgentAppendMessage('agent', 'The AI agent isn’t configured yet (no DeepSeek API key on the backend) — falling back to basic command mode.');
+                    dpAgentAppendMessage('agent', dpAgentProcess(dpAgentLastUserText));
+                    return;
+                }
+                dpAgentAppendMessage('agent', (res && res.error) || 'The AI agent is unavailable right now.');
+                return;
+            }
+            var msg = res.message || {};
+            dpAgentHistory.push({ role: 'assistant', content: msg.content || null, tool_calls: msg.tool_calls });
+            if (msg.tool_calls && msg.tool_calls.length) {
+                msg.tool_calls.forEach(function (call) {
+                    var handler = DP_AGENT_TOOL_HANDLERS[call.function.name];
+                    var args = {};
+                    try { args = JSON.parse(call.function.arguments || '{}'); } catch (e) {}
+                    var result;
+                    try { result = handler ? handler(args) : { ok: false, error: 'unknown tool' }; }
+                    catch (e) { result = { ok: false, error: e.message }; }
+                    dpAgentHistory.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
+                });
+                return dpAgentStepLLM(turn + 1);
+            }
+            dpAgentSetTyping(false);
+            dpAgentAppendMessage('agent', msg.content || '(no response)');
+        }).catch(function (e) {
+            dpAgentSetTyping(false);
+            dpAgentAppendMessage('agent', 'Couldn’t reach the AI agent — check your connection.');
+        });
+    }
+
+    var dpAgentLastUserText = '';
+    window.dpAgentSend = function () {
+        var input = document.getElementById('dpAgentInput');
+        if (!input) return;
+        var text = input.value.trim();
+        if (!text) return;
+        dpAgentAppendMessage('user', text);
+        input.value = '';
+        dpAgentLastUserText = text;
+        if (dpAgentLLMUnavailable) {
+            dpAgentAppendMessage('agent', dpAgentProcess(text));
+            return;
+        }
+        dpAgentHistory.push({ role: 'user', content: text });
+        dpAgentSetTyping(true);
+        dpAgentStepLLM(0);
+    };
+    window.dpAgentQuickCommand = function (text) {
+        var input = document.getElementById('dpAgentInput');
+        if (input) input.value = text;
+        dpAgentSend();
+    };

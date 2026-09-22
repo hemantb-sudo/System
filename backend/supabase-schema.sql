@@ -75,6 +75,82 @@ CREATE TABLE IF NOT EXISTS mets_settings (
   value TEXT NOT NULL DEFAULT '{}'
 );
 
+-- Generic key/value store backing the Admin Settings module (CRM, Account Setup,
+-- Security, etc.) — one row per settings row-card, keyed by "<section>::<row name>".
+CREATE TABLE IF NOT EXISTS admin_settings (
+  key        TEXT PRIMARY KEY,
+  value      TEXT NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ── Day Planner: My Day tasks ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS dp_tasks (
+  id                   TEXT PRIMARY KEY,             -- 'tk_...'
+  title                TEXT NOT NULL,
+  description          TEXT DEFAULT '',
+  time                 TEXT DEFAULT '',               -- free-text 'HH:MM'
+  start_date           DATE NOT NULL,
+  expected_close_date  DATE,
+  status               TEXT NOT NULL DEFAULT 'Me',    -- Me | At Product | In Dev | ... | Closed | custom
+  closed_date          DATE,
+  created_at           TIMESTAMPTZ DEFAULT now(),
+  updated_at           TIMESTAMPTZ DEFAULT now()
+);
+
+-- Custom statuses the user has added via the "+ Add new status…" option.
+CREATE TABLE IF NOT EXISTS dp_custom_statuses (
+  name TEXT PRIMARY KEY
+);
+
+-- ── Team Tracker: manually tracked external-team items ───────────────────────
+CREATE TABLE IF NOT EXISTS dp_tracker_items (
+  id         TEXT PRIMARY KEY,                       -- 'tr_...'
+  title      TEXT NOT NULL,
+  team       TEXT DEFAULT 'Other Team',
+  status     TEXT NOT NULL DEFAULT 'Pending',         -- Pending | In Progress | Blocked | Done
+  due_date   DATE,
+  notes      TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- ── Workflow Builder: workflows ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS wf_workflows (
+  id         TEXT PRIMARY KEY,                       -- 'wf_...'
+  name       TEXT NOT NULL,
+  trigger    TEXT NOT NULL,                           -- Task Added | Task Status Changed | Task Closed | Task Moved to Team
+  active     BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Ordered steps per workflow.
+CREATE TABLE IF NOT EXISTS wf_steps (
+  id          TEXT PRIMARY KEY,                       -- 'st_...'
+  workflow_id TEXT NOT NULL REFERENCES wf_workflows(id) ON DELETE CASCADE,
+  step_order  INTEGER NOT NULL,                        -- drives execution order + drag-drop position
+  type        TEXT NOT NULL,                           -- Add Follow-up Task | Set Status To | Set Expected Closure (+days) | Wait (days) | Show Notification
+  detail      TEXT DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_wf_steps_workflow ON wf_steps(workflow_id, step_order);
+
+-- Automation activity log ("Show Notification" runs).
+CREATE TABLE IF NOT EXISTS wf_log (
+  id      BIGSERIAL PRIMARY KEY,
+  ts      BIGINT NOT NULL,                             -- epoch millis
+  message TEXT NOT NULL
+);
+
+-- Paused "Wait" runs awaiting resume.
+CREATE TABLE IF NOT EXISTS wf_pending_runs (
+  id              TEXT PRIMARY KEY,                    -- 'pend_...'
+  workflow_id     TEXT NOT NULL REFERENCES wf_workflows(id) ON DELETE CASCADE,
+  workflow_name   TEXT NOT NULL,                        -- snapshot, survives a rename/delete of the workflow
+  task_id         TEXT,                                 -- dp_tasks.id that triggered the run, if any
+  resume_at       DATE NOT NULL,
+  next_step_index INTEGER NOT NULL
+);
+
 -- ── Seed pools ────────────────────────────────────────────────────────────────
 INSERT INTO mets_pools (pool, label, total) VALUES
   ('unallocated',   'Unallocated',   0),

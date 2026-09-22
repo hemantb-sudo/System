@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path     = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express  = require('express');
 const cors     = require('cors');
-const path     = require('path');
 const { Pool } = require('pg');
 
 const app  = express();
@@ -25,6 +25,16 @@ const FRONTEND = path.join(__dirname, '..', 'frontend');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  // Fail fast instead of hanging on the OS-level TCP timeout (which can run to
+  // 60s+) when Supabase is unreachable — every route built on `q`/`withTx`
+  // inherits this, so a DB outage degrades to their fallback response quickly
+  // instead of making the caller wait.
+  connectionTimeoutMillis: 5000,
+});
+// Without this handler, a dropped/idle-timed-out connection (e.g. a network
+// blip to Supabase) fires an unhandled 'error' event and crashes the process.
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle Postgres client:', err.message);
 });
 
 async function q(text, params = []) {
@@ -51,6 +61,21 @@ async function withTx(fn) {
 }
 const tq  = (c, sql, p = []) => c.query(sql, p).then(r => r.rows);
 const tq1 = (c, sql, p = []) => c.query(sql, p).then(r => r.rows[0] || null);
+
+// Builds one multi-row "INSERT INTO table (cols) VALUES (...),(...),..." so N
+// rows cost a single round-trip instead of N — used by the replace-all POST
+// routes (Day Planner, Workflow Builder), which otherwise looped one INSERT
+// per row. Returns null for an empty row set (nothing to insert).
+function buildBulkInsert(table, columns, rows) {
+  if (!rows.length) return null;
+  const values = [];
+  const placeholders = rows.map((row, i) => {
+    const base = i * columns.length;
+    return '(' + columns.map((_, j) => `$${base + j + 1}`).join(',') + ')';
+  }).join(',');
+  rows.forEach(row => columns.forEach(col => values.push(row[col])));
+  return { sql: `INSERT INTO ${table} (${columns.join(',')}) VALUES ${placeholders}`, values };
+}
 
 // ── Feature ↔ channel maps ────────────────────────────────────────────────────
 const FEAT_TO_CHANNEL = {
@@ -963,6 +988,272 @@ app.post('/api/mets/settings', async (req, res) => {
     }
     res.json({ ok: true });
   } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Admin Settings (generic key/value store backing the Settings module —
+// CRM, Account Setup, Security, etc.) ─────────────────────────────────────────
+app.get('/api/admin-settings', async (req, res) => {
+  try {
+    const rows = await q('SELECT key, value FROM admin_settings');
+    const out = {};
+    rows.forEach(r => { try { out[r.key] = JSON.parse(r.value); } catch(e) { out[r.key] = null; } });
+    res.json({ ok: true, settings: out });
+  } catch(e) { res.json({ ok: true, settings: {} }); }
+});
+
+app.post('/api/admin-settings', async (req, res) => {
+  try {
+    const { settings } = req.body;
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ ok: false, error: 'Missing settings object' });
+    }
+    for (const k of Object.keys(settings)) {
+      await pool.query(
+        'INSERT INTO admin_settings (key, value, updated_at) VALUES ($1,$2,now()) ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=now()',
+        [k, JSON.stringify(settings[k])]
+      );
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Tiny in-memory write-through cache for Day Planner / Workflow Builder ──────
+// GETs happen far more often than POSTs (every page load, every time either
+// page opens) and a POST already carries the complete new state, so there's
+// no need to ever re-SELECT after a write — just cache the request body
+// directly. Between writes, GET is served straight from memory with zero DB
+// round-trip. FAIL_CACHE_MS also means a DB outage is only "discovered" once
+// per window instead of on every single request, so repeated GETs during an
+// outage return instantly instead of each paying the connection-timeout cost.
+// (Single-process assumption — fine at this app's scale; a clustered/multi-
+// instance deployment would need a shared cache instead.)
+const CACHE_FAIL_MS = 5000;
+const dpCache = { data: null, failedAt: 0 };
+const wfCache = { data: null, failedAt: 0 };
+
+// ── Day Planner (My Day tasks + Team Tracker + custom statuses) ────────────────
+// The frontend always reads/writes the whole thing as one blob (dpLoadData/
+// dpSaveData), so POST replaces the full set within a transaction rather than
+// diffing — simplest way to keep the relational tables and the frontend's
+// in-memory shape in sync.
+app.get('/api/day-planner', async (req, res) => {
+  if (dpCache.data) return res.json({ ok: true, ...dpCache.data });
+  if (dpCache.failedAt && Date.now() - dpCache.failedAt < CACHE_FAIL_MS) {
+    return res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [] });
+  }
+  try {
+    const [tasks, tracker, customStatuses] = await Promise.all([
+      q(`SELECT id, title, description, time, start_date::text AS "startDate",
+                expected_close_date::text AS "expectedCloseDate", status,
+                closed_date::text AS "closedDate"
+         FROM dp_tasks ORDER BY created_at`),
+      q(`SELECT id, title, team, status, due_date::text AS "dueDate", notes
+         FROM dp_tracker_items ORDER BY created_at`),
+      q('SELECT name FROM dp_custom_statuses ORDER BY name')
+    ]);
+    dpCache.data = { taskList: tasks, tracker, customTaskStatuses: customStatuses.map(r => r.name) };
+    dpCache.failedAt = 0;
+    res.json({ ok: true, ...dpCache.data });
+  } catch (e) {
+    dpCache.failedAt = Date.now();
+    res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [] });
+  }
+});
+
+app.post('/api/day-planner', async (req, res) => {
+  try {
+    const { taskList, tracker, customTaskStatuses } = req.body;
+    if (!Array.isArray(taskList) || !Array.isArray(tracker) || !Array.isArray(customTaskStatuses)) {
+      return res.status(400).json({ ok: false, error: 'Missing taskList/tracker/customTaskStatuses arrays' });
+    }
+    await withTx(async (c) => {
+      await c.query('DELETE FROM dp_tasks');
+      const taskRows = buildBulkInsert(
+        'dp_tasks', ['id', 'title', 'description', 'time', 'start_date', 'expected_close_date', 'status', 'closed_date'],
+        taskList.map(t => ({
+          id: t.id, title: t.title, description: t.description || '', time: t.time || '',
+          start_date: t.startDate, expected_close_date: t.expectedCloseDate || null, status: t.status, closed_date: t.closedDate || null
+        }))
+      );
+      if (taskRows) await c.query(taskRows.sql, taskRows.values);
+
+      await c.query('DELETE FROM dp_tracker_items');
+      const trackerRows = buildBulkInsert(
+        'dp_tracker_items', ['id', 'title', 'team', 'status', 'due_date', 'notes'],
+        tracker.map(t => ({ id: t.id, title: t.title, team: t.team || 'Other Team', status: t.status || 'Pending', due_date: t.dueDate || null, notes: t.notes || '' }))
+      );
+      if (trackerRows) await c.query(trackerRows.sql, trackerRows.values);
+
+      await c.query('DELETE FROM dp_custom_statuses');
+      const statusRows = buildBulkInsert('dp_custom_statuses', ['name'], customTaskStatuses.map(name => ({ name })));
+      if (statusRows) await c.query(statusRows.sql + ' ON CONFLICT DO NOTHING', statusRows.values);
+    });
+    dpCache.data = { taskList, tracker, customTaskStatuses };
+    dpCache.failedAt = 0;
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Workflow Builder (workflows + steps + automation log + pending waits) ──────
+app.get('/api/workflows', async (req, res) => {
+  if (wfCache.data) return res.json({ ok: true, ...wfCache.data });
+  if (wfCache.failedAt && Date.now() - wfCache.failedAt < CACHE_FAIL_MS) {
+    return res.json({ ok: true, workflows: [], log: [], pending: [] });
+  }
+  try {
+    const [workflows, steps, log, pending] = await Promise.all([
+      q('SELECT id, name, trigger, active FROM wf_workflows ORDER BY created_at'),
+      q('SELECT id, workflow_id, step_order, type, detail FROM wf_steps ORDER BY workflow_id, step_order'),
+      q('SELECT ts, message FROM wf_log ORDER BY id DESC LIMIT 20'),
+      q(`SELECT id, workflow_id AS "workflowId", workflow_name AS "workflowName",
+                task_id AS "taskId", resume_at::text AS "resumeAt", next_step_index AS "nextStepIndex"
+         FROM wf_pending_runs`)
+    ]);
+    const stepsByWorkflow = {};
+    steps.forEach(s => {
+      if (!stepsByWorkflow[s.workflow_id]) stepsByWorkflow[s.workflow_id] = [];
+      stepsByWorkflow[s.workflow_id].push({ id: s.id, type: s.type, detail: s.detail || '' });
+    });
+    wfCache.data = {
+      workflows: workflows.map(w => ({ id: w.id, name: w.name, trigger: w.trigger, active: w.active, steps: stepsByWorkflow[w.id] || [] })),
+      log: log.map(l => ({ ts: Number(l.ts), message: l.message })),
+      pending
+    };
+    wfCache.failedAt = 0;
+    res.json({ ok: true, ...wfCache.data });
+  } catch (e) {
+    wfCache.failedAt = Date.now();
+    res.json({ ok: true, workflows: [], log: [], pending: [] });
+  }
+});
+
+app.post('/api/workflows', async (req, res) => {
+  try {
+    const { workflows, log, pending } = req.body;
+    if (!Array.isArray(workflows) || !Array.isArray(log) || !Array.isArray(pending)) {
+      return res.status(400).json({ ok: false, error: 'Missing workflows/log/pending arrays' });
+    }
+    await withTx(async (c) => {
+      await c.query('DELETE FROM wf_workflows'); // cascades to wf_steps + wf_pending_runs
+      const workflowRows = buildBulkInsert(
+        'wf_workflows', ['id', 'name', 'trigger', 'active'],
+        workflows.map(w => ({ id: w.id, name: w.name, trigger: w.trigger, active: !!w.active }))
+      );
+      if (workflowRows) await c.query(workflowRows.sql, workflowRows.values);
+
+      const allSteps = [];
+      workflows.forEach(w => {
+        (Array.isArray(w.steps) ? w.steps : []).forEach((s, i) => {
+          allSteps.push({ id: s.id, workflow_id: w.id, step_order: i, type: s.type, detail: s.detail || '' });
+        });
+      });
+      const stepRows = buildBulkInsert('wf_steps', ['id', 'workflow_id', 'step_order', 'type', 'detail'], allSteps);
+      if (stepRows) await c.query(stepRows.sql, stepRows.values);
+
+      const workflowIds = new Set(workflows.map(w => w.id));
+      const pendingRows = buildBulkInsert(
+        'wf_pending_runs', ['id', 'workflow_id', 'workflow_name', 'task_id', 'resume_at', 'next_step_index'],
+        pending.filter(p => workflowIds.has(p.workflowId)) // FK safety: skip orphaned entries
+          .map(p => ({ id: p.id, workflow_id: p.workflowId, workflow_name: p.workflowName, task_id: p.taskId || null, resume_at: p.resumeAt, next_step_index: p.nextStepIndex }))
+      );
+      if (pendingRows) await c.query(pendingRows.sql, pendingRows.values);
+
+      await c.query('DELETE FROM wf_log');
+      const logRows = buildBulkInsert('wf_log', ['ts', 'message'], log.map(l => ({ ts: l.ts, message: l.message })));
+      if (logRows) await c.query(logRows.sql, logRows.values);
+    });
+    wfCache.data = { workflows, log, pending };
+    wfCache.failedAt = 0;
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// ── Day Planner Agent (LLM-backed via DeepSeek's OpenAI-compatible API) ────────
+// The API key stays server-side; the browser only ever talks to this proxy.
+// Tool *execution* happens back in the browser (that's where the real Day
+// Planner data and functions live) — this endpoint just runs one DeepSeek
+// call per turn and hands back whatever it decided (text, or tool calls for
+// the frontend to execute and report back on the next turn).
+const AGENT_TOOLS = [
+  { type: 'function', function: { name: 'add_task', description: 'Add a new task to My Day.', parameters: { type: 'object', properties: {
+    title: { type: 'string', description: 'Task heading' },
+    description: { type: 'string', description: 'Optional longer description' },
+    date: { type: 'string', description: 'Start date YYYY-MM-DD; defaults to the currently selected day if omitted' },
+    status: { type: 'string', description: 'Initial status; defaults to "Me"' }
+  }, required: ['title'] } } },
+  { type: 'function', function: { name: 'set_task_status', description: 'Change a task\'s status — use "Closed" to close/complete it. Look up task_id from the current context by title.', parameters: { type: 'object', properties: {
+    task_id: { type: 'string' }, status: { type: 'string' }
+  }, required: ['task_id', 'status'] } } },
+  { type: 'function', function: { name: 'delete_task', description: 'Delete a task.', parameters: { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'] } } },
+  { type: 'function', function: { name: 'set_expected_closure', description: 'Set a task\'s expected closure date.', parameters: { type: 'object', properties: {
+    task_id: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD' }
+  }, required: ['task_id', 'date'] } } },
+  { type: 'function', function: { name: 'add_tracker_item', description: 'Track a task owned by another team (Team Tracker).', parameters: { type: 'object', properties: {
+    title: { type: 'string' }, team: { type: 'string' }, due_date: { type: 'string', description: 'YYYY-MM-DD, optional' }, notes: { type: 'string' }
+  }, required: ['title', 'team'] } } },
+  { type: 'function', function: { name: 'create_workflow', description: 'Create a new automation workflow (steps are added afterward in the Workflow Builder).', parameters: { type: 'object', properties: {
+    name: { type: 'string' }, trigger: { type: 'string', enum: ['Task Added', 'Task Status Changed', 'Task Closed', 'Task Moved to Team'] }
+  }, required: ['name', 'trigger'] } } },
+  { type: 'function', function: { name: 'toggle_workflow', description: 'Activate or pause a workflow.', parameters: { type: 'object', properties: {
+    workflow_id: { type: 'string' }, active: { type: 'boolean' }
+  }, required: ['workflow_id', 'active'] } } },
+  { type: 'function', function: { name: 'delete_workflow', description: 'Delete a workflow.', parameters: { type: 'object', properties: { workflow_id: { type: 'string' } }, required: ['workflow_id'] } } },
+  { type: 'function', function: { name: 'navigate_date', description: 'Move the Day Planner\'s selected date.', parameters: { type: 'object', properties: {
+    date: { type: 'string', description: 'YYYY-MM-DD, or the literal word "today"' }
+  }, required: ['date'] } } }
+];
+
+function dpAgentSystemPrompt(context) {
+  return [
+    'You are the Day Planner Agent inside the Meritto Admin Dashboard. You help the user manage their personal task list ("My Day"), team-tracked tasks, and automation workflows by calling the tools provided — never claim to have done something without actually calling the matching tool.',
+    'When the user names a task or workflow, look it up by title in the CURRENT CONTEXT below to find its id, and pass that id to the tool. If nothing matches with reasonable confidence, ask a short clarifying question instead of guessing.',
+    'Today\'s date is ' + (context.today || '') + '. Any date you pass to a tool must be YYYY-MM-DD.',
+    'After taking one or more actions, reply with a brief, friendly confirmation of what changed. Keep replies short.',
+    '',
+    'CURRENT CONTEXT (JSON):',
+    JSON.stringify(context || {})
+  ].join('\n');
+}
+
+app.post('/api/agent/chat', async (req, res) => {
+  try {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      return res.json({ ok: false, code: 'not_configured', error: 'DEEPSEEK_API_KEY is not set in backend/.env' });
+    }
+    const { messages, context } = req.body;
+    if (!Array.isArray(messages)) {
+      return res.status(400).json({ ok: false, error: 'Missing messages array' });
+    }
+    const fullMessages = [{ role: 'system', content: dpAgentSystemPrompt(context || {}) }, ...messages];
+    // Bounds worst-case latency: an LLM call that stalls should fail fast
+    // rather than leaving the chat panel's typing indicator spinning forever.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    let resp;
+    try {
+      resp = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: fullMessages,
+          tools: AGENT_TOOLS,
+          tool_choice: 'auto',
+          temperature: 0.3
+        }),
+        signal: controller.signal
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    const json = await resp.json();
+    if (!resp.ok) {
+      return res.status(502).json({ ok: false, error: (json && json.error && json.error.message) || 'DeepSeek API error' });
+    }
+    const message = json.choices && json.choices[0] && json.choices[0].message;
+    res.json({ ok: true, message });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // ── Fallback → index.html ─────────────────────────────────────────────────────

@@ -69,6 +69,7 @@
             <div class="institute-selector"><span>🏛</span><span>ABES Engineering College</span><span>▼</span></div>
             <div class="tn-right">
                 <button class="ask-mio-btn">✦ Ask Mio AI</button>
+                <button class="tn-icon-btn" onclick="openDayPlanner()" title="Day Planner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></button>
                 <button class="tn-icon-btn" onclick="openAnalytics()" title="Review"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg></button>
                 <button class="tn-icon-btn" onclick="openMetsOverlay()" title="Subscription & Usage"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h2"/><path d="M10 15h4"/></svg></button>
                 <button class="tn-icon-btn" id="settingsBtn">⚙️</button>
@@ -157,7 +158,7 @@
             <div class="dashboard-row row-2col">
                 <div class="card recent-leads"><div class="card-title">Recent Leads</div><table class="leads-table"><thead><tr><th>Name</th><th>Stage</th><th>Counsellor</th></tr></thead><tbody>
 </tbody></table></div>
-                <div class="side-panel"><div class="panel-box"><div class="card-title">My Tasks</div><div class="task-item"><div class="task-text">Follow up with Ananya</div></div><div class="task-item"><div class="task-text overdue">Review Priyank documents</div></div><div class="task-item"><div class="task-text">Schedule counselling session</div></div><div class="task-item"><div class="task-text overdue">Update lead scores</div></div><div class="task-item"><div class="task-text">Prepare campaign analytics</div></div></div><div class="panel-box"><div class="card-title">Recent Activity</div><div class="activity-event"><div class="task-text">Lead assigned to Priyank</div><div class="activity-time">2 hours ago</div></div><div class="activity-event"><div class="task-text">Campaign sent to 50 leads</div><div class="activity-time">4 hours ago</div></div><div class="activity-event"><div class="task-text">Automation triggered</div><div class="activity-time">6 hours ago</div></div><div class="activity-event"><div class="task-text">Payment received from Ananya</div><div class="activity-time">1 day ago</div></div><div class="activity-event"><div class="task-text">System backup completed</div><div class="activity-time">2 days ago</div></div><div class="activity-event"><div class="task-text">New leads imported</div><div class="activity-time">3 days ago</div></div></div></div>
+                <div class="side-panel"><div class="panel-box"><div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">My Tasks<span id="dashMyTasksCounter" style="font-size:11px;font-weight:600;color:#2979d4;background:#EFF6FF;padding:2px 8px;border-radius:10px;"></span></div><div id="dashMyTasksList"></div><div style="display:flex;gap:6px;margin-top:10px;"><input type="text" id="dashQuickTaskInput" placeholder="Add a task…" style="flex:1;min-width:0;padding:7px 9px;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;font-family:inherit;" onkeydown="if(event.key==='Enter')dashAddQuickTask()"><button onclick="dashAddQuickTask()" style="background:#2979d4;color:#fff;border:none;border-radius:6px;padding:0 13px;font-size:14px;font-weight:600;cursor:pointer;line-height:1;">+</button></div></div><div class="panel-box"><div class="card-title">Recent Activity</div><div class="activity-event"><div class="task-text">Lead assigned to Priyank</div><div class="activity-time">2 hours ago</div></div><div class="activity-event"><div class="task-text">Campaign sent to 50 leads</div><div class="activity-time">4 hours ago</div></div><div class="activity-event"><div class="task-text">Automation triggered</div><div class="activity-time">6 hours ago</div></div><div class="activity-event"><div class="task-text">Payment received from Ananya</div><div class="activity-time">1 day ago</div></div><div class="activity-event"><div class="task-text">System backup completed</div><div class="activity-time">2 days ago</div></div><div class="activity-event"><div class="task-text">New leads imported</div><div class="activity-time">3 days ago</div></div></div></div>
             </div>
 
             <div class="dashboard-row row-3col">
@@ -210,10 +211,11 @@
 
         <div class="stg-body">
             <div class="stg-home" id="stgHome">
+                <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">CRM</div><div class="stg-card-desc">Basic Settings to help you get your CRM up and running</div></div><span class="stg-card-count">8</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadflow','acc-crm')">Lead Flow</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadstage','acc-crm')">Lead Stage</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-funnel','acc-crm')">Conversion Funnel</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-campaign','acc-crm')">Campaign Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-score','acc-crm')">Lead Score</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-allocation','acc-crm')">Lead Allocation</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-agent','acc-crm')">Agent</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-customflow','acc-crm')">Custom Flow</div></div></div>
                 <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V12h6v9"/><path d="M9 8h.01M12 8h.01M15 8h.01M9 12h.01M15 12h.01"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Onboarding</div><div class="stg-card-desc">Institute profile &amp; accounts</div></div><span class="stg-card-count">3</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openOrgProfile(null)">Organisation Profile</div><div class="stg-card-item" onclick="event.stopPropagation();openManageAccounts()">Manage Accounts</div><div class="stg-card-item" onclick="event.stopPropagation();openAccountNotification()">Account Notification</div></div></div>
-                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Account Setup</div><div class="stg-card-desc">Tags, fields &amp; preferences</div></div><span class="stg-card-count">6</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-mets','acc-accsettings')">METS</div><div class="stg-card-item" onclick="event.stopPropagation();openRenameTagsView()">Rename Tags</div><div class="stg-card-item" onclick="event.stopPropagation();openUserDefaultPage()">User Default Page</div><div class="stg-card-item">Custom Fields</div><div class="stg-card-item">Display Preferences</div><div class="stg-card-item">Notification Settings</div></div></div>
+                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Account Setup</div><div class="stg-card-desc">Tags, fields &amp; preferences</div></div><span class="stg-card-count">12</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-mets','acc-accsettings')">METS</div><div class="stg-card-item" onclick="event.stopPropagation();openRenameTagsView()">Rename Tags</div><div class="stg-card-item" onclick="event.stopPropagation();openUserDefaultPage()">User Default Page</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Custom Fields</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Display Preferences</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Notification Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Limits</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Telephony Version Config</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Business Hours</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Allocation Quota</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Process TAT</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Check-In / Check-Out</div></div></div>
                 <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF" onclick="openSection('sec-users','acc-users')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Users &amp; Teams</div><div class="stg-card-desc">Roles, permissions &amp; hierarchy</div></div><span class="stg-card-count">6</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">User Management</div><div class="stg-card-item">Role Hierarchy</div><div class="stg-card-item">Permission Groups</div><div class="stg-card-item">Teams</div><div class="stg-card-item">Counsellor Config</div><div class="stg-card-item">Field Force Tracking</div></div></div>
-                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC" onclick="openSection('sec-security','acc-security')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Security &amp; Compliance</div><div class="stg-card-desc">Access controls &amp; audit</div></div><span class="stg-card-count">7</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">Login Methods</div><div class="stg-card-item">SSO / SAML</div><div class="stg-card-item">TOTP Authenticator</div><div class="stg-card-item">IP Allowlist</div><div class="stg-card-item">PII Masking</div><div class="stg-card-item">Audit Trail</div><div class="stg-card-item">Grant Access</div></div></div>
+                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC" onclick="openSection('sec-security','acc-security')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Security &amp; Compliance</div><div class="stg-card-desc">Access controls &amp; audit</div></div><span class="stg-card-count">8</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">Login Methods</div><div class="stg-card-item">Session</div><div class="stg-card-item">SSO / SAML</div><div class="stg-card-item">TOTP Authenticator</div><div class="stg-card-item">IP Allowlist</div><div class="stg-card-item">PII Masking</div><div class="stg-card-item">Audit Trail</div><div class="stg-card-item">Grant Access</div></div></div>
                 <div class="stg-card" style="--card-accent:#1a9e6e;--card-icon-bg:#DCFCE7;--card-icon-color:#1a9e6e;--card-count-bg:#BBF7D0;--card-accent-text:#166534;--card-hover-bg:#F0FDF4" onclick="openSection('sec-comms','acc-comms')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Communication</div><div class="stg-card-desc">Channels, templates &amp; providers</div></div><span class="stg-card-count">7</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">WhatsApp National</div><div class="stg-card-item">WhatsApp International</div><div class="stg-card-item">Meta WABA</div><div class="stg-card-item">SMS / OTP</div><div class="stg-card-item">Email Provider</div><div class="stg-card-item">Telephony / IVR</div><div class="stg-card-item">Template Library</div></div></div>
                 <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF" onclick="openSection('sec-leads','acc-leads')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Leads &amp; Enrollment</div><div class="stg-card-desc">Stages, allocation &amp; scoring</div></div><span class="stg-card-count">6</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">Lead Stages</div><div class="stg-card-item">Lead Allocation</div><div class="stg-card-item">Lead Score Rules</div><div class="stg-card-item">Registration Config</div><div class="stg-card-item">Slot Booking</div><div class="stg-card-item">Application TAT</div></div></div>
                 <div class="stg-card" style="--card-accent:#e8900a;--card-icon-bg:#FEF3C7;--card-icon-color:#e8900a;--card-count-bg:#FDE68A;--card-accent-text:#92400E;--card-hover-bg:#FFFBEB" onclick="openSection('sec-marketing','acc-marketing')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4L12 14.01l-3-3"/><path d="M22 4L2 12l8 2 2 8 4-8"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Marketing</div><div class="stg-card-desc">Campaigns, ads &amp; landing pages</div></div><span class="stg-card-count">5</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">Campaign Config</div><div class="stg-card-item">Landing Pages</div><div class="stg-card-item">Google Ads</div><div class="stg-card-item">Meta / Facebook</div><div class="stg-card-item">Referral Connect</div></div></div>
@@ -224,6 +226,23 @@
 
             <div class="stg-detail-wrap" id="stgDetailWrap">
                 <div class="stg-detail-nav">
+                    <div class="acc-category" id="acc-crm">
+                        <button class="acc-header" onclick="toggleAccordion('acc-crm','sec-crm-leadflow')">
+                            <span class="acc-header-icon" style="display:flex;align-items:center;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span>
+                            <span class="acc-header-label">CRM</span>
+                            <span class="acc-toggle">&#8964;</span>
+                        </button>
+                        <div class="acc-items" id="items-acc-crm">
+                            <div class="acc-item" onclick="openSection('sec-crm-leadflow','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Lead Flow</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-leadstage','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Lead Stage</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-funnel','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Conversion Funnel</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-campaign','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Campaign Settings</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-score','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Lead Score</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-allocation','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Lead Allocation</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-agent','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Agent</span></div>
+                            <div class="acc-item" onclick="openSection('sec-crm-customflow','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Custom Flow</span></div>
+                        </div>
+                    </div>
                     <div class="acc-category open" id="acc-general">
                         <button class="acc-header" onclick="toggleAccordion('acc-general','sec-account')">
                             <span class="acc-header-icon" style="display:flex;align-items:center;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V12h6v9"/><path d="M9 8h.01M12 8h.01M15 8h.01M9 12h.01M15 12h.01"/></svg></span>
@@ -246,9 +265,15 @@
                             <div class="acc-item" onclick="openSection('sec-mets','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">METS</span></div>
                             <div class="acc-item" onclick="openRenameTagsView()"><span class="acc-dot"></span><span class="acc-lbl">Rename Tags</span></div>
                             <div class="acc-item" onclick="openUserDefaultPage()"><span class="acc-dot"></span><span class="acc-lbl">User Default Page</span></div>
-                            <div class="acc-item"><span class="acc-dot"></span><span class="acc-lbl">Custom Fields</span></div>
-                            <div class="acc-item"><span class="acc-dot"></span><span class="acc-lbl">Display Preferences</span></div>
-                            <div class="acc-item"><span class="acc-dot"></span><span class="acc-lbl">Notification Settings</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Custom Fields</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Display Preferences</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Notification Settings</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Limits</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Telephony Version Config</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Business Hours</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Allocation Quota</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Process TAT</span></div>
+                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Check-In / Check-Out</span></div>
                         </div>
                     </div>
                     <div class="acc-category" id="acc-users">
@@ -274,6 +299,7 @@
                         </button>
                         <div class="acc-items" id="items-acc-security">
                             <div class="acc-item" onclick="selectItem(this,'sec-security')"><span class="acc-dot"></span><span class="acc-lbl">Login Methods</span></div>
+                            <div class="acc-item" onclick="selectItem(this,'sec-security')"><span class="acc-dot"></span><span class="acc-lbl">Session</span></div>
                             <div class="acc-item" onclick="selectItem(this,'sec-security')"><span class="acc-dot"></span><span class="acc-lbl">SSO / SAML</span></div>
                             <div class="acc-item" onclick="selectItem(this,'sec-security')"><span class="acc-dot"></span><span class="acc-lbl">TOTP Authenticator</span></div>
                             <div class="acc-item" onclick="selectItem(this,'sec-security')"><span class="acc-dot"></span><span class="acc-lbl">IP Allowlist</span></div>
@@ -370,80 +396,155 @@
                     </div>
                 </div>
                 <div class="stg-detail-content">
-                
+
+                <div class="stg-section" id="sec-crm-leadflow" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Lead Flow</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Verification Settings</div><div class="stg-row-card-desc">Configure your settings for Lead verification before registration</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" data-toggle-label="Enable OTP verification" onclick="stgConfigureRow(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Mobile Number validations</div><div class="stg-row-card-desc">Configure your rules on Lead creation Via Mobile Number</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureMobileValidations(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Registration Attempt configurations</div><div class="stg-row-card-desc">Configure how registration attempts are logged—whether on creation, on creation and update, or never—for each lead inflow</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRegAttempt(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-leadstage" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Lead Stage</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Stage and Sub stage Configurations</div><div class="stg-row-card-desc">Configure the below settings to create stages and Sub stages</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureLeadStages(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Conditional Logics on Lead stage</div><div class="stg-row-card-desc">Configure the below settings to set conditional logics on Lead defined stages</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureLeadStageConditions(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-funnel" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Conversion Funnel</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Conversion Funnel</div><div class="stg-row-card-desc">Define the funnel stages used for conversion reporting</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-campaign" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Campaign Settings</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Campaign Settings</div><div class="stg-row-card-desc">Global campaign attribution and tagging rules for the CRM</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-score" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Lead Score</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Score</div><div class="stg-row-card-desc">Weightage rules used to score incoming leads</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-allocation" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Lead Allocation</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Allocation</div><div class="stg-row-card-desc">Rules for routing new leads to counsellors or teams</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-agent" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Agent</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Agent</div><div class="stg-row-card-desc">Agent-level access and attribution settings for the CRM</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-crm-customflow" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span><div><div class="stg-section-name">Custom Flow</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Flow</div><div class="stg-row-card-desc">Build a custom lead-handling flow for this CRM</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                    </div>
+                </div>
+                <div class="stg-section" id="sec-accsettings-extra" style="display:none;">
+                    <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span><div><div class="stg-section-name">Account Setup</div></div></div>
+                    <div class="stg-section-rows">
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Fields</div><div class="stg-row-card-desc">Add or manage custom lead/application fields</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Display Preferences</div><div class="stg-row-card-desc">Choose default views, density and theme</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Notification Settings</div><div class="stg-row-card-desc">In-app and email notification triggers</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Limits</div><div class="stg-row-card-desc">Configure the limits for Report Builder, Opportunity, Field Sync &amp; Campaign</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureLimits(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Telephony Version Config</div><div class="stg-row-card-desc">Configure the telephony integration version for your account</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureTelephonyVersion(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Business Hours</div><div class="stg-row-card-desc">Configure the operational hours for your organization</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureBusinessHours(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Allocation Quota</div><div class="stg-row-card-desc">Set limits on leads/applications assigned to users and manage hierarchy-based reassignment</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureAllocationQuota(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Process TAT</div><div class="stg-row-card-desc">Track application age across the processes you configure (0/10 created)</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" data-toggle-label="Enable Process TAT Tracking" onclick="stgConfigureRow(this)">Configure</button></div></div>
+
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Check-In / Check-Out</div><div class="stg-row-card-desc">Configure check-in/check-out pop-ups and auto check-out behaviour</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureCheckInOut(this)">Configure</button></div></div>
+                    </div>
+                </div>
                 <div class="stg-section" id="sec-users" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span><div><div class="stg-section-name">Users &amp; Teams</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">User Management</div><div class="stg-row-card-desc">Invite, deactivate and manage users</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Role Hierarchy</div><div class="stg-row-card-desc">Define reporting levels and access tiers</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Permission Groups</div><div class="stg-row-card-desc">Control module-level access by role</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Teams</div><div class="stg-row-card-desc">Organise counsellors into functional teams</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Counsellor Config</div><div class="stg-row-card-desc">Set auto-allocation and capacity limits</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Field Force Tracking</div><div class="stg-row-card-desc">GPS-based check-in for field agents</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">User Management</div><div class="stg-row-card-desc">Invite, deactivate and manage users</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Role Hierarchy</div><div class="stg-row-card-desc">Define reporting levels and access tiers</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Permission Groups</div><div class="stg-row-card-desc">Control module-level access by role</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Teams</div><div class="stg-row-card-desc">Organise counsellors into functional teams</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Counsellor Config</div><div class="stg-row-card-desc">Set auto-allocation and capacity limits</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Field Force Tracking</div><div class="stg-row-card-desc">GPS-based check-in for field agents</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-security" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><div><div class="stg-section-name">Security &amp; Compliance</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Login Methods</div><div class="stg-row-card-desc">Email/password, Google OAuth, SSO</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">SSO / SAML</div><div class="stg-row-card-desc">Enterprise single sign-on via SAML 2.0</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">TOTP Authenticator</div><div class="stg-row-card-desc">Time-based one-time password (2FA)</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">IP Allowlist</div><div class="stg-row-card-desc">Restrict access to approved IP ranges</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">PII Masking</div><div class="stg-row-card-desc">Mask sensitive fields for non-admin roles</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Audit Trail</div><div class="stg-row-card-desc">Full log of user actions and data changes</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Grant Access</div><div class="stg-row-card-desc">Temporary elevated access for support</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Login Methods</div><div class="stg-row-card-desc">Configure login methods to streamline user access and enhance flexibility</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureLoginMethods(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Session</div><div class="stg-row-card-desc">Configure session timeout and idle session behaviour</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureSession(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">SSO / SAML</div><div class="stg-row-card-desc">Enterprise single sign-on via SAML 2.0</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">TOTP Authenticator</div><div class="stg-row-card-desc">Time-based one-time password (2FA)</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">IP Allowlist</div><div class="stg-row-card-desc">Restrict access to approved IP ranges</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">PII Masking</div><div class="stg-row-card-desc">Mask sensitive fields for non-admin roles</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Audit Trail</div><div class="stg-row-card-desc">Full log of user actions and data changes</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Grant Access</div><div class="stg-row-card-desc">Temporary elevated access for support</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-comms" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><div><div class="stg-section-name">Communication</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">WhatsApp National</div><div class="stg-row-card-desc">WABA config for domestic numbers</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">WhatsApp International</div><div class="stg-row-card-desc">WABA config for global numbers</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Meta WABA</div><div class="stg-row-card-desc">Direct Meta Business API connection</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">SMS / OTP</div><div class="stg-row-card-desc">Transactional SMS &amp; OTP provider</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Email Provider</div><div class="stg-row-card-desc">SMTP / ESP provider settings</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Telephony / IVR</div><div class="stg-row-card-desc">Click-to-call and IVR connector</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Template Library</div><div class="stg-row-card-desc">Manage approved message templates</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">WhatsApp National</div><div class="stg-row-card-desc">WABA config for domestic numbers</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">WhatsApp International</div><div class="stg-row-card-desc">WABA config for global numbers</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Meta WABA</div><div class="stg-row-card-desc">Direct Meta Business API connection</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">SMS / OTP</div><div class="stg-row-card-desc">Transactional SMS &amp; OTP provider</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Email Provider</div><div class="stg-row-card-desc">SMTP / ESP provider settings</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Telephony / IVR</div><div class="stg-row-card-desc">Click-to-call and IVR connector</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Template Library</div><div class="stg-row-card-desc">Manage approved message templates</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-leads" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg></span><div><div class="stg-section-name">Leads &amp; Enrollment</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Stages</div><div class="stg-row-card-desc">Define pipeline stages and transitions</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Allocation</div><div class="stg-row-card-desc">Rules for auto-assigning incoming leads</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Score Rules</div><div class="stg-row-card-desc">Logic-based scoring criteria</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Registration Config</div><div class="stg-row-card-desc">Form and intake configuration</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Slot Booking</div><div class="stg-row-card-desc">Counselling appointment settings</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Application TAT</div><div class="stg-row-card-desc">Turn-around time targets per stage</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Stages</div><div class="stg-row-card-desc">Define pipeline stages and transitions</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Allocation</div><div class="stg-row-card-desc">Rules for auto-assigning incoming leads</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Lead Score Rules</div><div class="stg-row-card-desc">Logic-based scoring criteria</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Registration Config</div><div class="stg-row-card-desc">Form and intake configuration</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Slot Booking</div><div class="stg-row-card-desc">Counselling appointment settings</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Application TAT</div><div class="stg-row-card-desc">Turn-around time targets per stage</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-marketing" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 4L12 14.01l-3-3"/><path d="M22 4L2 12l8 2 2 8 4-8"/></svg></span><div><div class="stg-section-name">Marketing</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Campaign Config</div><div class="stg-row-card-desc">Global limits, sender IDs and tags</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Landing Pages</div><div class="stg-row-card-desc">Responsive builder and domain mapping</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Google Ads</div><div class="stg-row-card-desc">Lead conversion tracking pixel</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Meta / Facebook</div><div class="stg-row-card-desc">Facebook Lead Ad connector</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Referral Connect</div><div class="stg-row-card-desc">Referral programme configuration</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Campaign Config</div><div class="stg-row-card-desc">Global limits, sender IDs and tags</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Landing Pages</div><div class="stg-row-card-desc">Responsive builder and domain mapping</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Google Ads</div><div class="stg-row-card-desc">Lead conversion tracking pixel</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Meta / Facebook</div><div class="stg-row-card-desc">Facebook Lead Ad connector</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Referral Connect</div><div class="stg-row-card-desc">Referral programme configuration</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-integrations" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5a2.5 2.5 0 0 0-5 0V5H4a2 2 0 0 0-2 2v4h1.5a2.5 2.5 0 0 1 0 5H2v4a2 2 0 0 0 2 2h4v-1.5a2.5 2.5 0 0 1 5 0V21h4a2 2 0 0 0 2-2v-4h-1.5a2.5 2.5 0 0 1 0-5z"/></svg></span><div><div class="stg-section-name">Apps &amp; Integrations</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">API Keys</div><div class="stg-row-card-desc">Developer access keys and rate limits</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Connectors</div><div class="stg-row-card-desc">Third-party CRM and ERP connectors</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Webhooks</div><div class="stg-row-card-desc">Event-triggered outbound webhooks</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">ERP Push</div><div class="stg-row-card-desc">Push data to ERP on enrolment</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Loan Partners</div><div class="stg-row-card-desc">Education loan partner API config</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">API Keys</div><div class="stg-row-card-desc">Developer access keys and rate limits</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Connectors</div><div class="stg-row-card-desc">Third-party CRM and ERP connectors</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Webhooks</div><div class="stg-row-card-desc">Event-triggered outbound webhooks</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">ERP Push</div><div class="stg-row-card-desc">Push data to ERP on enrolment</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Loan Partners</div><div class="stg-row-card-desc">Education loan partner API config</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div class="stg-section" id="sec-finance" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h2"/><path d="M2 10h20"/></svg></span><div><div class="stg-section-name">Finance</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Fee Types</div><div class="stg-row-card-desc">Define fee heads (tuition, registration, etc.)</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Payment Gateways</div><div class="stg-row-card-desc">Razorpay, PayU, CCAvenue config</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Discount Coupons</div><div class="stg-row-card-desc">Coupon codes and validity rules</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Wallet &amp; Ledger</div><div class="stg-row-card-desc">METS credits and transaction log</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Fee Types</div><div class="stg-row-card-desc">Define fee heads (tuition, registration, etc.)</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Payment Gateways</div><div class="stg-row-card-desc">Razorpay, PayU, CCAvenue config</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Discount Coupons</div><div class="stg-row-card-desc">Coupon codes and validity rules</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Wallet &amp; Ledger</div><div class="stg-row-card-desc">METS credits and transaction log</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <!-- METS Configuration Section -->
@@ -1100,11 +1201,11 @@
                 <div class="stg-section" id="sec-data" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v4c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 10v4c0 1.66 3.58 3 8 3s8-1.34 8-3v-4"/><path d="M4 14v4c0 1.66 3.58 3 8 3s8-1.34 8-3v-4"/></svg></span><div><div class="stg-section-name">Data Administration</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Master Data / Taxonomy</div><div class="stg-row-card-desc">Courses, programmes, campuses</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Tag Library</div><div class="stg-row-card-desc">Custom label taxonomy for leads</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Activities</div><div class="stg-row-card-desc">Define trackable activity types</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Dynamic Reports</div><div class="stg-row-card-desc">Custom report builder config</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Archival Rules</div><div class="stg-row-card-desc">Auto-archive inactive lead criteria</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Master Data / Taxonomy</div><div class="stg-row-card-desc">Courses, programmes, campuses</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Tag Library</div><div class="stg-row-card-desc">Custom label taxonomy for leads</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Activities</div><div class="stg-row-card-desc">Define trackable activity types</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Dynamic Reports</div><div class="stg-row-card-desc">Custom report builder config</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Archival Rules</div><div class="stg-row-card-desc">Auto-archive inactive lead criteria</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
                     </div>
                 </div>
                 <div id="org-profile-form" style="display:none;">
@@ -1844,13 +1945,13 @@
                 <span style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1.5px solid #d1d5db;font-size:9px;color:#9ca3af;cursor:default;" title="METS held and adjusted based on vendor confirmation">i</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <!-- Hold METS card -->
+                <!-- On-hold METS card -->
                 <div style="background:#fff;border-radius:10px;border:1px solid #e5e9f2;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                     <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
                         <div style="width:28px;height:28px;border-radius:7px;background:#fffbeb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                             <svg width="13" height="13" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="#d97706" stroke-width="1.5"/><path d="M10 7v3l1.5 1.5" stroke="#d97706" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </div>
-                        <span style="font-size:12px;font-weight:600;color:#374151;">Hold METS</span>
+                        <span style="font-size:12px;font-weight:600;color:#374151;">On-hold METS</span>
                     </div>
                     <div style="font-size:24px;font-weight:800;color:#d97706;" id="dr-hold-mets">—</div>
                     <div style="font-size:11px;color:#9ca3af;margin-top:3px;">Held pending confirmation</div>
@@ -1954,7 +2055,7 @@
                     <div style="border-top:1px solid #e5e9f2;padding-top:10px;">
                         <div class="mets-sub-label" style="color:#475569;">
                             <svg width="9" height="9" viewBox="0 0 12 12" fill="none" style="flex-shrink:0;"><circle cx="6" cy="6" r="5" stroke="#f59e0b" stroke-width="1.3"/><path d="M6 3.5v2.8l1.8 1.2" stroke="#f59e0b" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            Hold METS <span class="mets-info-icon" style="border-color:#fcd34d;color:#f59e0b;" data-tip="METS temporarily held for jobs still in progress. Once delivery is confirmed, unused METS are released back, or extra METS are deducted if consumption is higher.">i</span>
+                            On-hold METS <span class="mets-info-icon" style="border-color:#fcd34d;color:#f59e0b;" data-tip="METS temporarily held for jobs still in progress. Once delivery is confirmed, unused METS are released back, or extra METS are deducted if consumption is higher.">i</span>
                         </div>
                         <div class="mets-sub-val" style="color:#1e293b;"><span id="mets-softhold-val">0</span><span style="color:#94a3b8;font-weight:400;">.000</span></div>
                     </div>
@@ -2526,184 +2627,6 @@
                             <button class="stmt-nav-btn" onclick="testingReportNextPage()">&#8250;</button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Hold METS Panel — CHANNEL LIABILITY VIEW -->
-                <div id="mets-panel-transit" style="display:none;">
-                    <!-- Filter bar -->
-                    <div style="padding:14px 20px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #f3f4f6;">
-                        <!-- Filter icon -->
-                        <div style="width:36px;height:36px;border-radius:10px;background:#eef2ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <line x1="4" y1="7" x2="20" y2="7" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
-                                <line x1="7" y1="12" x2="17" y2="12" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
-                                <line x1="10" y1="17" x2="14" y2="17" stroke="#6366f1" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </div>
-
-                        <!-- Feature multi-select — outlined floating label -->
-                        <div style="position:relative;display:inline-block;" id="transit-feature-wrapper">
-                            <div style="position:absolute;top:-8px;left:10px;background:#fff;padding:0 4px;font-size:10.5px;color:#9ca3af;font-weight:500;line-height:1;pointer-events:none;z-index:3;">Feature</div>
-                            <!-- Trigger button -->
-                            <button onclick="metsToggleFeatureDropdown(event)" id="transit-feature-btn" style="border:1.5px solid #d1d5db;border-radius:8px;padding:8px 32px 8px 12px;font-size:12.5px;color:#111827;background:#fff url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 10 10%22><path d=%22M2 3.5l3 3 3-3%22 stroke=%22%236b7280%22 stroke-width=%221.3%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 fill=%22none%22/></svg>') no-repeat right 10px center;cursor:pointer;outline:none;font-family:inherit;min-width:160px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">All Features</button>
-                            <!-- Dropdown panel -->
-                            <div id="transit-feature-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;min-width:180px;background:#fff;border:1.5px solid #d1d5db;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.10);z-index:100;padding:6px 0;">
-                                <label style="display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:12.5px;color:#374151;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <input type="checkbox" value="Email" onchange="metsTransitFilter()" class="transit-feature-chk" style="width:14px;height:14px;accent-color:#2563eb;cursor:pointer;"> Email
-                                </label>
-                                <label style="display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:12.5px;color:#374151;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <input type="checkbox" value="SMS" onchange="metsTransitFilter()" class="transit-feature-chk" style="width:14px;height:14px;accent-color:#2563eb;cursor:pointer;"> SMS
-                                </label>
-                                <label style="display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:12.5px;color:#374151;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <input type="checkbox" value="WhatsApp" onchange="metsTransitFilter()" class="transit-feature-chk" style="width:14px;height:14px;accent-color:#2563eb;cursor:pointer;"> WhatsApp
-                                </label>
-                                <label style="display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;font-size:12.5px;color:#374151;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <input type="checkbox" value="AI Voice" onchange="metsTransitFilter()" class="transit-feature-chk" style="width:14px;height:14px;accent-color:#2563eb;cursor:pointer;"> AI Voice
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- Sent Date range filter — outlined floating label -->
-                        <div style="position:relative;display:inline-block;" id="transit-date-wrapper">
-                            <div style="position:absolute;top:-8px;left:10px;background:#fff;padding:0 4px;font-size:10.5px;color:#9ca3af;font-weight:500;line-height:1;pointer-events:none;z-index:3;">Sent Date</div>
-                            <!-- Trigger button -->
-                            <button onclick="metsToggleDateDropdown(event)" id="transit-date-btn" style="border:1.5px solid #d1d5db;border-radius:8px;padding:8px 32px 8px 12px;font-size:12.5px;color:#111827;background:#fff url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2214%22 viewBox=%220 0 20 20%22 fill=%22none%22 stroke=%22%239ca3af%22 stroke-width=%221.5%22><rect x=%223%22 y=%224%22 width=%2214%22 height=%2213%22 rx=%222%22/><path d=%22M7 2v3M13 2v3M3 8h14%22/></svg>') no-repeat right 10px center;cursor:pointer;outline:none;font-family:inherit;min-width:180px;text-align:left;white-space:nowrap;">Select date range</button>
-                            <!-- Dropdown panel -->
-                            <div id="transit-date-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1.5px solid #d1d5db;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:100;padding:16px;min-width:280px;">
-                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-                                    <div style="position:relative;">
-                                        <div style="font-size:10.5px;color:#9ca3af;font-weight:500;margin-bottom:5px;">From</div>
-                                        <input type="date" id="transit-filter-date-from" style="width:100%;border:1.5px solid #d1d5db;border-radius:7px;padding:7px 10px;font-size:12px;color:#111827;background:#fff;outline:none;font-family:inherit;box-sizing:border-box;">
-                                    </div>
-                                    <div style="position:relative;">
-                                        <div style="font-size:10.5px;color:#9ca3af;font-weight:500;margin-bottom:5px;">To</div>
-                                        <input type="date" id="transit-filter-date-to" style="width:100%;border:1.5px solid #d1d5db;border-radius:7px;padding:7px 10px;font-size:12px;color:#111827;background:#fff;outline:none;font-family:inherit;box-sizing:border-box;">
-                                    </div>
-                                </div>
-                                <div style="display:flex;justify-content:flex-end;gap:8px;">
-                                    <button onclick="metsTransitClearDate()" id="transit-filter-date-clear" style="border:1.5px solid #e5e9f2;background:#fff;border-radius:7px;padding:6px 14px;font-size:12px;color:#6b7280;cursor:pointer;font-family:inherit;">Clear</button>
-                                    <button onclick="metsApplyDateRange()" style="border:none;background:#2563eb;border-radius:7px;padding:6px 16px;font-size:12px;color:#fff;cursor:pointer;font-weight:600;font-family:inherit;">Apply</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Reset -->
-                        <button onclick="metsTransitReset()" id="transit-filter-reset" style="display:none;background:none;border:none;font-size:12px;color:#2563eb;cursor:pointer;padding:0;text-decoration:underline;white-space:nowrap;">Reset</button>
-
-                    </div>
-
-                    <!-- Table -->
-                    <div style="overflow-x:auto;">
-                        <table id="transit-jobs-table" style="width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed;">
-                            <colgroup>
-                                <col style="width:25%">
-                                <col style="width:28%">
-                                <col style="width:22%">
-                                <col style="width:25%">
-                            </colgroup>
-                            <thead>
-                                <tr style="background:#f8fafc;border-bottom:1px solid #e5e9f2;">
-                                    <th style="padding:10px 16px;text-align:left;font-size:11.5px;font-weight:600;color:#6b7280;white-space:nowrap;">Job ID</th>
-                                    <th style="padding:10px 16px;text-align:left;font-size:11.5px;font-weight:600;color:#6b7280;white-space:nowrap;">Request Date &amp; Time</th>
-                                    <th style="padding:10px 16px;text-align:left;font-size:11.5px;font-weight:600;color:#6b7280;white-space:nowrap;">Feature</th>
-                                    <th style="padding:10px 16px;text-align:center;font-size:11.5px;font-weight:600;color:#6b7280;white-space:nowrap;">Hold METS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-
-                                <!-- EML-10045 · Email · 45% confirmed -->
-                                <tr class="transit-row" data-feature="Email" data-trigger="Bulk" data-date="2026-06-10" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">EML-10045</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">10 Jun 2026 &nbsp;09:30 am</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">Email</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">400</td>
-                                </tr>
-
-                                <!-- SMS-20115 · SMS · mixed: +300 reversed, -60 over-consumed -->
-                                <tr class="transit-row" data-feature="SMS" data-trigger="Bulk" data-date="2026-06-12" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">SMS-20115</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">12 Jun 2026 &nbsp;11:15 am</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">SMS</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">300</td>
-                                </tr>
-
-                                <!-- SMS-20087 · SMS · Automation Live · 0% confirmed -->
-                                <tr class="transit-row" data-feature="SMS" data-trigger="Automation" data-date="2026-06-15" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">SMS-20087</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">15 Jun 2026 &nbsp;02:45 pm</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">SMS</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">200</td>
-                                </tr>
-
-                                <!-- WA-00325 · WhatsApp · 62% confirmed -->
-                                <tr class="transit-row" data-feature="WhatsApp" data-trigger="Bulk" data-date="2026-06-11" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">WA-00325</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">11 Jun 2026 &nbsp;04:00 pm</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">WhatsApp</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">100</td>
-                                </tr>
-
-                                <!-- EML-10052 · Email · Automation Live · 20% confirmed -->
-                                <tr class="transit-row" data-feature="Email" data-trigger="Automation" data-date="2026-06-15" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">EML-10052</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">15 Jun 2026 &nbsp;08:20 am</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">Email</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">100</td>
-                                </tr>
-
-                                <!-- AIV-00089 · AI Voice · Automation Live · 0% confirmed -->
-                                <tr class="transit-row" data-feature="AI Voice" data-trigger="Automation" data-date="2026-06-17" style="border-bottom:1px solid #f3f4f6;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
-                                    <td style="padding:13px 16px;">
-                                        <a href="javascript:void(0)" onclick="openCommLog(this)" style="font-family:monospace;color:#2563eb;font-weight:700;font-size:12.5px;text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">AIV-00089</a>
-                                    </td>
-                                    <td style="padding:13px 16px;color:#374151;font-size:12.5px;white-space:nowrap;">17 Jun 2026 &nbsp;10:05 am</td>
-                                    <td style="padding:13px 16px;">
-                                        <span style="font-size:13px;color:#111827;">AI Voice</span>
-                                    </td>
-                                    <td style="padding:13px 16px;text-align:center;color:#111827;">100</td>
-                                </tr>
-
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination Footer -->
-                    <div style="padding:12px 20px;border-top:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
-                        <span id="transit-total-records" style="background:#e5e7eb;color:#374151;font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;white-space:nowrap;">Total Records 6</span>
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <span id="transit-page-info" style="font-size:12px;color:#6b7280;margin-right:4px;">Page 1 of 1</span>
-                            <button id="transit-prev-btn" onclick="metsTransitPrevPage()" disabled style="border:1.5px solid #e5e9f2;background:#fff;border-radius:7px;padding:5px 12px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:4px;">
-                                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-                                Previous
-                            </button>
-                            <div id="transit-page-numbers" style="display:flex;gap:4px;"></div>
-                            <button id="transit-next-btn" onclick="metsTransitNextPage()" style="border:1.5px solid #e5e9f2;background:#fff;border-radius:7px;padding:5px 12px;font-size:12px;color:#6b7280;cursor:pointer;display:flex;align-items:center;gap:4px;">
-                                Next
-                                <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 18 11 12 5 6"/></svg>
-                            </button>
-                        </div>
-                    </div>
-
                 </div>
 
                 <div id="mets-panel-audit" style="display:none;">
@@ -9870,6 +9793,462 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
+
+<style>
+  .dp-wrap { width:100%; box-sizing:border-box; padding:20px 24px 36px; font-family:'Inter',sans-serif; }
+  .dp-page-hdr { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px; }
+  .dp-page-title-wrap { display:flex;align-items:center;gap:12px; }
+  .dp-back-btn { display:inline-flex;align-items:center;gap:6px;border:1.5px solid #e5e7eb;background:#fff;border-radius:8px;padding:8px 14px;font-size:12.5px;font-weight:500;color:#374151;cursor:pointer;font-family:inherit;margin-right:6px;transition:all .15s; }
+  .dp-back-btn:hover { background:#f8fafc;border-color:#cbd5e1; }
+  .dp-page-icon { width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2979d4,#5b8def);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 4px 10px rgba(41,121,212,.28); }
+  .dp-page-title { font-size:18px;font-weight:700;color:#1c2534;letter-spacing:-.01em; }
+  .dp-page-subtitle { font-size:12.5px;color:#94a3b8;margin-top:2px; }
+  .dp-jump-btn { display:flex;align-items:center;gap:7px;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;transition:all .15s; }
+  .dp-jump-btn:hover { background:#e8eef6;border-color:#cbd5e1; }
+  .dp-stats-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px; }
+  .dp-card { background:#fff;border:1px solid #e5e9f2;border-radius:10px;padding:18px;transition:box-shadow .2s,transform .2s; }
+  .dp-card:hover { box-shadow:0 8px 20px rgba(15,23,42,.06);transform:translateY(-1px); }
+  .dp-card-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px; }
+  .dp-main-label { display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#475569; }
+  .dp-stat-icon { width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .dp-main-big { font-size:27px;font-weight:700;color:#1c2534;letter-spacing:-.02em; }
+  .dp-stat-sub-row { display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b;margin-top:10px; }
+  .dp-progress-ring-wrap { position:relative;width:44px;height:44px;flex-shrink:0; }
+  .dp-progress-ring-label { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#2563EB; }
+  #dpTodayRing { transition:stroke-dashoffset .4s ease; }
+  .dp-tabs-card { background:#fff;border:1px solid #e5e9f2;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.03); }
+  .dp-tabs-row { display:flex;border-bottom:1.5px solid #e5e9f2;padding:0 10px;gap:2px; }
+  .dp-tab { display:flex;align-items:center;gap:7px;padding:14px 20px;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;white-space:nowrap;letter-spacing:0.01em;transition:color .15s,background .15s; }
+  .dp-tab svg { opacity:.6;transition:opacity .15s; }
+  .dp-tab.active { color:#2563EB;border-bottom-color:#2563EB;font-weight:600; }
+  .dp-tab.active svg { opacity:1; }
+  .dp-tab:hover:not(.active) { color:#374151;background:#f8fafc;border-radius:8px 8px 0 0; }
+  .dp-tab-content { padding:22px;animation:dpFadeIn .18s ease; }
+  @keyframes dpFadeIn { from{opacity:0;transform:translateY(3px);} to{opacity:1;transform:translateY(0);} }
+  .dp-week-nav-btn { border:1px solid #E2E8F0;background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all .15s; }
+  .dp-week-nav-btn:hover { background:#F1F5F9;border-color:#cbd5e1;color:#334155; }
+  .dp-today-btn { border:1px solid #E2E8F0;background:#F8FAFC;border-radius:7px;padding:5px 12px;font-size:11.5px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s; }
+  .dp-today-btn:hover { background:#EFF6FF;border-color:#93c5fd;color:#2563EB; }
+  .dp-day-pill { flex:1;text-align:center;padding:9px 4px;border-radius:10px;cursor:pointer;border:1px solid #E2E8F0;position:relative;transition:all .15s;}
+  .dp-day-pill:hover:not(.dp-day-pill-active) { border-color:#93c5fd;background:#F8FAFC; }
+  .dp-day-pill-active { background:#2979d4;border-color:#2979d4;box-shadow:0 4px 10px rgba(41,121,212,.25);}
+  .dp-day-pill-active .dp-day-name, .dp-day-pill-active .dp-day-num { color:#fff; }
+  .dp-day-name { font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
+  .dp-day-num { font-size:15px;color:#1e293b;font-weight:700;margin-top:2px;}
+  .dp-day-today { color:#2979d4; }
+  .dp-day-dot { position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2979d4; }
+  .dp-day-pill-active .dp-day-dot { background:#fff; }
+  .dp-compose { display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:16px;padding:14px;background:linear-gradient(135deg,#F0F6FF,#F8FAFC 60%);border:1px solid #E2E9F5;border-radius:12px; }
+  .dp-compose-field { display:flex;flex-direction:column;gap:5px; }
+  .dp-compose-field label { display:flex;align-items:center;gap:4px;font-size:9.5px;color:#2979d4;font-weight:700;text-transform:uppercase;letter-spacing:.03em; }
+  .dp-empty { padding:36px 10px;text-align:center;color:#94a3b8;font-size:13px;}
+  .dp-empty svg { margin-bottom:10px;opacity:.5; }
+  .dp-task-group-label { display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:.03em;margin:4px 0 10px; }
+  .dp-task-group-label:not(:first-child) { margin-top:22px;padding-top:18px;border-top:1px solid #EEF1F5; }
+  .dp-task-group-count { background:#EEF2FF;color:#4f46e5;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px; }
+  .dp-task-group-label-team { color:#475569; }
+  .dp-task-group-label-team .dp-task-group-count { background:#F1F5F9;color:#475569; }
+  .dp-empty-inline { padding:14px 10px;text-align:center;color:#94a3b8;font-size:12.5px;background:#FAFBFC;border:1px dashed #E2E8F0;border-radius:10px;margin-bottom:10px; }
+  .dp-task-row { background:#fff;border:1px solid #EEF1F5;border-left:4px solid #CBD5E1;border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .18s,border-color .18s,transform .18s;}
+  .dp-task-row:hover { border-color:#dbe4f0;box-shadow:0 6px 18px rgba(15,23,42,.07);transform:translateY(-1px); }
+  .dp-task-row:last-child { margin-bottom:0; }
+  .dp-task-done { background:#FAFBFC; }
+  .dp-task-top { display:flex;align-items:center;gap:12px; }
+  .dp-task-dates { display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #EEF1F5; }
+  .dp-date-chip { display:flex;align-items:center;gap:6px;background:#F8FAFC;border:1px solid #EEF0F3;border-radius:8px;padding:6px 10px;transition:border-color .15s,background .15s,box-shadow .15s; }
+  .dp-date-chip:hover { box-shadow:0 2px 8px rgba(15,23,42,.06); }
+  .dp-date-chip:focus-within { border-color:#2979d4;background:#fff;box-shadow:0 0 0 3px rgba(41,121,212,.12); }
+  .dp-date-chip-icon { color:#94a3b8;flex-shrink:0;display:flex; }
+  .dp-date-chip-label { font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap; }
+  .dp-date-chip-input { border:none;background:transparent;font-size:12px;font-weight:600;color:#334155;padding:0;width:98px;font-family:inherit;cursor:pointer; }
+  .dp-date-chip-input:focus { outline:none;cursor:auto; }
+  .dp-date-chip-value { font-size:12px;font-weight:700;white-space:nowrap; }
+  .dp-date-chip-start { background:#EFF6FF;border-color:#DBEAFE; }
+  .dp-date-chip-start:hover { border-color:#93c5fd; }
+  .dp-date-chip-start .dp-date-chip-icon,.dp-date-chip-start .dp-date-chip-input { color:#2563EB; }
+  .dp-date-chip-expected { background:#FFFBEB;border-color:#FDE68A; }
+  .dp-date-chip-expected:hover { border-color:#fcd34d; }
+  .dp-date-chip-expected .dp-date-chip-icon,.dp-date-chip-expected .dp-date-chip-input { color:#d97706; }
+  .dp-date-chip-actual-set { background:#F0FDF4;border-color:#BBF7D0; }
+  .dp-date-chip-actual-set .dp-date-chip-icon,.dp-date-chip-actual-set .dp-date-chip-value { color:#16a34a; }
+  .dp-date-chip-actual-empty { background:#F8FAFC; }
+  .dp-date-chip-actual-empty .dp-date-chip-value { color:#94a3b8;font-weight:600; }
+  .dp-task-status { font-size:11.5px;font-weight:700;border:none;border-radius:20px;padding:6px 30px 6px 12px;flex-shrink:0;cursor:pointer;max-width:150px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:box-shadow .15s;}
+  .dp-task-status:hover { box-shadow:0 0 0 3px rgba(15,23,42,.06); }
+  .dp-task-status-sm { font-size:10.5px;font-weight:700;padding:3px 24px 3px 8px;border-radius:14px;max-width:120px;background-position:right 7px center;background-size:9px;}
+  .dp-task-text { flex:1;min-width:0;}
+  .dp-task-title { font-size:13.5px;color:#1e293b;font-weight:600;}
+  .dp-task-done .dp-task-title { text-decoration:line-through;color:#94a3b8;font-weight:500;}
+  .dp-task-desc { font-size:12px;color:#64748b;margin-top:3px;line-height:1.45;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .dp-task-time { display:inline-flex;align-items:center;font-size:11px;color:#94a3b8;margin-top:3px;background:#F1F5F9;padding:1px 6px;border-radius:5px;}
+  .dp-task-del { cursor:pointer;color:#CBD5E1;font-size:18px;line-height:1;padding:4px 6px;flex-shrink:0;border-radius:6px;transition:all .15s;}
+  .dp-task-del:hover { color:#e24b4a;background:#FEF2F2;transform:scale(1.1); }
+  .dp-tracker-row { display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid #F1F5F9;border-radius:10px;transition:all .15s;}
+  .dp-tracker-row:hover { border-color:#E2E8F0;box-shadow:0 2px 8px rgba(15,23,42,.04); }
+  .dp-tracker-row + .dp-tracker-row { margin-top:10px; }
+  .dp-tracker-main { flex:1;min-width:0;}
+  .dp-tracker-title { font-size:13.5px;color:#1e293b;font-weight:600;}
+  .dp-tracker-meta { display:flex;align-items:center;gap:6px;font-size:11.5px;color:#94a3b8;margin-top:5px;}
+  .dp-team-chip { display:inline-flex;align-items:center;background:#EFF6FF;color:#2979d4;font-weight:600;padding:2px 8px;border-radius:20px;font-size:11px;}
+  .dp-tracker-notes { font-size:12px;color:#64748b;margin-top:6px;background:#F8FAFC;padding:6px 9px;border-radius:6px;}
+  .dp-tracker-status { font-size:11.5px;font-weight:700;border:none;border-radius:20px;padding:6px 14px;flex-shrink:0;cursor:pointer;}
+  .dp-input, .dp-select { padding:9px 11px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;color:#334155;transition:border-color .15s,box-shadow .15s;background:#fff;}
+  .dp-input:focus, .dp-select:focus { outline:none;border-color:#2979d4;box-shadow:0 0 0 3px rgba(41,121,212,.12); }
+  .dp-add-btn { display:inline-flex;align-items:center;gap:5px;background:#2979d4;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;line-height:1;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;}
+  .dp-add-btn:hover { background:#1e63b8;box-shadow:0 4px 10px rgba(41,121,212,.25); }
+  .dtask-done-text { text-decoration:line-through;color:#b8bec7 !important; }
+  .dtask-del { cursor:pointer;color:#CBD5E1;font-size:14px;line-height:1;flex-shrink:0;transition:color .15s;}
+  .dtask-del:hover { color:#e24b4a; }
+  .dtask-row { display:flex;align-items:center;gap:8px;padding:8px 6px;border-radius:6px;transition:background .15s;}
+  .dtask-row:hover { background:#F8FAFC; }
+</style>
+<div id="day-planner-overlay" style="display:none;position:fixed;right:0;bottom:0;top:52px;z-index:9000;background:#f4f6fa;overflow-y:auto;overflow-x:hidden;">
+  <div class="dp-wrap">
+    <div class="dp-page-hdr">
+      <div class="dp-page-title-wrap">
+        <button class="dp-back-btn" onclick="closeDayPlanner()">&larr; Back</button>
+        <div class="dp-page-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+        </div>
+        <div>
+          <div class="dp-page-title">Day Planner</div>
+          <div class="dp-page-subtitle">Plan your day &amp; track what other teams are working on</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="dp-jump-btn" onclick="openWorkflowBuilder()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V11a2 2 0 0 0 2 2h3"/><path d="M19 8.5V11a2 2 0 0 0-2 2h-3"/></svg>
+          Workflows
+        </button>
+        <button class="dp-jump-btn" onclick="dpGoToday()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Jump to Today
+        </button>
+      </div>
+    </div>
+
+    <div class="dp-stats-grid">
+      <div class="dp-card" style="border-left:3px solid #2563EB;">
+        <div class="dp-card-top">
+          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#EFF6FF;color:#2563EB;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>Today's Tasks</div>
+          <div class="dp-progress-ring-wrap">
+            <svg width="44" height="44" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="18" fill="none" stroke="#EFF3FA" stroke-width="4"/>
+              <circle id="dpTodayRing" cx="22" cy="22" r="18" fill="none" stroke="#2563EB" stroke-width="4" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113" transform="rotate(-90 22 22)"/>
+            </svg>
+            <div class="dp-progress-ring-label" id="dpStatTodayPct">0%</div>
+          </div>
+        </div>
+        <div class="dp-main-big" id="dpStatTodayFraction">0 / 0</div>
+        <div class="dp-stat-sub-row"><span>Completed today</span></div>
+      </div>
+      <div class="dp-card" style="border-left:3px solid #16a34a;">
+        <div class="dp-card-top">
+          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#F0FDF4;color:#16a34a;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>This Week</div>
+        </div>
+        <div class="dp-main-big" id="dpStatWeekFraction">0 / 0</div>
+        <div class="dp-stat-sub-row"><span>Completed across Mon–Fri</span></div>
+      </div>
+      <div class="dp-card" style="border-left:3px solid #f59e0b;">
+        <div class="dp-card-top">
+          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#FFFBEB;color:#f59e0b;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span>Team Tracker</div>
+        </div>
+        <div class="dp-main-big" id="dpStatTrackerTotal">0</div>
+        <div id="dpStatTrackerBreakdown" class="dp-stat-sub-row" style="flex-wrap:wrap;gap:8px;"></div>
+      </div>
+    </div>
+
+    <div class="dp-tabs-card">
+      <div class="dp-tabs-row">
+        <div class="dp-tab active" id="dpTabMyDayBtn" onclick="dpSwitchTab('myday')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>My Day</div>
+        <div class="dp-tab" id="dpTabTrackerBtn" onclick="dpSwitchTab('tracker')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Team Tracker</div>
+      </div>
+      <div class="dp-tab-content">
+        <div id="dpPanelMyDay">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <button class="dp-week-nav-btn" onclick="dpShiftWeek(-1)">&#8249;</button>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="dpWeekLabel" style="font-size:12.5px;color:#64748b;font-weight:600;"></span>
+              <button class="dp-today-btn" onclick="dpGoToday()">Today</button>
+            </div>
+            <button class="dp-week-nav-btn" onclick="dpShiftWeek(1)">&#8250;</button>
+          </div>
+          <div id="dpDateStrip" style="display:flex;gap:8px;margin-bottom:18px;"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div id="dpSelectedDateLabel" style="font-size:13.5px;font-weight:700;color:#1e293b;"></div>
+            <button class="dp-add-btn" onclick="openAddTaskModal()">+ Add Task</button>
+          </div>
+          <div id="dpTaskList"></div>
+        </div>
+
+        <div id="dpAddTaskModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeAddTaskModal()">
+          <div style="background:#fff;border-radius:14px;padding:24px;width:460px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+              <div style="font-size:15px;font-weight:700;color:#1e293b;">Add a Task</div>
+              <div class="dp-task-del" onclick="closeAddTaskModal()" style="font-size:20px;">&times;</div>
+            </div>
+            <div class="dp-compose-field" style="margin-bottom:14px;">
+              <label>Heading</label>
+              <input type="text" id="dpNewTaskInput" class="dp-input" placeholder="What's the task?" style="width:100%;" onkeydown="if(event.key==='Enter')dpAddTask()">
+            </div>
+            <div class="dp-compose-field" style="margin-bottom:14px;">
+              <label>Description <span style="text-transform:none;font-weight:500;color:#cbd5e1;">(optional)</span></label>
+              <textarea id="dpNewTaskDesc" class="dp-input" placeholder="Add more detail…" style="width:100%;min-height:60px;resize:vertical;font-family:inherit;"></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+              <div class="dp-compose-field">
+                <label>Time</label>
+                <input type="time" id="dpNewTaskTime" class="dp-input" style="width:100%;">
+              </div>
+              <div class="dp-compose-field">
+                <label style="color:#2563EB;">Start Date</label>
+                <input type="date" id="dpNewTaskStart" class="dp-input" style="width:100%;background:#EFF6FF;border-color:#DBEAFE;color:#1e40af;">
+              </div>
+              <div class="dp-compose-field">
+                <label style="color:#d97706;">Expected Closure</label>
+                <input type="date" id="dpNewTaskExpected" class="dp-input" style="width:100%;background:#FFFBEB;border-color:#FDE68A;color:#92400e;">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="dp-back-btn" onclick="closeAddTaskModal()">Cancel</button>
+              <button class="dp-add-btn" onclick="dpAddTask()">Add Task</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="dpPanelTracker" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div class="dp-task-group-label dp-task-group-label-team" style="margin:0;">Team Tasks<span class="dp-task-group-count" id="dpTrackerTeamCount">0</span></div>
+            <button class="dp-add-btn" onclick="openTrackerAddModal()">+ Track Task</button>
+          </div>
+          <div style="font-size:12px;color:#94a3b8;margin:4px 0 12px;">My Day tasks whose status has moved to another team/stage.</div>
+          <div id="dpTrackerTeamTaskList"></div>
+
+          <div class="dp-task-group-label dp-task-group-label-team">Manually Tracked</div>
+          <div style="font-size:12.5px;color:#64748b;margin-bottom:14px;">Track tasks owned by other teams that you're waiting on — no action needed from you, just visibility.</div>
+          <div id="dpTrackerList"></div>
+        </div>
+
+        <div id="dpTrackerAddModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeTrackerAddModal()">
+          <div style="background:#fff;border-radius:14px;padding:24px;width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,.25);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+              <div style="font-size:15px;font-weight:700;color:#1e293b;">Track a Team Task</div>
+              <div class="dp-task-del" onclick="closeTrackerAddModal()" style="font-size:20px;">&times;</div>
+            </div>
+            <div class="dp-compose-field" style="margin-bottom:14px;">
+              <label>Heading</label>
+              <input type="text" id="dpTrackerTitleInput" class="dp-input" placeholder="Task or deliverable…" style="width:100%;">
+            </div>
+            <div class="dp-compose-field" style="margin-bottom:14px;">
+              <label>Description <span style="text-transform:none;font-weight:500;color:#cbd5e1;">(optional)</span></label>
+              <textarea id="dpTrackerNotesInput" class="dp-input" placeholder="Add more detail…" style="width:100%;min-height:60px;resize:vertical;font-family:inherit;"></textarea>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+              <div class="dp-compose-field">
+                <label>Owning Team</label>
+                <input type="text" id="dpTrackerTeamInput" class="dp-input" placeholder="e.g. Engineering" style="width:100%;">
+              </div>
+              <div class="dp-compose-field">
+                <label>Due Date</label>
+                <input type="date" id="dpTrackerDueInput" class="dp-input" style="width:100%;">
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button class="dp-back-btn" onclick="closeTrackerAddModal()">Cancel</button>
+              <button class="dp-add-btn" onclick="dpAddTracker()">Track Task</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="dp-agent-fab" onclick="toggleDpAgent()" title="Day Planner Agent">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
+    </button>
+    <div class="dp-agent-panel" id="dpAgentPanel" style="display:none;">
+      <div class="dp-agent-header">
+        <div class="dp-agent-header-title">
+          <div class="dp-agent-header-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg></div>
+          <div>
+            <div class="dp-agent-header-name">Day Planner Agent</div>
+            <div class="dp-agent-header-sub">Type a command — try "help"</div>
+          </div>
+        </div>
+        <div class="dp-task-del" onclick="toggleDpAgent()" style="font-size:18px;">&times;</div>
+      </div>
+      <div class="dp-agent-messages" id="dpAgentMessages"></div>
+      <div class="dp-agent-quick-row">
+        <button class="dp-agent-quick-chip" onclick="dpAgentQuickCommand('what are my tasks today')">My tasks today</button>
+        <button class="dp-agent-quick-chip" onclick="dpAgentQuickCommand('go to today')">Jump to today</button>
+        <button class="dp-agent-quick-chip" onclick="dpAgentQuickCommand('help')">Help</button>
+      </div>
+      <div class="dp-agent-input-row">
+        <input type="text" id="dpAgentInput" class="dp-input" placeholder="e.g. add a task to call the vendor tomorrow" style="flex:1;" onkeydown="if(event.key==='Enter')dpAgentSend()">
+        <button class="dp-add-btn" onclick="dpAgentSend()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .wf-workflow-card { background:#fff;border:1px solid #EEF1F5;border-radius:12px;padding:16px 18px;margin-bottom:12px;transition:box-shadow .18s,border-color .18s; }
+  .wf-workflow-card:hover { border-color:#dbe4f0;box-shadow:0 6px 18px rgba(15,23,42,.07); }
+  .wf-workflow-card:last-child { margin-bottom:0; }
+  .wf-workflow-top { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
+  .wf-workflow-name { font-size:14.5px;font-weight:700;color:#1e293b; }
+  .wf-workflow-meta { display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap; }
+  .wf-trigger-badge { display:inline-flex;align-items:center;background:#EEF2FF;color:#4f46e5;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px; }
+  .wf-step-count-badge { display:inline-flex;align-items:center;background:#F1F5F9;color:#475569;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px; }
+  .wf-workflow-actions { display:flex;align-items:center;gap:10px;flex-shrink:0; }
+  .wf-status-toggle { border:none;border-radius:20px;padding:6px 14px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .15s; }
+  .wf-status-toggle.active { background:#F0FDF4;color:#16a34a; }
+  .wf-status-toggle.paused { background:#F8FAFC;color:#94a3b8; }
+  .wf-status-toggle:hover { box-shadow:0 0 0 3px rgba(15,23,42,.06); }
+  .wf-step-list { margin-top:16px;padding-top:16px;border-top:1px dashed #EEF1F5; }
+  .wf-step-row { display:flex;align-items:flex-start;gap:12px;padding:12px;background:#F8FAFC;border:1px solid #EEF0F3;border-radius:10px;margin-bottom:10px; }
+  .wf-step-row:last-child { margin-bottom:0; }
+  .wf-step-num { width:24px;height:24px;border-radius:50%;background:#4f46e5;color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .wf-step-body { flex:1;min-width:0;display:flex;gap:10px;flex-wrap:wrap; }
+
+  /* Workflow Designer — drag-and-drop workspace */
+  .wfd-top-card { display:flex;gap:14px;flex-wrap:wrap;background:#fff;border:1px solid #e5e9f2;border-radius:12px;padding:16px 18px;margin-bottom:18px; }
+  .wfd-workspace { display:flex;gap:18px;align-items:flex-start; }
+  .wfd-palette { width:220px;flex-shrink:0;background:#fff;border:1px solid #e5e9f2;border-radius:12px;padding:16px;position:sticky;top:16px; }
+  .wfd-palette-title { font-size:12px;font-weight:700;color:#1e293b;text-transform:uppercase;letter-spacing:.03em; }
+  .wfd-palette-hint { font-size:11.5px;color:#94a3b8;margin:4px 0 14px; }
+  .wfd-palette-chip { display:flex;align-items:center;gap:8px;background:#F8FAFC;border:1.5px dashed #CBD5E1;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;color:#334155;margin-bottom:10px;cursor:grab;transition:all .15s; }
+  .wfd-palette-chip:last-child { margin-bottom:0; }
+  .wfd-palette-chip:hover { border-color:#4f46e5;background:#EEF2FF;color:#4f46e5;transform:translateX(2px); }
+  .wfd-palette-chip:active { cursor:grabbing; }
+  .wfd-chip-icon { width:22px;height:22px;border-radius:6px;background:#EEF2FF;color:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700; }
+  .wfd-palette-chip-wait:hover { border-color:#f59e0b;background:#FFFBEB;color:#b45309; }
+  .wfd-chip-icon-wait { background:#FFFBEB;color:#f59e0b; }
+  .wfd-node-num-wait { background:#f59e0b !important; }
+  .wfd-node-wait { border-color:#FDE68A;background:#FFFDF7; }
+  .wfd-canvas { flex:1;min-width:0;background:#fff;border:1px solid #e5e9f2;border-radius:12px;padding:28px;min-height:420px; }
+  .wfd-trigger-node { display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#EEF2FF,#F8FAFC);border:1.5px solid #C7D2FE;border-radius:12px;padding:14px 18px;max-width:420px;margin:0 auto; }
+  .wfd-node-icon { width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px; }
+  .wfd-trigger-icon { background:#4f46e5;color:#fff; }
+  .wfd-node-label { font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em; }
+  .wfd-node-title { font-size:13.5px;font-weight:700;color:#1e293b;margin-top:1px; }
+  .wfd-connector { width:2px;height:26px;background:#CBD5E1;margin:0 auto; }
+  .wfd-node { display:flex;align-items:flex-start;gap:10px;background:#fff;border:1.5px solid #E2E8F0;border-radius:12px;padding:14px 16px;max-width:420px;margin:0 auto;transition:box-shadow .15s,border-color .15s,opacity .15s; }
+  .wfd-node:hover { border-color:#c7d5e8;box-shadow:0 4px 14px rgba(15,23,42,.06); }
+  .wfd-node.wfd-dragging { opacity:.35; }
+  .wfd-node.wfd-drop-target { border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.15); }
+  .wfd-node-drag-handle { cursor:grab;color:#CBD5E1;font-size:14px;line-height:1;padding-top:2px;flex-shrink:0;letter-spacing:-2px; }
+  .wfd-node-drag-handle:active { cursor:grabbing; }
+  .wfd-node-num { width:22px;height:22px;border-radius:50%;background:#4f46e5;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px; }
+  .wfd-node-body { flex:1;min-width:0; }
+  .wfd-canvas-empty-drop { text-align:center;color:#94a3b8;font-size:12.5px;border:2px dashed #E2E8F0;border-radius:12px;padding:28px;max-width:420px;margin:0 auto; }
+
+  /* Day Planner Agent — floating chat widget, rule-based command interpreter */
+  .dp-agent-fab { position:fixed;right:28px;bottom:28px;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2979d4,#4f46e5);color:#fff;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 20px rgba(41,121,212,.35);z-index:9400;transition:transform .15s,box-shadow .15s; }
+  .dp-agent-fab:hover { transform:translateY(-2px) scale(1.04);box-shadow:0 10px 26px rgba(41,121,212,.42); }
+  .dp-agent-panel { position:fixed;right:28px;bottom:92px;width:360px;max-width:90vw;height:480px;max-height:72vh;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(15,23,42,.28);z-index:9400;display:flex;flex-direction:column;overflow:hidden;border:1px solid #e5e9f2; }
+  .dp-agent-header { display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #EEF1F5;flex-shrink:0; }
+  .dp-agent-header-title { display:flex;align-items:center;gap:10px; }
+  .dp-agent-header-icon { width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#2979d4,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .dp-agent-header-name { font-size:13.5px;font-weight:700;color:#1e293b; }
+  .dp-agent-header-sub { font-size:11px;color:#94a3b8;margin-top:1px; }
+  .dp-agent-messages { flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px; }
+  .dp-agent-msg { max-width:84%;padding:9px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;white-space:pre-line; }
+  .dp-agent-msg-agent { align-self:flex-start;background:#F1F5F9;color:#334155;border-bottom-left-radius:4px; }
+  .dp-agent-msg-user { align-self:flex-end;background:#2979d4;color:#fff;border-bottom-right-radius:4px; }
+  .dp-agent-quick-row { display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px;flex-shrink:0; }
+  .dp-agent-quick-chip { border:1px solid #E2E8F0;background:#F8FAFC;color:#475569;font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer;transition:all .15s; }
+  .dp-agent-quick-chip:hover { border-color:#93c5fd;background:#EFF6FF;color:#2563EB; }
+  .dp-agent-input-row { display:flex;gap:8px;padding:12px 16px;border-top:1px solid #EEF1F5;flex-shrink:0; }
+</style>
+
+<div id="workflow-overlay" style="display:none;position:fixed;right:0;bottom:0;top:52px;z-index:9000;background:#f4f6fa;overflow-y:auto;overflow-x:hidden;">
+  <div class="dp-wrap">
+    <div class="dp-page-hdr">
+      <div class="dp-page-title-wrap">
+        <button class="dp-back-btn" onclick="openDayPlanner()">&larr; Back</button>
+        <div class="dp-page-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V11a2 2 0 0 0 2 2h3"/><path d="M19 8.5V11a2 2 0 0 0-2 2h-3"/></svg></div>
+        <div>
+          <div class="dp-page-title">Workflow Builder</div>
+          <div class="dp-page-subtitle">Automate My Day task events</div>
+        </div>
+      </div>
+      <button class="dp-add-btn" onclick="openWorkflowEditor()">+ New Workflow</button>
+    </div>
+
+    <div class="dp-tabs-card">
+      <div class="dp-tab-content">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="dp-task-group-label dp-task-group-label-team" style="margin:0;">Workflows<span class="dp-task-group-count" id="wfStatTotal">0</span></div>
+        </div>
+        <div style="font-size:12px;color:#94a3b8;margin:4px 0 16px;"><span id="wfStatActive">0</span> active &middot; <span id="wfStatSteps">0</span> step(s) across all workflows</div>
+        <div id="wfWorkflowList"></div>
+
+        <div class="dp-task-group-label dp-task-group-label-team">Scheduled (Waiting)</div>
+        <div style="font-size:12.5px;color:#64748b;margin-bottom:14px;">Runs paused on a "Wait" step — they resume automatically once due (checked whenever the app loads).</div>
+        <div id="wfPendingList"></div>
+
+        <div class="dp-task-group-label dp-task-group-label-team">Recent Automation Activity</div>
+        <div style="font-size:12.5px;color:#64748b;margin-bottom:14px;">Runs from "Show Notification" steps and other automated actions.</div>
+        <div id="wfLogList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="workflow-designer-overlay" style="display:none;position:fixed;right:0;bottom:0;top:52px;z-index:9100;background:#f4f6fa;overflow-y:auto;overflow-x:hidden;">
+  <div class="dp-wrap">
+    <div class="dp-page-hdr">
+      <div class="dp-page-title-wrap">
+        <button class="dp-back-btn" onclick="closeWorkflowEditor()">&larr; Back to Workflows</button>
+        <div class="dp-page-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V11a2 2 0 0 0 2 2h3"/><path d="M19 8.5V11a2 2 0 0 0-2 2h-3"/></svg></div>
+        <div>
+          <div class="dp-page-title" id="wfEditorTitle">New Workflow</div>
+          <div class="dp-page-subtitle">Drag step types from the palette onto the canvas to design your automation</div>
+        </div>
+      </div>
+      <button class="dp-add-btn" onclick="wfSaveWorkflow()">Save Workflow</button>
+    </div>
+
+    <div class="wfd-top-card">
+      <div class="dp-compose-field" style="flex:1;min-width:220px;">
+        <label>Workflow Name</label>
+        <input type="text" id="wfNameInput" class="dp-input" placeholder="e.g. Auto Follow-up After Closing" style="width:100%;">
+      </div>
+      <div class="dp-compose-field" style="width:260px;">
+        <label>Trigger <span style="text-transform:none;font-weight:500;color:#cbd5e1;">(a My Day task event)</span></label>
+        <select id="wfTriggerInput" class="dp-input" style="width:100%;" onchange="wfdSyncTriggerLabel()">
+          <option>Task Added</option>
+          <option>Task Status Changed</option>
+          <option>Task Closed</option>
+          <option>Task Moved to Team</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="wfd-workspace">
+      <div class="wfd-palette">
+        <div class="wfd-palette-title">Step Types</div>
+        <div class="wfd-palette-hint">Drag onto the canvas &rarr;</div>
+        <div class="wfd-palette-chip" draggable="true" data-step-type="Add Follow-up Task" ondragstart="wfdPaletteDragStart(event)"><span class="wfd-chip-icon">+</span>Add Follow-up Task</div>
+        <div class="wfd-palette-chip" draggable="true" data-step-type="Set Status To" ondragstart="wfdPaletteDragStart(event)"><span class="wfd-chip-icon">&#8644;</span>Set Status To</div>
+        <div class="wfd-palette-chip" draggable="true" data-step-type="Set Expected Closure (+days)" ondragstart="wfdPaletteDragStart(event)"><span class="wfd-chip-icon">&#9201;</span>Set Expected Closure</div>
+        <div class="wfd-palette-chip wfd-palette-chip-wait" draggable="true" data-step-type="Wait (days)" ondragstart="wfdPaletteDragStart(event)"><span class="wfd-chip-icon wfd-chip-icon-wait">&#9203;</span>Wait</div>
+        <div class="wfd-palette-chip" draggable="true" data-step-type="Show Notification" ondragstart="wfdPaletteDragStart(event)"><span class="wfd-chip-icon">&#128276;</span>Show Notification</div>
+      </div>
+      <div class="wfd-canvas" id="wfdCanvas" ondragover="wfdCanvasDragOver(event)" ondrop="wfdCanvasDrop(event)">
+        <div class="wfd-trigger-node">
+          <div class="wfd-node-icon wfd-trigger-icon">&#9889;</div>
+          <div>
+            <div class="wfd-node-label">Trigger</div>
+            <div class="wfd-node-title" id="wfdTriggerLabel">Task Added</div>
+          </div>
+        </div>
+        <div id="wfStepsEditor"></div>
+        <div class="wfd-canvas-empty-drop" id="wfdEmptyDropHint">Drag a step type here to get started</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>window.__API_BASE__ = 'https://system-uf5p.onrender.com';</script>
 </body>
