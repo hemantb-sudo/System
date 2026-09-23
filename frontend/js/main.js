@@ -7589,19 +7589,25 @@
     var dpWeekAnchor = new Date();
     // Team Tracker statuses (unrelated to the per-task statuses below).
     var DP_STATUS_OPTIONS = ['Pending', 'In Progress', 'Blocked', 'Done'];
-    var DP_STATUS_COLORS = { 'Pending': '#f59e0b', 'In Progress': '#2979d4', 'Blocked': '#e24b4a', 'Done': '#16a34a' };
-    var DP_STATUS_BG = { 'Pending': '#FFFBEB', 'In Progress': '#EFF6FF', 'Blocked': '#FEF2F2', 'Done': '#F0FDF4' };
-    // My Day task statuses — a task keeps "carrying forward" onto every day you look
-    // at (today included) until its status is set to Closed, at which point it is
-    // only visible on the specific day it was closed. Users can add their own status
-    // beyond the built-ins via the "+ Add new status…" option. "Me" marks a task as
-    // still on the user's own plate (shown in "My Tasks"); every other status means
-    // it has moved to another team/stage (shown under "Team").
-    var DP_TASK_STATUSES = ['Me', 'At Product', 'In Dev', 'In QA', 'At Ops', 'At CS', 'Closed'];
-    var DP_TASK_STATUS_COLORS = { 'Me': '#4f46e5', 'At Product': '#7c3aed', 'In Dev': '#2979d4', 'In QA': '#f59e0b', 'At Ops': '#0d9488', 'At CS': '#db2777', 'Closed': '#16a34a' };
-    var DP_TASK_STATUS_BG = { 'Me': '#EEF2FF', 'At Product': '#F5F3FF', 'In Dev': '#EFF6FF', 'In QA': '#FFFBEB', 'At Ops': '#F0FDFA', 'At CS': '#FDF2F8', 'Closed': '#F0FDF4' };
+    var DP_STATUS_COLORS = { 'Pending': '#888888', 'In Progress': '#e8900a', 'Blocked': '#d94040', 'Done': '#1a9e6e' };
+    var DP_STATUS_BG = { 'Pending': '#F3F4F6', 'In Progress': '#FFF7ED', 'Blocked': '#FEF2F2', 'Done': '#ECFDF5' };
+    // My Day task "Task Owner" — who/what stage the task currently sits with. Users
+    // can add their own beyond the built-ins via the "+ Add new status…" option.
+    // "Me" marks a task as still on the user's own plate (shown in "My Tasks");
+    // every other value means it has moved to another team/stage (shown under
+    // "Team"). Carry-forward/closing is owned entirely by the separate Status field
+    // (taskState, below) — Task Owner has no "Closed" value and no date logic.
+    var DP_TASK_STATUSES = ['Me', 'At Product', 'In Dev', 'In QA', 'At Ops', 'At CS'];
+    var DP_TASK_STATUS_COLORS = { 'Me': '#4f46e5', 'At Product': '#7c3aed', 'In Dev': '#2979d4', 'In QA': '#f59e0b', 'At Ops': '#0d9488', 'At CS': '#db2777' };
+    var DP_TASK_STATUS_BG = { 'Me': '#EEF2FF', 'At Product': '#F5F3FF', 'In Dev': '#EFF6FF', 'In QA': '#FFFBEB', 'At Ops': '#F0FDFA', 'At CS': '#FDF2F8' };
     var DP_TASK_STATUS_DEFAULT_COLOR = '#64748b';
     var DP_TASK_STATUS_DEFAULT_BG = '#F8FAFC';
+    // A separate, simpler "Status" field (Open/Hold/Closed) — entirely independent of
+    // the Task Owner field above (DP_TASK_STATUSES): it doesn't drive My Day/Team
+    // Tracker routing or carry-forward, it's just a lightweight state on the task.
+    var DP_TASK_STATE_VALUES = ['Open', 'Hold', 'Closed'];
+    var DP_TASK_STATE_COLORS = { 'Open': '#16a34a', 'Hold': '#d97706', 'Closed': '#6b7280' };
+    var DP_TASK_STATE_BG = { 'Open': '#ECFDF5', 'Hold': '#FFFBEB', 'Closed': '#F3F4F6' };
     var DP_ICON_CALENDAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
     var DP_ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
 
@@ -7620,12 +7626,14 @@
     var DP_REMOTE_CACHE = null;
     function dpLoadData() {
         if (DP_REMOTE_CACHE) return DP_REMOTE_CACHE;
-        return { taskList: [], tracker: [], customTaskStatuses: [] };
+        return { taskList: [], tracker: [], customTaskStatuses: [], customAssignees: [], auditLog: [] };
     }
     function dpSetLocalCache(data) {
         if (!data.taskList) data.taskList = [];
         if (!data.tracker) data.tracker = [];
         if (!data.customTaskStatuses) data.customTaskStatuses = [];
+        if (!data.customAssignees) data.customAssignees = [];
+        if (!data.auditLog) data.auditLog = [];
         DP_REMOTE_CACHE = data;
         try { localStorage.setItem(DP_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
     }
@@ -7650,11 +7658,13 @@
                 dpSetLocalCache({
                     taskList: (res && res.taskList) || [],
                     tracker: (res && res.tracker) || [],
-                    customTaskStatuses: (res && res.customTaskStatuses) || []
+                    customTaskStatuses: (res && res.customTaskStatuses) || [],
+                    customAssignees: (res && res.customAssignees) || [],
+                    auditLog: (res && res.auditLog) || []
                 });
             })
             .catch(function (e) {
-                dpSetLocalCache({ taskList: [], tracker: [], customTaskStatuses: [] });
+                dpSetLocalCache({ taskList: [], tracker: [], customTaskStatuses: [], customAssignees: [], auditLog: [] });
             })
             .finally(function () { _dpLoadRemotePromise = null; });
         return _dpLoadRemotePromise;
@@ -7665,11 +7675,22 @@
         });
     }
 
-    // A task with status "Closed" is only visible on the day it was closed; any other
-    // status means the task carries forward onto every day from its start date on.
+    // Appends one entry to the Day Planner's audit log (newest first, capped at 300
+    // so the payload synced on every save stays bounded). Callers pass the same
+    // `data` object they're about to hand to dpSaveData, so the entry is persisted
+    // atomically with whatever change it's describing.
+    function dpLogAudit(data, action, detail) {
+        if (!data.auditLog) data.auditLog = [];
+        data.auditLog.unshift({ id: 'al_' + Date.now() + '_' + Math.floor(Math.random() * 1000), ts: Date.now(), action: action, detail: detail });
+        if (data.auditLog.length > 300) data.auditLog.length = 300;
+    }
+
+    // A task whose Status is "Closed" is only visible on the day it was closed; Open
+    // or Hold both carry the task forward onto every day from its start date on.
+    // This is driven by the Status field (taskState), not Task Owner (status).
     function dpVisibleTasksForDate(data, dateKey) {
         return (data.taskList || []).filter(function (t) {
-            if (t.status === 'Closed') return t.closedDate === dateKey;
+            if (t.taskState === 'Closed') return t.closedDate === dateKey;
             return t.startDate <= dateKey;
         });
     }
@@ -7680,6 +7701,20 @@
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
+    // Start/Expected date chips show formatted text ("Sep 22", matching the Closed
+    // chip's style) instead of a raw native date input — clicking the text opens the
+    // real (visually hidden) <input type="date"> right after it via the picker API,
+    // so editing still works exactly as before.
+    window.dpOpenDateChipPicker = function (valueSpan) {
+        var input = valueSpan.nextElementSibling;
+        if (!input) return;
+        if (input.showPicker) {
+            try { input.showPicker(); } catch (e) { input.focus(); }
+        } else {
+            input.focus();
+        }
+    };
+
     // Builds the <option> list for a task's status <select>: the 6 built-ins, any
     // custom statuses the user has added, then a trailing "+ Add new status…" entry.
     function dpTaskStatusOptions(data, current) {
@@ -7689,15 +7724,43 @@
         return opts;
     }
 
-    // Handles a task's status <select> changing — including the special "add a new
-    // status" option, which prompts for a name, persists it for reuse, and applies it.
-    // viewedDateKey is the day the change happened on: the day this task will now be
-    // pinned to if the new status is "Closed".
-    window.dpSetTaskStatus = function (id, value, viewedDateKey) {
+    // Builds the <option> list for a task's Status <select> — a fixed 3-value enum
+    // (Open/Hold/Closed), no "+ Add new…" since it isn't user-extensible.
+    function dpTaskStateOptions(current) {
+        return DP_TASK_STATE_VALUES.map(function (s) {
+            return '<option' + (s === current ? ' selected' : '') + '>' + s + '</option>';
+        }).join('');
+    }
+    // Handles a task's Status <select> changing. This is what owns carry-forward now:
+    // Closed sets closedDate to the day the change happened on (dpVisibleTasksForDate
+    // then only shows the task on that day); Open/Hold clear it so the task carries
+    // forward from its start date as usual. viewedDateKey is the day being viewed
+    // when the change happened — the day the task will be pinned to if now Closed.
+    window.dpSetTaskState = function (id, value, viewedDateKey) {
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (t) {
+            dpLogAudit(data, 'Status changed', 'Set Status for "' + t.title + '" from "' + t.taskState + '" to "' + value + '".');
+            t.taskState = value;
+            t.closedDate = (value === 'Closed') ? (viewedDateKey || dpToDateKey(new Date())) : null;
+        }
+        dpSaveData(data);
+        if (t && value === 'Closed') wfRunTriggers('Task Closed', { taskId: id });
+        dpRenderTasks();
+        dpRenderTracker();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+    };
+
+    // Handles a task's Task Owner <select> changing — including the special "add a
+    // new status" option, which prompts for a name, persists it for reuse, and
+    // applies it. Purely about who/what stage the task sits with; carry-forward and
+    // closing are owned by the Status field (dpSetTaskState) and untouched here.
+    window.dpSetTaskStatus = function (id, value) {
         var data = dpLoadData();
         if (value === '__add_new__') {
             var name = window.prompt('Name the new status:');
-            if (!name || !name.trim()) { dpRenderTasks(); dashRenderMyTasks(); return; }
+            if (!name || !name.trim()) { dpRenderTasks(); dpRenderTracker(); dashRenderMyTasks(); return; }
             name = name.trim();
             if (!data.customTaskStatuses) data.customTaskStatuses = [];
             var known = DP_TASK_STATUSES.concat(data.customTaskStatuses);
@@ -7706,28 +7769,55 @@
         }
         var t = (data.taskList || []).find(function (x) { return x.id === id; });
         if (t) {
+            dpLogAudit(data, 'Task Owner changed', 'Set Task Owner for "' + t.title + '" from "' + t.status + '" to "' + value + '".');
             t.status = value;
-            t.closedDate = (value === 'Closed') ? (viewedDateKey || dpToDateKey(new Date())) : null;
         }
         dpSaveData(data);
         if (t) {
             wfRunTriggers('Task Status Changed', { taskId: id });
-            if (value === 'Closed') wfRunTriggers('Task Closed', { taskId: id });
-            else if (value !== 'Me') wfRunTriggers('Task Moved to Team', { taskId: id });
+            if (value !== 'Me') wfRunTriggers('Task Moved to Team', { taskId: id });
         }
         dpRenderTasks();
+        dpRenderTracker();
         dpRenderDateStrip();
         dashRenderMyTasks();
     };
 
+    // Expected closure may never be earlier than start date — both dpSetTaskDate
+    // (existing tasks) and dpAddTask (the creation form) reject the change against
+    // this shared check rather than duplicating the comparison logic.
+    function dpDatesValid(startDate, expectedDate) {
+        return !(startDate && expectedDate && expectedDate < startDate);
+    }
+    // Keeps the Add Task form's Expected Closure date picker from even offering a
+    // date earlier than Start Date — a soft (native-picker) version of the same
+    // dpDatesValid check dpAddTask enforces on submit.
+    window.dpSyncNewTaskExpectedMin = function (startVal) {
+        var expectedInput = document.getElementById('dpNewTaskExpected');
+        if (!expectedInput) return;
+        if (startVal) expectedInput.min = startVal;
+        else expectedInput.removeAttribute('min');
+    };
     // Updates a task's Start Date or Expected Closure Date (Actual Close Date is not
-    // editable here — it is set automatically by dpSetTaskStatus when a task closes).
+    // editable here — it is set automatically by dpSetTaskState when a task closes).
     window.dpSetTaskDate = function (id, field, value) {
         var data = dpLoadData();
         var t = (data.taskList || []).find(function (x) { return x.id === id; });
-        if (t) t[field] = value || null;
+        if (!t) return;
+        var nextStart = field === 'startDate' ? (value || null) : t.startDate;
+        var nextExpected = field === 'expectedCloseDate' ? (value || null) : t.expectedCloseDate;
+        if (!dpDatesValid(nextStart, nextExpected)) {
+            window.alert('Expected closure date cannot be before the start date.');
+            dpRenderTasks();
+            dpRenderTracker();
+            return;
+        }
+        var fieldLabel = field === 'startDate' ? 'Start date' : 'Expected closure';
+        dpLogAudit(data, 'Date changed', 'Set ' + fieldLabel + ' for "' + t.title + '" to ' + (value ? dpFormatDate(value) : '(cleared)') + '.');
+        t[field] = value || null;
         dpSaveData(data);
         dpRenderTasks();
+        dpRenderTracker();
         dpRenderDateStrip();
         dashRenderMyTasks();
     };
@@ -7738,7 +7828,7 @@
         var data = dpLoadData();
         var todayKey = dpToDateKey(new Date());
         var todayTasks = dpVisibleTasksForDate(data, todayKey);
-        var todayDone = todayTasks.filter(function (t) { return t.status === 'Closed'; }).length;
+        var todayDone = todayTasks.filter(function (t) { return t.taskState === 'Closed'; }).length;
         var todayFractionEl = document.getElementById('dpStatTodayFraction');
         var todayPctEl = document.getElementById('dpStatTodayPct');
         var todayPct = todayTasks.length ? Math.round((todayDone / todayTasks.length) * 100) : 0;
@@ -7746,8 +7836,7 @@
         if (todayPctEl) todayPctEl.textContent = todayPct + '%';
         var ring = document.getElementById('dpTodayRing');
         if (ring) {
-            var circumference = 113;
-            ring.style.strokeDashoffset = String(circumference * (1 - todayPct / 100));
+            ring.style.background = 'conic-gradient(#2979d4 ' + (todayPct * 3.6) + 'deg, #e5e7eb 0deg)';
         }
 
         // A "week" here means Monday through Friday only.
@@ -7762,24 +7851,36 @@
         // "This week" counts each task once (not once per carried-forward day): any
         // task open at some point this week, plus any task actually closed this week.
         var weekTasks = (data.taskList || []).filter(function (t) {
-            if (t.status === 'Closed') return t.closedDate >= mondayKey && t.closedDate <= fridayKey;
+            if (t.taskState === 'Closed') return t.closedDate >= mondayKey && t.closedDate <= fridayKey;
             return t.startDate <= fridayKey;
         });
         var weekTotal = weekTasks.length;
-        var weekDone = weekTasks.filter(function (t) { return t.status === 'Closed'; }).length;
+        var weekDone = weekTasks.filter(function (t) { return t.taskState === 'Closed'; }).length;
         var weekFractionEl = document.getElementById('dpStatWeekFraction');
         if (weekFractionEl) weekFractionEl.textContent = weekDone + ' / ' + weekTotal;
 
+        // Team Tracker's total/breakdown cover both sources shown in that tab: My Day
+        // tasks that moved off "Me" (real dp_tasks — the primary path now that "+
+        // Track Task" creates one directly) and any legacy manually-tracked items
+        // (data.tracker) still hanging around. Counts are built from whatever
+        // statuses actually occur rather than a fixed list, since the two sources
+        // can carry different status vocabularies.
+        var teamTasksToday = todayTasks.filter(function (t) { return t.status !== 'Me'; });
         var trackerTotalEl = document.getElementById('dpStatTrackerTotal');
         var trackerBreakdownEl = document.getElementById('dpStatTrackerBreakdown');
-        if (trackerTotalEl) trackerTotalEl.textContent = data.tracker.length;
+        if (trackerTotalEl) trackerTotalEl.textContent = teamTasksToday.length + data.tracker.length;
         if (trackerBreakdownEl) {
             var counts = {};
-            DP_STATUS_OPTIONS.forEach(function (s) { counts[s] = 0; });
-            data.tracker.forEach(function (t) { if (counts[t.status] !== undefined) counts[t.status]++; });
-            trackerBreakdownEl.innerHTML = DP_STATUS_OPTIONS.map(function (s) {
-                var color = DP_STATUS_COLORS[s] || '#94a3b8';
-                return '<span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:' + color + ';margin-right:4px;"></span>' + s + ': ' + counts[s] + '</span>';
+            var order = [];
+            function bump(s) {
+                if (counts[s] === undefined) { counts[s] = 0; order.push(s); }
+                counts[s]++;
+            }
+            teamTasksToday.forEach(function (t) { bump(t.status); });
+            data.tracker.forEach(function (t) { bump(t.status); });
+            trackerBreakdownEl.innerHTML = order.map(function (s) {
+                var color = DP_TASK_STATUS_COLORS[s] || DP_STATUS_COLORS[s] || DP_TASK_STATUS_DEFAULT_COLOR;
+                return '<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:#6b7280;"><span class="dp-filter-dot" style="background:' + color + ';"></span>' + dpEsc(s) + ': ' + counts[s] + '</div>';
             }).join('');
         }
     }
@@ -7814,7 +7915,7 @@
         }
         wfProcessPendingRuns();
         dpSelectedDate = dpToDateKey(new Date());
-        dpWeekAnchor = new Date();
+        dpWeekAnchor = dpMondayOf(new Date());
         dpSwitchTab('myday');
         dpRenderDateStrip();
         dpRenderTasks();
@@ -7826,6 +7927,18 @@
         if (_dpObserver) { _dpObserver.disconnect(); _dpObserver = null; }
         var agentPanel = document.getElementById('dpAgentPanel');
         if (agentPanel) agentPanel.style.display = 'none';
+        var datePicker = document.getElementById('dpDatePickerPopover');
+        if (datePicker) datePicker.style.display = 'none';
+        // Reset the Add Task drawer synchronously (skipping its slide-out transition)
+        // so reopening the planner later never shows it pre-open with a stale backdrop.
+        var addModal = document.getElementById('dpAddTaskModal');
+        if (addModal) { addModal.classList.remove('dp-drawer-open'); addModal.style.display = 'none'; }
+        var addBackdrop = document.getElementById('dpAddTaskBackdrop');
+        if (addBackdrop) addBackdrop.style.display = 'none';
+        var auditDrawer = document.getElementById('dpAuditLogDrawer');
+        if (auditDrawer) { auditDrawer.classList.remove('dp-drawer-open'); auditDrawer.style.display = 'none'; }
+        var auditBackdrop = document.getElementById('dpAuditLogBackdrop');
+        if (auditBackdrop) auditBackdrop.style.display = 'none';
     };
 
     window.dpSwitchTab = function (tab) {
@@ -7844,19 +7957,38 @@
         if (overlay) overlay.scrollTop = 0;
     };
 
+    // Monday of the calendar week containing `date` — used by the "standard"
+    // navigation entry points (Today, This Week, initial open) so they always show
+    // a conventional Mon–Fri week regardless of wherever the strip was last scrolled.
+    function dpMondayOf(date) {
+        var d = new Date(date);
+        var dow = d.getDay();
+        d.setDate(d.getDate() - ((dow + 6) % 7));
+        return d;
+    }
+    // Returns `count` consecutive working days (Mon–Fri, weekends skipped)
+    // starting at `startDate` — or at the next Monday if `startDate` itself falls
+    // on a weekend. The date strip always shows exactly 5 of these, so whatever
+    // day dpWeekAnchor is set to becomes the first pill: picking a date in the
+    // calendar (dpPickerPickDate) starts the strip right there — it no longer
+    // snaps to that date's containing Mon–Fri week — while dpMondayOf-driven
+    // entry points naturally reproduce the classic full Mon–Fri week.
+    function dpWorkingDaysFrom(startDate, count) {
+        var d = new Date(startDate);
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+        var days = [];
+        while (days.length < count) {
+            if (d.getDay() !== 0 && d.getDay() !== 6) days.push(new Date(d));
+            d.setDate(d.getDate() + 1);
+        }
+        return days;
+    }
     function dpRenderDateStrip() {
         var strip = document.getElementById('dpDateStrip');
         if (!strip) return;
-        var anchor = new Date(dpWeekAnchor);
-        var dow = anchor.getDay();
-        var monday = new Date(anchor);
-        monday.setDate(anchor.getDate() - ((dow + 6) % 7));
-        var days = [];
-        for (var i = 0; i < 5; i++) {
-            var d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            days.push(d);
-        }
+        var days = dpWorkingDaysFrom(dpWeekAnchor, 5);
+        // The label always reads the actual displayed span, start to end.
+        var labelStart = days[0], labelEnd = days[4];
         var todayKey = dpToDateKey(new Date());
         var data = dpLoadData();
         strip.innerHTML = days.map(function (d) {
@@ -7865,16 +7997,16 @@
             var isToday = key === todayKey;
             var hasTasks = dpVisibleTasksForDate(data, key).length > 0;
             var dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-            return '<div class="dp-day-pill' + (isSel ? ' dp-day-pill-active' : '') + '" onclick="dpSelectDate(\'' + key + '\')">' +
+            return '<div class="dp-day-pill' + (isSel ? ' dp-day-pill-active' : '') + (isToday ? ' dp-day-today' : '') + '" onclick="dpSelectDate(\'' + key + '\')">' +
                 '<div class="dp-day-name">' + dayName + '</div>' +
-                '<div class="dp-day-num' + (isToday && !isSel ? ' dp-day-today' : '') + '">' + d.getDate() + '</div>' +
+                '<div class="dp-day-num">' + d.getDate() + '</div>' +
                 (hasTasks ? '<div class="dp-day-dot"></div>' : '') +
             '</div>';
         }).join('');
         var label = document.getElementById('dpWeekLabel');
         if (label) {
-            label.textContent = days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-                ' – ' + days[4].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            label.textContent = labelStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+                ' – ' + labelEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
         }
     }
 
@@ -7888,16 +8020,87 @@
         dpRenderDateStrip();
     };
     window.dpGoToday = function () {
-        dpWeekAnchor = new Date();
+        dpWeekAnchor = dpMondayOf(new Date());
         dpSelectedDate = dpToDateKey(new Date());
         dpRenderDateStrip();
         dpRenderTasks();
+    };
+    // Distinct from dpGoToday: jumps to the current week but selects its
+    // Monday, for reviewing the week from the start rather than jumping
+    // straight to today. Triggered by clicking the "This Week" stat card.
+    window.dpGoThisWeek = function () {
+        dpWeekAnchor = dpMondayOf(new Date());
+        dpSelectedDate = dpToDateKey(dpWeekAnchor);
+        dpRenderDateStrip();
+        dpRenderTasks();
+    };
+
+    // ── Date-picker popover (jump to any date directly, not just week-by-week) ─
+    var dpPickerMonth = new Date();
+    window.dpToggleDatePicker = function () {
+        var pop = document.getElementById('dpDatePickerPopover');
+        var btn = document.getElementById('dpWeekLabelBtn');
+        if (!pop) return;
+        var isOpen = pop.style.display !== 'none';
+        if (isOpen) {
+            pop.style.display = 'none';
+            if (btn) btn.classList.remove('dp-picker-open');
+            document.removeEventListener('click', dpDatePickerOutsideClick, true);
+        } else {
+            dpPickerMonth = new Date(dpSelectedDate + 'T00:00:00');
+            dpRenderDatePicker();
+            pop.style.display = 'block';
+            if (btn) btn.classList.add('dp-picker-open');
+            setTimeout(function () { document.addEventListener('click', dpDatePickerOutsideClick, true); }, 0);
+        }
+    };
+    function dpDatePickerOutsideClick(e) {
+        var pop = document.getElementById('dpDatePickerPopover');
+        var btn = document.getElementById('dpWeekLabelBtn');
+        if (!pop || pop.style.display === 'none') return;
+        if (pop.contains(e.target) || (btn && btn.contains(e.target))) return;
+        dpToggleDatePicker();
+    }
+    window.dpPickerShiftMonth = function (delta) {
+        dpPickerMonth.setMonth(dpPickerMonth.getMonth() + delta);
+        dpRenderDatePicker();
+    };
+    function dpRenderDatePicker() {
+        var grid = document.getElementById('dpDatePickerGrid');
+        if (!grid) return;
+        var monthLabel = document.getElementById('dpPickerMonthLabel');
+        if (monthLabel) monthLabel.textContent = dpPickerMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        var year = dpPickerMonth.getFullYear(), month = dpPickerMonth.getMonth();
+        var firstOfMonth = new Date(year, month, 1);
+        var gridStart = new Date(firstOfMonth);
+        gridStart.setDate(gridStart.getDate() - firstOfMonth.getDay());
+        var todayKey = dpToDateKey(new Date());
+        var cells = [];
+        for (var i = 0; i < 42; i++) {
+            var d = new Date(gridStart);
+            d.setDate(gridStart.getDate() + i);
+            var key = dpToDateKey(d);
+            var isMuted = d.getMonth() !== month;
+            var isToday = key === todayKey;
+            var isSelected = key === dpSelectedDate;
+            var cls = 'dp-date-picker-cell' + (isMuted ? ' dp-date-picker-cell-muted' : '') +
+                (isToday && !isSelected ? ' dp-date-picker-cell-today' : '') + (isSelected ? ' dp-date-picker-cell-selected' : '');
+            cells.push('<div class="' + cls + '" onclick="dpPickerPickDate(\'' + key + '\')">' + d.getDate() + '</div>');
+        }
+        grid.innerHTML = cells.join('');
+    }
+    window.dpPickerPickDate = function (key) {
+        dpSelectedDate = key;
+        dpWeekAnchor = new Date(key + 'T00:00:00');
+        dpRenderDateStrip();
+        dpRenderTasks();
+        dpToggleDatePicker();
     };
 
     // Renders one task's full card (title, status, delete, date chips) — shared by
     // both the "My Tasks" and "Team" groups in the My Day list.
     function dpTaskRowHtml(t, data, viewedDateKey) {
-        var isClosed = t.status === 'Closed';
+        var isClosed = t.taskState === 'Closed';
         var color = DP_TASK_STATUS_COLORS[t.status] || DP_TASK_STATUS_DEFAULT_COLOR;
         var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
         return '<div class="dp-task-row' + (isClosed ? ' dp-task-done' : '') + '" style="border-left-color:' + color + ';">' +
@@ -7907,12 +8110,13 @@
                     (t.description ? '<div class="dp-task-desc">' + dpEsc(t.description) + '</div>' : '') +
                     (t.time ? '<div class="dp-task-time">' + dpEsc(t.time) + '</div>' : '') +
                 '</div>' +
-                '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value, \'' + viewedDateKey + '\')">' + dpTaskStatusOptions(data, t.status) + '</select>' +
+                '<select class="dp-task-status" style="background-color:' + (DP_TASK_STATE_BG[t.taskState] || DP_TASK_STATE_BG.Open) + ';color:' + (DP_TASK_STATE_COLORS[t.taskState] || DP_TASK_STATE_COLORS.Open) + ';" onchange="dpSetTaskState(\'' + t.id + '\', this.value, \'' + viewedDateKey + '\')">' + dpTaskStateOptions(t.taskState || 'Open') + '</select>' +
+                '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value)">' + dpTaskStatusOptions(data, t.status) + '</select>' +
                 '<div class="dp-task-del" onclick="dpDeleteTask(\'' + t.id + '\')">&times;</div>' +
             '</div>' +
             '<div class="dp-task-dates">' +
-                '<div class="dp-date-chip dp-date-chip-start"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Start</span><input type="date" class="dp-date-chip-input" value="' + (t.startDate || '') + '" onchange="dpSetTaskDate(\'' + t.id + '\',\'startDate\',this.value)"></div>' +
-                '<div class="dp-date-chip dp-date-chip-expected"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Expected</span><input type="date" class="dp-date-chip-input" value="' + (t.expectedCloseDate || '') + '" onchange="dpSetTaskDate(\'' + t.id + '\',\'expectedCloseDate\',this.value)"></div>' +
+                '<div class="dp-date-chip dp-date-chip-start"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Start</span><span class="dp-date-chip-value dp-date-chip-value-editable" onclick="dpOpenDateChipPicker(this)">' + (t.startDate ? dpFormatDate(t.startDate) : '—') + '</span><input type="date" class="dp-date-chip-hidden-input" value="' + (t.startDate || '') + '"' + (t.expectedCloseDate ? ' max="' + t.expectedCloseDate + '"' : '') + ' onchange="dpSetTaskDate(\'' + t.id + '\',\'startDate\',this.value)"></div>' +
+                '<div class="dp-date-chip dp-date-chip-expected"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Expected</span><span class="dp-date-chip-value dp-date-chip-value-editable" onclick="dpOpenDateChipPicker(this)">' + (t.expectedCloseDate ? dpFormatDate(t.expectedCloseDate) : '—') + '</span><input type="date" class="dp-date-chip-hidden-input" value="' + (t.expectedCloseDate || '') + '"' + (t.startDate ? ' min="' + t.startDate + '"' : '') + ' onchange="dpSetTaskDate(\'' + t.id + '\',\'expectedCloseDate\',this.value)"></div>' +
                 '<div class="dp-date-chip' + (t.closedDate ? ' dp-date-chip-actual-set' : ' dp-date-chip-actual-empty') + '"><span class="dp-date-chip-icon">' + DP_ICON_CHECK + '</span><span class="dp-date-chip-label">Closed</span><span class="dp-date-chip-value">' + (t.closedDate ? dpFormatDate(t.closedDate) : '—') + '</span></div>' +
             '</div>' +
         '</div>';
@@ -7920,20 +8124,25 @@
 
     // The My Day list only shows tasks still marked "Me" — once a task's status
     // moves to another team/stage (or Closed), it belongs in the Team Tracker tab
-    // instead (see dpRenderTracker's dpTrackerTeamTaskList section).
+    // instead (see dpRenderTracker).
     function dpRenderTasks() {
         var data = dpLoadData();
         var list = document.getElementById('dpTaskList');
         if (!list) return;
         var startDefaultInput = document.getElementById('dpNewTaskStart');
-        if (startDefaultInput && document.activeElement !== startDefaultInput) startDefaultInput.value = dpSelectedDate;
+        if (startDefaultInput && document.activeElement !== startDefaultInput) {
+            startDefaultInput.value = dpSelectedDate;
+            dpSyncNewTaskExpectedMin(dpSelectedDate);
+        }
+        dpRenderTaskStatusOptions(data);
+        dpRenderNewTaskStateOptions();
         var tasks = dpVisibleTasksForDate(data, dpSelectedDate).filter(function (t) { return t.status === 'Me'; });
         var dateObj = new Date(dpSelectedDate + 'T00:00:00');
         var heading = document.getElementById('dpSelectedDateLabel');
         if (heading) heading.textContent = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
         dpRenderStats();
         if (!tasks.length) {
-            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><div>No personal tasks planned for this day yet. Add one above — tasks assigned to another team show in the Team Tracker tab.</div></div>';
+            list.innerHTML = '<div class="dp-empty"><div class="dp-empty-icon-wrap" style="background:#EFF6FF;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2979d4" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div>No personal tasks planned for this day yet. Add one above — tasks assigned to another team show in the Team Tracker tab.</div></div>';
             return;
         }
         list.innerHTML = tasks.map(function (t) { return dpTaskRowHtml(t, data, dpSelectedDate); }).join('');
@@ -7949,44 +8158,136 @@
             title: opts.title, description: opts.description || '', time: opts.time || '',
             startDate: opts.startDate || dpSelectedDate,
             expectedCloseDate: opts.expectedCloseDate || null,
-            status: opts.status || 'Me', closedDate: null
+            status: opts.status || 'Me', closedDate: null,
+            assignee: opts.assignee || '',
+            taskState: opts.taskState || 'Open'
         });
+        dpLogAudit(data, 'Task created', 'Created "' + opts.title + '" (Task Owner: ' + (opts.status || 'Me') + ', Status: ' + (opts.taskState || 'Open') + ').');
         dpSaveData(data);
         wfRunTriggers('Task Added', { taskId: newTaskId });
         dpRenderTasks();
+        dpRenderTracker();
         dpRenderDateStrip();
         dashRenderMyTasks();
         return newTaskId;
     }
+    // Populates the Add Task form's status <select> — same options as a task row's
+    // own status dropdown (dpTaskStatusOptions: Me/At Product/.../Closed + customs).
+    // Pass forceStatus to reset the selection (used when the form is freshly opened
+    // from My Day vs. Team Tracker); omit it to just refresh options in place while
+    // preserving whatever the user currently has picked.
+    function dpRenderTaskStatusOptions(data, forceStatus) {
+        var sel = document.getElementById('dpNewTaskStatus');
+        if (!sel) return;
+        var current = forceStatus || ((sel.value && sel.value !== '__add_new__') ? sel.value : 'Me');
+        sel.innerHTML = dpTaskStatusOptions(data, current);
+        dpUpdateNewTaskStatusDot(current);
+    }
+    // Populates the Add Task form's separate "Status" (Open/Hold/Closed) select —
+    // always defaults back to "Open" for a freshly-opened form.
+    function dpRenderNewTaskStateOptions() {
+        var sel = document.getElementById('dpNewTaskState');
+        if (!sel) return;
+        var current = (sel.value && DP_TASK_STATE_VALUES.indexOf(sel.value) !== -1) ? sel.value : 'Open';
+        sel.innerHTML = dpTaskStateOptions(current);
+    }
+    // Live visual feedback on the Add Task drawer: the small dot next to the Status
+    // label and the thin accent bar across the drawer's top both track the selected
+    // status's color, updating immediately as the user changes the dropdown.
+    function dpUpdateNewTaskStatusDot(status) {
+        var color = DP_TASK_STATUS_COLORS[status] || DP_TASK_STATUS_DEFAULT_COLOR;
+        var dot = document.getElementById('dpNewTaskStatusDot');
+        if (dot) dot.style.background = color;
+        var accent = document.getElementById('dpNewTaskDrawerAccent');
+        if (accent) accent.style.background = color;
+    }
+    // Handles "+ Add new status…" inside the Add Task form (the task doesn't exist
+    // yet, so this only persists the new status and re-picks it) against
+    // DP_TASK_STATUSES/customTaskStatuses.
+    window.dpNewTaskStatusChange = function (sel) {
+        if (sel.value !== '__add_new__') return;
+        var data = dpLoadData();
+        var name = window.prompt('Name the new status:');
+        if (!name || !name.trim()) { dpRenderTaskStatusOptions(data); return; }
+        name = name.trim();
+        if (!data.customTaskStatuses) data.customTaskStatuses = [];
+        var known = DP_TASK_STATUSES.concat(data.customTaskStatuses);
+        if (known.indexOf(name) === -1) { data.customTaskStatuses.push(name); dpSaveData(data); }
+        dpRenderTaskStatusOptions(data, name);
+        sel.value = name;
+    };
+    // The single "+ Add Task"/"+ Track Task" form: which tab a task lands in is
+    // decided purely by its status (Me -> My Day, anything else -> Team Tracker,
+    // via dpVisibleTasksForDate/dpRenderTracker) — there's no separate creation path.
+    // Task title, Start date, Task Owner, and Status are mandatory — this validates
+    // all four together (rather than failing silently on the first empty one) so the
+    // user sees everything they still need to fill in, highlighted, in one pass.
     window.dpAddTask = function () {
         var input = document.getElementById('dpNewTaskInput');
-        var timeInput = document.getElementById('dpNewTaskTime');
         var startInput = document.getElementById('dpNewTaskStart');
         var expectedInput = document.getElementById('dpNewTaskExpected');
         var descInput = document.getElementById('dpNewTaskDesc');
+        var statusInput = document.getElementById('dpNewTaskStatus');
+        var stateInput = document.getElementById('dpNewTaskState');
         if (!input) return;
-        var title = input.value.trim();
-        if (!title) return;
+
+        var fields = [
+            { el: input, label: 'Task title', value: input.value.trim() },
+            { el: startInput, label: 'Start date', value: startInput ? startInput.value : '' },
+            { el: statusInput, label: 'Task Owner', value: (statusInput && statusInput.value !== '__add_new__') ? statusInput.value : '' },
+            { el: stateInput, label: 'Status', value: stateInput ? stateInput.value : '' }
+        ];
+        fields.forEach(function (f) { if (f.el) f.el.classList.remove('dp-input-invalid'); });
+        var missing = fields.filter(function (f) { return !f.value; });
+        if (missing.length) {
+            missing.forEach(function (f) { if (f.el) f.el.classList.add('dp-input-invalid'); });
+            window.alert('Please fill in: ' + missing.map(function (f) { return f.label; }).join(', ') + '.');
+            missing[0].el.focus();
+            return;
+        }
+
+        var title = fields[0].value, startVal = fields[1].value, statusVal = fields[2].value, stateVal = fields[3].value;
+        var expectedVal = (expectedInput && expectedInput.value) ? expectedInput.value : null;
+        if (!dpDatesValid(startVal, expectedVal)) {
+            window.alert('Expected closure date cannot be before the start date.');
+            return;
+        }
         dpCreateTask({
             title: title,
             description: descInput ? descInput.value.trim() : '',
-            time: timeInput ? timeInput.value : '',
-            startDate: (startInput && startInput.value) ? startInput.value : dpSelectedDate,
-            expectedCloseDate: (expectedInput && expectedInput.value) ? expectedInput.value : null
+            startDate: startVal,
+            expectedCloseDate: expectedVal,
+            status: statusVal,
+            taskState: stateVal
         });
         input.value = '';
         if (descInput) descInput.value = '';
-        if (timeInput) timeInput.value = '';
         if (expectedInput) expectedInput.value = '';
         if (startInput) startInput.value = dpSelectedDate;
+        dpSyncNewTaskExpectedMin(dpSelectedDate);
         closeAddTaskModal();
     };
-    window.openAddTaskModal = function () {
+    // defaultStatus: 'Me' when opened from My Day's "+ Add Task", or a non-Me status
+    // (e.g. 'At Product') when opened from Team Tracker's "+ Track Task" — the only
+    // difference between the two entry points, since it's the same form either way.
+    window.openAddTaskModal = function (defaultStatus) {
         var modal = document.getElementById('dpAddTaskModal');
+        var backdrop = document.getElementById('dpAddTaskBackdrop');
         if (!modal) return;
+        modal.querySelectorAll('.dp-input-invalid').forEach(function (el) { el.classList.remove('dp-input-invalid'); });
         var startInput = document.getElementById('dpNewTaskStart');
         if (startInput && !startInput.value) startInput.value = dpSelectedDate;
+        dpSyncNewTaskExpectedMin(startInput ? startInput.value : '');
+        var data = dpLoadData();
+        dpRenderTaskStatusOptions(data, defaultStatus || 'Me');
+        var stateSel = document.getElementById('dpNewTaskState');
+        if (stateSel) stateSel.innerHTML = dpTaskStateOptions('Open');
+        if (backdrop) backdrop.style.display = 'block';
         modal.style.display = 'flex';
+        // Force layout before adding the open class so the slide-in transition
+        // actually plays instead of the drawer just appearing already open.
+        modal.getBoundingClientRect();
+        modal.classList.add('dp-drawer-open');
         setTimeout(function () {
             var input = document.getElementById('dpNewTaskInput');
             if (input) input.focus();
@@ -7994,62 +8295,165 @@
     };
     window.closeAddTaskModal = function () {
         var modal = document.getElementById('dpAddTaskModal');
-        if (modal) modal.style.display = 'none';
+        var backdrop = document.getElementById('dpAddTaskBackdrop');
+        if (!modal) return;
+        modal.classList.remove('dp-drawer-open');
+        if (backdrop) backdrop.style.display = 'none';
+        setTimeout(function () { modal.style.display = 'none'; }, 220);
+    };
+
+    // Renders the Audit Log drawer's entry list, newest first (already the storage
+    // order — see dpLogAudit). Each entry is a plain-language sentence describing
+    // one create/change/delete across My Day tasks and Team Tracker items.
+    var DP_AUDIT_ACTION_COLORS = {
+        'Task created': '#16a34a', 'Task deleted': '#e24b4a', 'Task Owner changed': '#4f46e5',
+        'Status changed': '#d97706', 'Date changed': '#2979d4',
+        'Item tracked': '#16a34a', 'Tracked item deleted': '#e24b4a', 'Tracked item status changed': '#d97706'
+    };
+    function dpRenderAuditLog() {
+        var body = document.getElementById('dpAuditLogBody');
+        if (!body) return;
+        var data = dpLoadData();
+        var entries = data.auditLog || [];
+        if (!entries.length) {
+            body.innerHTML = '<div class="dp-empty"><div class="dp-empty-icon-wrap" style="background:#F1F5F9;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div>No activity yet — every task and tracked-item change will show up here.</div></div>';
+            return;
+        }
+        body.innerHTML = entries.map(function (e) {
+            var color = DP_AUDIT_ACTION_COLORS[e.action] || '#94a3b8';
+            var time = new Date(e.ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            return '<div class="dp-audit-entry">' +
+                '<div class="dp-audit-entry-dot" style="background:' + color + ';"></div>' +
+                '<div class="dp-audit-entry-body">' +
+                    '<div class="dp-audit-entry-top"><span class="dp-audit-entry-action">' + dpEsc(e.action) + '</span><span class="dp-audit-entry-time">' + time + '</span></div>' +
+                    '<div class="dp-audit-entry-detail">' + dpEsc(e.detail) + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    }
+    window.openAuditLogDrawer = function () {
+        var drawer = document.getElementById('dpAuditLogDrawer');
+        var backdrop = document.getElementById('dpAuditLogBackdrop');
+        if (!drawer) return;
+        dpRenderAuditLog();
+        if (backdrop) backdrop.style.display = 'block';
+        drawer.style.display = 'flex';
+        drawer.getBoundingClientRect();
+        drawer.classList.add('dp-drawer-open');
+    };
+    window.closeAuditLogDrawer = function () {
+        var drawer = document.getElementById('dpAuditLogDrawer');
+        var backdrop = document.getElementById('dpAuditLogBackdrop');
+        if (!drawer) return;
+        drawer.classList.remove('dp-drawer-open');
+        if (backdrop) backdrop.style.display = 'none';
+        setTimeout(function () { drawer.style.display = 'none'; }, 220);
     };
     window.dpDeleteTask = function (id) {
         var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (t) dpLogAudit(data, 'Task deleted', 'Deleted "' + t.title + '".');
         data.taskList = (data.taskList || []).filter(function (x) { return x.id !== id; });
         dpSaveData(data);
         dpRenderTasks();
+        dpRenderTracker();
         dpRenderDateStrip();
         dashRenderMyTasks();
     };
 
     // ── Team Tracker: tasks owned by other teams, no dependency on the user ────
-    // Two sources feed this tab: (1) My Day tasks whose status is no longer "Me"
-    // (they moved to another team/stage), shown live in dpTrackerTeamTaskList; and
-    // (2) items manually tracked below via dpAddTracker, in data.tracker.
-    function dpRenderTracker() {
+    // Task creation is unified with My Day — the same "+ Add Task" form (opened via
+    // "+ Track Task" here, defaulting its status to a non-"Me" value) creates a real
+    // dp_tasks row; which tab it shows in is decided purely by status (dpRenderTasks
+    // filters to "Me", dpRenderTracker below to everything else). Legacy items from
+    // data.tracker (created before this, or by the Day Planner Agent's tracking
+    // tool) still render here too via dpTrackerRowHtml, merged into the same list.
+    // The filter pills use the My Day status vocabulary (DP_TASK_STATUSES minus
+    // "Me", plus any custom statuses) since that's what real tasks carry; a legacy
+    // tracker item only matches a pill if its own status happens to equal it.
+    var dpTrackerFilter = 'all';
+    window.dpSetTrackerFilter = function (f) {
+        dpTrackerFilter = f;
+        dpRenderTracker();
+    };
+    function dpRenderTrackerFilters() {
+        var row = document.getElementById('dpTrackerFilterRow');
+        if (!row) return;
         var data = dpLoadData();
-        dpRenderStats();
-
-        var teamListEl = document.getElementById('dpTrackerTeamTaskList');
-        var teamCountEl = document.getElementById('dpTrackerTeamCount');
-        if (teamListEl) {
-            var todayKey = dpToDateKey(new Date());
-            var teamTasks = dpVisibleTasksForDate(data, todayKey).filter(function (t) { return t.status !== 'Me'; });
-            if (teamCountEl) teamCountEl.textContent = teamTasks.length;
-            teamListEl.innerHTML = teamTasks.length
-                ? teamTasks.map(function (t) { return dpTaskRowHtml(t, data, todayKey); }).join('')
-                : '<div class="dp-empty-inline">No My Day tasks have moved to another team/stage right now.</div>';
-        }
-
-        var list = document.getElementById('dpTrackerList');
-        if (!list) return;
-        if (!data.tracker.length) {
-            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg><div>Nothing being tracked yet. Add a task owned by another team above.</div></div>';
-            return;
-        }
-        list.innerHTML = data.tracker.map(function (t) {
-            var color = DP_STATUS_COLORS[t.status] || '#94a3b8';
-            var bg = DP_STATUS_BG[t.status] || '#F8FAFC';
-            var statusOpts = DP_STATUS_OPTIONS.map(function (s) {
-                return '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>';
-            }).join('');
-            return '<div class="dp-tracker-row">' +
-                '<div class="dp-tracker-main">' +
-                    '<div class="dp-tracker-title">' + dpEsc(t.title) + '</div>' +
-                    '<div class="dp-tracker-meta"><span class="dp-team-chip">' + dpEsc(t.team) + '</span>' + (t.dueDate ? '<span>Due ' + dpEsc(t.dueDate) + '</span>' : '') + '</div>' +
-                    (t.notes ? '<div class="dp-tracker-notes">' + dpEsc(t.notes) + '</div>' : '') +
-                '</div>' +
-                '<select class="dp-tracker-status" style="background:' + bg + ';color:' + color + ';" onchange="dpUpdateTrackerStatus(\'' + t.id + '\', this.value)">' + statusOpts + '</select>' +
-                '<div class="dp-task-del" onclick="dpDeleteTracker(\'' + t.id + '\')">&times;</div>' +
-            '</div>';
+        var statuses = DP_TASK_STATUSES.filter(function (s) { return s !== 'Me'; }).concat(data.customTaskStatuses || []);
+        var options = [{ id: 'all', label: 'All' }].concat(statuses.map(function (s) { return { id: s, label: s }; }));
+        row.innerHTML = options.map(function (o) {
+            var active = o.id === dpTrackerFilter;
+            var dot = o.id !== 'all' ? '<span class="dp-filter-dot" style="background:' + (DP_TASK_STATUS_COLORS[o.id] || DP_TASK_STATUS_DEFAULT_COLOR) + ';"></span>' : '';
+            return '<button type="button" class="dp-filter-pill' + (active ? ' dp-filter-pill-active' : '') + '" onclick="dpSetTrackerFilter(\'' + o.id + '\')">' + dot + o.label + '</button>';
         }).join('');
     }
 
-    // Core tracker-item-creation logic, shared by the DOM-driven "+ Track Task"
-    // form and the Day Planner Agent. Returns the new id.
+    // Renders one manually-tracked item using the exact same card shell as a My Day
+    // task row (dpTaskRowHtml) — border-left accent, title/notes block, assignee +
+    // status selects, delete button, and a date-chips row (here showing the owning
+    // Team and Due date as static chips) — so it's visually indistinguishable from
+    // a task that moved here from My Day, even though the two stay separate records
+    // with their own status vocabularies under the hood.
+    function dpTrackerRowHtml(t, data) {
+        var color = DP_STATUS_COLORS[t.status] || '#94a3b8';
+        var bg = DP_STATUS_BG[t.status] || '#F8FAFC';
+        var statusOpts = DP_STATUS_OPTIONS.map(function (s) {
+            return '<option' + (s === t.status ? ' selected' : '') + '>' + s + '</option>';
+        }).join('');
+        return '<div class="dp-task-row" style="border-left-color:' + color + ';">' +
+            '<div class="dp-task-top">' +
+                '<div class="dp-task-text">' +
+                    '<div class="dp-task-title">' + dpEsc(t.title) + '</div>' +
+                    (t.notes ? '<div class="dp-task-desc">' + dpEsc(t.notes) + '</div>' : '') +
+                '</div>' +
+                '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpUpdateTrackerStatus(\'' + t.id + '\', this.value)">' + statusOpts + '</select>' +
+                '<div class="dp-task-del" onclick="dpDeleteTracker(\'' + t.id + '\')">&times;</div>' +
+            '</div>' +
+            '<div class="dp-task-dates">' +
+                '<div class="dp-date-chip dp-date-chip-actual-set"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Team</span><span class="dp-date-chip-value">' + dpEsc(t.team) + '</span></div>' +
+                '<div class="dp-date-chip' + (t.dueDate ? ' dp-date-chip-actual-set' : ' dp-date-chip-actual-empty') + '"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Due</span><span class="dp-date-chip-value">' + (t.dueDate ? dpFormatDate(t.dueDate) : '—') + '</span></div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    // Team Tracker shows one merged, alphabetized list: real tasks whose status
+    // isn't "Me" (dpVisibleTasksForDate — the primary path, created via the same
+    // form as My Day) alongside any legacy manually-tracked items (data.tracker) —
+    // rendered with the identical dp-task-row shell so there's no visual split.
+    // The active filter pill matches against each item's own status field, whatever
+    // vocabulary it belongs to.
+    function dpRenderTracker() {
+        var data = dpLoadData();
+        dpRenderStats();
+        dpRenderTrackerFilters();
+        dpRenderTaskStatusOptions(data);
+        dpRenderNewTaskStateOptions();
+
+        var todayKey = dpToDateKey(new Date());
+        var teamTasks = dpVisibleTasksForDate(data, todayKey).filter(function (t) { return t.status !== 'Me' && (dpTrackerFilter === 'all' || t.status === dpTrackerFilter); });
+        var trackerItems = (data.tracker || []).filter(function (t) { return dpTrackerFilter === 'all' || t.status === dpTrackerFilter; });
+
+        var countEl = document.getElementById('dpTrackerCount');
+        if (countEl) countEl.textContent = teamTasks.length + trackerItems.length;
+
+        var list = document.getElementById('dpTrackerCombinedList');
+        if (!list) return;
+        if (!teamTasks.length && !trackerItems.length) {
+            list.innerHTML = '<div class="dp-empty"><div class="dp-empty-icon-wrap" style="background:#FFFBEB;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></div><div>' +
+                ((data.tracker || []).length ? 'No items match this filter.' : 'Nothing here yet — tasks moved to another team/stage show up automatically, or add one you\'re manually tracking above.') + '</div></div>';
+            return;
+        }
+        var combined = teamTasks.map(function (t) { return { title: t.title, html: dpTaskRowHtml(t, data, todayKey) }; })
+            .concat(trackerItems.map(function (t) { return { title: t.title, html: dpTrackerRowHtml(t, data) }; }));
+        combined.sort(function (a, b) { return a.title.localeCompare(b.title); });
+        list.innerHTML = combined.map(function (c) { return c.html; }).join('');
+    }
+
+    // Legacy tracker-item creation — no longer reachable from the UI (the "+ Track
+    // Task" button now opens the same form as "+ Add Task", creating a real task
+    // instead), kept only because the Day Planner Agent's tracking tool still calls
+    // it. Existing/agent-created items keep rendering via dpTrackerRowHtml above.
     function dpCreateTrackerItem(opts) {
         var data = dpLoadData();
         var newId = 'tr_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -8059,52 +8463,28 @@
             team: opts.team || 'Other Team',
             status: opts.status || 'Pending',
             dueDate: opts.dueDate || '',
-            notes: opts.notes || ''
+            notes: opts.notes || '',
+            assignee: opts.assignee || ''
         });
+        dpLogAudit(data, 'Item tracked', 'Started tracking "' + opts.title + '" (' + (opts.team || 'Other Team') + ').');
         dpSaveData(data);
         dpRenderTracker();
         return newId;
     }
-    window.dpAddTracker = function () {
-        var titleInp = document.getElementById('dpTrackerTitleInput');
-        var teamInp = document.getElementById('dpTrackerTeamInput');
-        var dueInp = document.getElementById('dpTrackerDueInput');
-        var notesInp = document.getElementById('dpTrackerNotesInput');
-        if (!titleInp) return;
-        var title = titleInp.value.trim();
-        if (!title) return;
-        dpCreateTrackerItem({
-            title: title,
-            team: teamInp ? teamInp.value.trim() : '',
-            dueDate: dueInp ? dueInp.value : '',
-            notes: notesInp ? notesInp.value.trim() : ''
-        });
-        titleInp.value = '';
-        if (teamInp) teamInp.value = '';
-        if (dueInp) dueInp.value = '';
-        if (notesInp) notesInp.value = '';
-        closeTrackerAddModal();
-    };
-    window.openTrackerAddModal = function () {
-        var modal = document.getElementById('dpTrackerAddModal');
-        if (!modal) return;
-        modal.style.display = 'flex';
-        setTimeout(function () {
-            var input = document.getElementById('dpTrackerTitleInput');
-            if (input) input.focus();
-        }, 50);
-    };
-    window.closeTrackerAddModal = function () {
-        var modal = document.getElementById('dpTrackerAddModal');
-        if (modal) modal.style.display = 'none';
-    };
     window.dpUpdateTrackerStatus = function (id, status) {
         var data = dpLoadData();
         var t = data.tracker.find(function (x) { return x.id === id; });
-        if (t) { t.status = status; dpSaveData(data); dpRenderTracker(); }
+        if (t) {
+            dpLogAudit(data, 'Tracked item status changed', 'Set status for "' + t.title + '" from "' + t.status + '" to "' + status + '".');
+            t.status = status;
+            dpSaveData(data);
+            dpRenderTracker();
+        }
     };
     window.dpDeleteTracker = function (id) {
         var data = dpLoadData();
+        var t = data.tracker.find(function (x) { return x.id === id; });
+        if (t) dpLogAudit(data, 'Tracked item deleted', 'Deleted tracked item "' + t.title + '".');
         data.tracker = data.tracker.filter(function (x) { return x.id !== id; });
         dpSaveData(data);
         dpRenderTracker();
@@ -8112,10 +8492,12 @@
 
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
+            var datePicker = document.getElementById('dpDatePickerPopover');
+            if (datePicker && datePicker.style.display !== 'none') { dpToggleDatePicker(); return; }
             var addModal = document.getElementById('dpAddTaskModal');
             if (addModal && addModal.style.display !== 'none') { closeAddTaskModal(); return; }
-            var trackerModal = document.getElementById('dpTrackerAddModal');
-            if (trackerModal && trackerModal.style.display !== 'none') { closeTrackerAddModal(); return; }
+            var auditDrawer = document.getElementById('dpAuditLogDrawer');
+            if (auditDrawer && auditDrawer.style.display !== 'none') { closeAuditLogDrawer(); return; }
             var wfDesigner = document.getElementById('workflow-designer-overlay');
             if (wfDesigner && wfDesigner.style.display !== 'none') { closeWorkflowEditor(); return; }
             var wfList = document.getElementById('workflow-overlay');
@@ -8144,12 +8526,12 @@
             return;
         }
         list.innerHTML = tasks.map(function (t) {
-            var isClosed = t.status === 'Closed';
+            var isClosed = t.taskState === 'Closed';
             var color = DP_TASK_STATUS_COLORS[t.status] || DP_TASK_STATUS_DEFAULT_COLOR;
             var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
             return '<div class="dtask-row">' +
                 '<div class="task-text' + (isClosed ? ' dtask-done-text' : '') + '" style="flex:1;">' + dpEsc(t.title) + '</div>' +
-                '<select class="dp-task-status dp-task-status-sm" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value, \'' + todayKey + '\')">' + dpTaskStatusOptions(data, t.status) + '</select>' +
+                '<select class="dp-task-status dp-task-status-sm" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value)">' + dpTaskStatusOptions(data, t.status) + '</select>' +
                 '<div class="dtask-del" onclick="dashDeleteQuickTask(\'' + t.id + '\')">&times;</div>' +
             '</div>';
         }).join('');
@@ -8215,7 +8597,7 @@
     var WF_STEP_TYPES = ['Add Follow-up Task', 'Set Status To', 'Set Expected Closure (+days)', 'Wait (days)', 'Show Notification'];
     var WF_STEP_PLACEHOLDERS = {
         'Add Follow-up Task': 'Heading for the new task…',
-        'Set Status To': 'e.g. In Dev, At CS, Closed…',
+        'Set Status To': 'e.g. In Dev, At CS, At Ops…',
         'Set Expected Closure (+days)': 'Days from now, e.g. 2',
         'Wait (days)': 'Days to wait, e.g. 2',
         'Show Notification': 'Message to log…'
@@ -8308,7 +8690,6 @@
                 var t1 = dpData.taskList.find(function (x) { return x.id === ctx.taskId; });
                 if (t1) {
                     t1.status = step.detail;
-                    t1.closedDate = (step.detail === 'Closed') ? todayKey : null;
                     result.dpChanged = true;
                 }
             } else if (step.type === 'Set Expected Closure (+days)' && ctx.taskId) {
@@ -8467,7 +8848,7 @@
         var list = document.getElementById('wfWorkflowList');
         if (!list) return;
         if (!data.workflows.length) {
-            list.innerHTML = '<div class="dp-empty"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V12a2 2 0 0 0 2 2h3"/><path d="M19 8.5V12a2 2 0 0 0-2 2h-3"/></svg><div>No workflows yet. Click "+ New Workflow" to automate your first trigger.</div></div>';
+            list.innerHTML = '<div class="dp-empty"><div class="dp-empty-icon-wrap" style="background:#EEF2FF;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V12a2 2 0 0 0 2 2h3"/><path d="M19 8.5V12a2 2 0 0 0-2 2h-3"/></svg></div><div>No workflows yet. Click "+ New Workflow" to automate your first trigger.</div></div>';
             return;
         }
         list.innerHTML = data.workflows.map(function (w) {
@@ -8841,7 +9222,7 @@
             run: function (m) {
                 var t = dpAgentFindTask(m[1]);
                 if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
-                dpSetTaskStatus(t.id, 'Closed', dpToDateKey(new Date()));
+                dpSetTaskState(t.id, 'Closed', dpToDateKey(new Date()));
                 return 'Closed "' + t.title + '".';
             }
         },
@@ -8866,7 +9247,7 @@
                 var t = dpAgentFindTask(m[1]);
                 if (!t) return 'I couldn’t find a task matching "' + m[1] + '".';
                 var status = dpAgentResolveStatus(m[2].trim());
-                dpSetTaskStatus(t.id, status, dpToDateKey(new Date()));
+                dpSetTaskStatus(t.id, status);
                 return 'Set "' + t.title + '" to "' + status + '".';
             }
         },
@@ -8967,7 +9348,7 @@
                 var data = dpLoadData();
                 var todayKey = dpToDateKey(new Date());
                 var tasks = dpVisibleTasksForDate(data, todayKey);
-                var open = tasks.filter(function (t) { return t.status !== 'Closed'; }).length;
+                var open = tasks.filter(function (t) { return t.taskState !== 'Closed'; }).length;
                 return tasks.length + ' task(s) visible today, ' + open + ' still open.';
             }
         },
@@ -9038,7 +9419,7 @@
         return {
             today: dpToDateKey(new Date()),
             tasks: (dpData.taskList || []).map(function (t) {
-                return { id: t.id, title: t.title, status: t.status, startDate: t.startDate, expectedCloseDate: t.expectedCloseDate, closedDate: t.closedDate };
+                return { id: t.id, title: t.title, status: t.status, state: t.taskState, startDate: t.startDate, expectedCloseDate: t.expectedCloseDate, closedDate: t.closedDate };
             }),
             tracker: (dpData.tracker || []).map(function (t) {
                 return { id: t.id, title: t.title, team: t.team, status: t.status, dueDate: t.dueDate };
@@ -9060,7 +9441,15 @@
             var t = data.taskList.find(function (x) { return x.id === args.task_id; });
             if (!t) return { ok: false, error: 'task not found' };
             var status = dpAgentResolveStatus(String(args.status || ''));
-            dpSetTaskStatus(t.id, status, dpToDateKey(new Date()));
+            dpSetTaskStatus(t.id, status);
+            return { ok: true };
+        },
+        set_task_state: function (args) {
+            var data = dpLoadData();
+            var t = data.taskList.find(function (x) { return x.id === args.task_id; });
+            if (!t) return { ok: false, error: 'task not found' };
+            var state = DP_TASK_STATE_VALUES.indexOf(args.state) !== -1 ? args.state : 'Open';
+            dpSetTaskState(t.id, state, dpToDateKey(new Date()));
             return { ok: true };
         },
         delete_task: function (args) {

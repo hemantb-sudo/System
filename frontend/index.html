@@ -9803,72 +9803,132 @@ document.addEventListener('DOMContentLoaded', function() {
   .dp-page-icon { width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2979d4,#5b8def);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 4px 10px rgba(41,121,212,.28); }
   .dp-page-title { font-size:18px;font-weight:700;color:#1c2534;letter-spacing:-.01em; }
   .dp-page-subtitle { font-size:12.5px;color:#94a3b8;margin-top:2px; }
-  .dp-jump-btn { display:flex;align-items:center;gap:7px;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;transition:all .15s; }
-  .dp-jump-btn:hover { background:#e8eef6;border-color:#cbd5e1; }
-  .dp-stats-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px; }
-  .dp-card { background:#fff;border:1px solid #e5e9f2;border-radius:10px;padding:18px;transition:box-shadow .2s,transform .2s; }
-  .dp-card:hover { box-shadow:0 8px 20px rgba(15,23,42,.06);transform:translateY(-1px); }
-  .dp-card-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:14px; }
-  .dp-main-label { display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:#475569; }
-  .dp-stat-icon { width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
-  .dp-main-big { font-size:27px;font-weight:700;color:#1c2534;letter-spacing:-.02em; }
-  .dp-stat-sub-row { display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#64748b;margin-top:10px; }
-  .dp-progress-ring-wrap { position:relative;width:44px;height:44px;flex-shrink:0; }
-  .dp-progress-ring-label { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#2563EB; }
-  #dpTodayRing { transition:stroke-dashoffset .4s ease; }
-  .dp-tabs-card { background:#fff;border:1px solid #e5e9f2;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.03); }
-  .dp-tabs-row { display:flex;border-bottom:1.5px solid #e5e9f2;padding:0 10px;gap:2px; }
-  .dp-tab { display:flex;align-items:center;gap:7px;padding:14px 20px;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;white-space:nowrap;letter-spacing:0.01em;transition:color .15s,background .15s; }
+  .dp-jump-btn { display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:9px 16px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit;transition:all .15s; }
+  .dp-jump-btn:hover { background:#f8fafc;border-color:#cbd5e1; }
+  .dp-stats-grid { display:flex;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:18px;overflow:hidden; }
+  .dp-card { flex:1 1 0;display:flex;align-items:center;gap:16px;padding:18px 24px;transition:background .18s;position:relative; }
+  .dp-card + .dp-card { border-left:1px solid #e5e7eb; }
+  .dp-card-clickable { cursor:pointer; }
+  .dp-card-clickable:hover { background:#fafbfc; }
+  .dp-card-clickable:hover .dp-stat-icon { transform:scale(1.1) rotate(-4deg); }
+  .dp-card-cta { opacity:0;color:#2563EB;font-weight:700;font-size:11.5px;transition:opacity .18s,transform .18s;transform:translateX(-4px); }
+  .dp-card-clickable:hover .dp-card-cta { opacity:1;transform:translateX(0); }
+  .dp-card-body { flex:1 1 auto;min-width:0; }
+  .dp-week-label-btn { display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:12.5px;color:#64748b;font-weight:600;padding:5px 8px;border-radius:6px;transition:background .15s,color .15s; }
+  .dp-week-label-btn:hover { background:#F1F5F9;color:#1e293b; }
+  .dp-week-label-btn svg { opacity:.6;transition:transform .18s; }
+  .dp-week-label-btn.dp-picker-open svg { transform:rotate(180deg); }
+  .dp-date-picker-popover { position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);background:#fff;border:1px solid #e5e9f2;border-radius:14px;box-shadow:0 18px 44px rgba(15,23,42,.18);padding:14px;width:260px;z-index:120;animation:dpFadeIn .15s ease; }
+  .dp-date-picker-hdr { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+  .dp-date-picker-month { font-size:12.5px;font-weight:700;color:#1e293b; }
+  .dp-date-picker-dow-row { display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:10px;font-weight:700;color:#94a3b8;margin-bottom:6px; }
+  .dp-date-picker-grid { display:grid;grid-template-columns:repeat(7,1fr);gap:2px; }
+  .dp-date-picker-cell { aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;color:#334155;border-radius:8px;cursor:pointer;transition:all .12s; }
+  .dp-date-picker-cell:hover { background:#F1F5F9;transform:scale(1.08); }
+  .dp-date-picker-cell-muted { color:#CBD5E1; }
+  .dp-date-picker-cell-today { color:#2979d4;font-weight:800;box-shadow:inset 0 0 0 1.5px #93c5fd; }
+  .dp-date-picker-cell-selected { background:linear-gradient(135deg,#2979d4,#1e63b8);color:#fff !important;box-shadow:0 4px 10px rgba(41,121,212,.3); }
+  .dp-stat-label { font-size:11px;font-weight:700;letter-spacing:.5px;color:#6b7280;text-transform:uppercase; }
+  .dp-main-big { font-size:24px;font-weight:700;color:#111827;letter-spacing:-.01em;margin-top:4px; }
+  .dp-stat-sub-row { display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#9ca3af;margin-top:2px; }
+  .dp-stat-dots-row { display:flex;gap:14px;flex-wrap:wrap;margin-top:8px; }
+  .dp-ring { width:44px;height:44px;border-radius:999px;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;transition:background 0.5s ease; }
+  .dp-ring-inner { width:32px;height:32px;border-radius:999px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#111827; }
+  .dp-tabs-row { display:flex;gap:6px;margin-bottom:-1px;position:relative;z-index:2; }
+  .dp-tab { display:flex;align-items:center;gap:7px;padding:10px 20px;font-size:13px;font-weight:600;color:#6b7280;cursor:pointer;background:#f3f4f6;border:1px solid transparent;border-bottom:3px solid transparent;border-radius:10px 10px 0 0;white-space:nowrap;transition:all .15s; }
   .dp-tab svg { opacity:.6;transition:opacity .15s; }
-  .dp-tab.active { color:#2563EB;border-bottom-color:#2563EB;font-weight:600; }
+  .dp-tab.active { color:#111827;background:#fff;border-color:#e5e7eb;border-bottom:3px solid #2979d4; }
   .dp-tab.active svg { opacity:1; }
-  .dp-tab:hover:not(.active) { color:#374151;background:#f8fafc;border-radius:8px 8px 0 0; }
+  .dp-tab:hover:not(.active) { color:#374151;background:#e9ebef; }
+  .dp-tabs-card { background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden; }
   .dp-tab-content { padding:22px;animation:dpFadeIn .18s ease; }
   @keyframes dpFadeIn { from{opacity:0;transform:translateY(3px);} to{opacity:1;transform:translateY(0);} }
-  .dp-week-nav-btn { border:1px solid #E2E8F0;background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all .15s; }
-  .dp-week-nav-btn:hover { background:#F1F5F9;border-color:#cbd5e1;color:#334155; }
+  .dp-week-nav-btn { border:1px solid #E2E8F0;background:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;color:#64748b;display:flex;align-items:center;justify-content:center;transition:all .15s; }
+  .dp-week-nav-btn:hover { background:#EFF6FF;border-color:#93c5fd;color:#2563EB;transform:scale(1.08); }
+  .dp-week-nav-btn:active { transform:scale(.94); }
   .dp-today-btn { border:1px solid #E2E8F0;background:#F8FAFC;border-radius:7px;padding:5px 12px;font-size:11.5px;font-weight:600;color:#475569;cursor:pointer;transition:all .15s; }
-  .dp-today-btn:hover { background:#EFF6FF;border-color:#93c5fd;color:#2563EB; }
-  .dp-day-pill { flex:1;text-align:center;padding:9px 4px;border-radius:10px;cursor:pointer;border:1px solid #E2E8F0;position:relative;transition:all .15s;}
-  .dp-day-pill:hover:not(.dp-day-pill-active) { border-color:#93c5fd;background:#F8FAFC; }
-  .dp-day-pill-active { background:#2979d4;border-color:#2979d4;box-shadow:0 4px 10px rgba(41,121,212,.25);}
+  .dp-today-btn:hover { background:#EFF6FF;border-color:#93c5fd;color:#2563EB;box-shadow:0 3px 8px rgba(41,121,212,.15);transform:translateY(-1px); }
+  .dp-day-pill { flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:68px;text-align:center;padding:10px 20px;border-radius:8px;cursor:pointer;border:1px solid #E2E8F0;position:relative;transition:all .15s;}
+  .dp-day-pill:hover:not(.dp-day-pill-active) { border-color:#93c5fd;background:#F8FAFC;transform:translateY(-2px);box-shadow:0 6px 14px rgba(15,23,42,.07); }
+  .dp-day-pill-active { background:linear-gradient(135deg,#2979d4,#1e63b8);border:2px solid #2979d4;box-shadow:0 6px 16px rgba(41,121,212,.32);transform:translateY(-1px); }
   .dp-day-pill-active .dp-day-name, .dp-day-pill-active .dp-day-num { color:#fff; }
-  .dp-day-name { font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.02em;}
-  .dp-day-num { font-size:15px;color:#1e293b;font-weight:700;margin-top:2px;}
-  .dp-day-today { color:#2979d4; }
-  .dp-day-dot { position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2979d4; }
-  .dp-day-pill-active .dp-day-dot { background:#fff; }
+  .dp-day-name { font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+  .dp-day-num { font-size:18px;color:#111827;font-weight:700;}
+  .dp-day-today:not(.dp-day-pill-active) { background:#eff6ff;border-color:#2979d4; }
+  .dp-day-today:not(.dp-day-pill-active) .dp-day-name { color:#3a6fb0; }
+  .dp-day-today:not(.dp-day-pill-active) .dp-day-num { color:#1e40af; }
+  .dp-day-dot { position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#2979d4;animation:dpDotPulse 2s ease-in-out infinite; }
+  @keyframes dpDotPulse { 0%,100% { opacity:1; } 50% { opacity:.35; } }
+  .dp-day-pill-active .dp-day-dot { background:#fff;animation:none; }
+  .dp-filter-pill { display:inline-flex;align-items:center;padding:7px 14px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s; }
+  .dp-filter-pill:hover:not(.dp-filter-pill-active) { border-color:#cbd5e1;background:#f8fafc; }
+  .dp-filter-pill-active { border-color:#2979d4;background:#eff6ff;color:#1e40af; }
+  .dp-filter-dot { width:7px;height:7px;border-radius:999px;display:inline-block;margin-right:6px; }
+  #dpAddTaskBackdrop { position:fixed;inset:0;background:rgba(15,23,42,.44);z-index:9400;animation:dpFadeIn .15s ease;backdrop-filter:blur(1px); }
+  .dp-drawer { position:fixed;top:0;right:0;bottom:0;width:520px;max-width:94vw;background:#fff;z-index:9500;box-shadow:-16px 0 40px rgba(15,23,42,.18);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.16,.84,.44,1); }
+  .dp-drawer.dp-drawer-open { transform:translateX(0); }
+  .dp-drawer-accent { height:4px;width:100%;background:#4f46e5;flex-shrink:0;transition:background .2s ease; }
+  .dp-drawer-header { display:flex;align-items:center;justify-content:space-between;padding:20px 26px;border-bottom:1px solid #f1f5f9;flex-shrink:0; }
+  .dp-drawer-title-wrap { display:flex;align-items:center;gap:10px; }
+  .dp-drawer-icon { width:32px;height:32px;border-radius:9px;background:#EEF2FF;color:#4f46e5;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .dp-drawer-title { font-size:17px;font-weight:700;color:#111827;letter-spacing:-.01em; }
+  .dp-drawer-close { background:none;border:none;font-size:22px;line-height:1;color:#94a3b8;cursor:pointer;padding:4px 10px;border-radius:8px;transition:all .15s; }
+  .dp-drawer-close:hover { background:#f1f5f9;color:#374151;transform:rotate(90deg); }
+  .dp-drawer-body { flex:1 1 auto;overflow-y:auto;padding:22px 26px;display:flex;flex-direction:column; }
+  .dp-drawer-row { display:flex;gap:14px;margin-top:18px; }
+  .dp-drawer-row:first-child { margin-top:0; }
+  .dp-drawer-row .dp-drawer-col { flex:1 1 0;min-width:0;display:flex;flex-direction:column; }
+  .dp-drawer-label { display:flex;align-items:center;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;margin:18px 0 7px; }
+  .dp-drawer-label:first-child { margin-top:0; }
+  .dp-required-mark { color:#e24b4a;margin-left:3px; }
+  .dp-drawer-body .dp-input-invalid { border-color:#e24b4a;box-shadow:0 0 0 3px rgba(226,75,74,.12); }
+  .dp-drawer-body .dp-input, .dp-drawer-body .dp-select { width:100%;box-sizing:border-box;transition:border-color .15s,box-shadow .15s,background .15s; }
+  .dp-drawer-body .dp-input:hover, .dp-drawer-body .dp-select:hover { border-color:#b6c2d6; }
+  .dp-drawer-body .dp-input:focus, .dp-drawer-body .dp-select:focus { box-shadow:0 0 0 4px rgba(41,121,212,.14); }
+  .dp-input-lg { font-size:15px;font-weight:600;padding:12px 14px; }
+  .dp-status-dot-preview { display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:7px;background:#94a3b8;transition:background .2s ease;box-shadow:0 0 0 3px rgba(0,0,0,.04); }
+  .dp-drawer-footer { display:flex;justify-content:flex-end;gap:10px;padding:18px 26px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fafbfc; }
+  .dp-drawer-footer .dp-back-btn:hover { transform:translateY(-1px); }
+  .dp-drawer-footer .dp-add-btn:hover { transform:translateY(-1px);box-shadow:0 6px 16px rgba(41,121,212,.32); }
+  .dp-audit-entry { display:flex;gap:10px;padding:12px 0;border-bottom:1px solid #f1f5f9; }
+  .dp-audit-entry:last-child { border-bottom:none; }
+  .dp-audit-entry-dot { width:8px;height:8px;border-radius:999px;margin-top:5px;flex-shrink:0; }
+  .dp-audit-entry-body { flex:1 1 auto;min-width:0; }
+  .dp-audit-entry-top { display:flex;align-items:baseline;justify-content:space-between;gap:8px; }
+  .dp-audit-entry-action { font-size:12.5px;font-weight:700;color:#1e293b; }
+  .dp-audit-entry-time { font-size:10.5px;color:#94a3b8;white-space:nowrap;flex-shrink:0; }
+  .dp-audit-entry-detail { font-size:12px;color:#64748b;margin-top:2px;line-height:1.45;word-break:break-word; }
   .dp-compose { display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:16px;padding:14px;background:linear-gradient(135deg,#F0F6FF,#F8FAFC 60%);border:1px solid #E2E9F5;border-radius:12px; }
   .dp-compose-field { display:flex;flex-direction:column;gap:5px; }
   .dp-compose-field label { display:flex;align-items:center;gap:4px;font-size:9.5px;color:#2979d4;font-weight:700;text-transform:uppercase;letter-spacing:.03em; }
-  .dp-empty { padding:36px 10px;text-align:center;color:#94a3b8;font-size:13px;}
-  .dp-empty svg { margin-bottom:10px;opacity:.5; }
+  .dp-empty { padding:40px 10px;text-align:center;color:#94a3b8;font-size:13px;}
+  .dp-empty-icon-wrap { width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px; }
   .dp-task-group-label { display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#4f46e5;text-transform:uppercase;letter-spacing:.03em;margin:4px 0 10px; }
   .dp-task-group-label:not(:first-child) { margin-top:22px;padding-top:18px;border-top:1px solid #EEF1F5; }
   .dp-task-group-count { background:#EEF2FF;color:#4f46e5;font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px; }
   .dp-task-group-label-team { color:#475569; }
   .dp-task-group-label-team .dp-task-group-count { background:#F1F5F9;color:#475569; }
   .dp-empty-inline { padding:14px 10px;text-align:center;color:#94a3b8;font-size:12.5px;background:#FAFBFC;border:1px dashed #E2E8F0;border-radius:10px;margin-bottom:10px; }
-  .dp-task-row { background:#fff;border:1px solid #EEF1F5;border-left:4px solid #CBD5E1;border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .18s,border-color .18s,transform .18s;}
+  .dp-task-row { background:#fafcff;border:1px solid #EEF1F5;border-left:4px solid #CBD5E1;border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .18s,border-color .18s,transform .18s;}
   .dp-task-row:hover { border-color:#dbe4f0;box-shadow:0 6px 18px rgba(15,23,42,.07);transform:translateY(-1px); }
   .dp-task-row:last-child { margin-bottom:0; }
   .dp-task-done { background:#FAFBFC; }
   .dp-task-top { display:flex;align-items:center;gap:12px; }
   .dp-task-dates { display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #EEF1F5; }
-  .dp-date-chip { display:flex;align-items:center;gap:6px;background:#F8FAFC;border:1px solid #EEF0F3;border-radius:8px;padding:6px 10px;transition:border-color .15s,background .15s,box-shadow .15s; }
+  .dp-date-chip { position:relative;display:flex;align-items:center;gap:6px;background:#F8FAFC;border:1px solid #EEF0F3;border-radius:8px;padding:6px 10px;transition:border-color .15s,background .15s,box-shadow .15s; }
   .dp-date-chip:hover { box-shadow:0 2px 8px rgba(15,23,42,.06); }
   .dp-date-chip:focus-within { border-color:#2979d4;background:#fff;box-shadow:0 0 0 3px rgba(41,121,212,.12); }
   .dp-date-chip-icon { color:#94a3b8;flex-shrink:0;display:flex; }
   .dp-date-chip-label { font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.02em;white-space:nowrap; }
-  .dp-date-chip-input { border:none;background:transparent;font-size:12px;font-weight:600;color:#334155;padding:0;width:98px;font-family:inherit;cursor:pointer; }
-  .dp-date-chip-input:focus { outline:none;cursor:auto; }
   .dp-date-chip-value { font-size:12px;font-weight:700;white-space:nowrap; }
+  .dp-date-chip-value-editable { cursor:pointer; }
+  .dp-date-chip-hidden-input { position:absolute;width:1px;height:1px;padding:0;margin:0;border:0;opacity:0;pointer-events:none; }
   .dp-date-chip-start { background:#EFF6FF;border-color:#DBEAFE; }
   .dp-date-chip-start:hover { border-color:#93c5fd; }
-  .dp-date-chip-start .dp-date-chip-icon,.dp-date-chip-start .dp-date-chip-input { color:#2563EB; }
+  .dp-date-chip-start .dp-date-chip-icon,.dp-date-chip-start .dp-date-chip-value { color:#2563EB; }
   .dp-date-chip-expected { background:#FFFBEB;border-color:#FDE68A; }
   .dp-date-chip-expected:hover { border-color:#fcd34d; }
-  .dp-date-chip-expected .dp-date-chip-icon,.dp-date-chip-expected .dp-date-chip-input { color:#d97706; }
+  .dp-date-chip-expected .dp-date-chip-icon,.dp-date-chip-expected .dp-date-chip-value { color:#d97706; }
   .dp-date-chip-actual-set { background:#F0FDF4;border-color:#BBF7D0; }
   .dp-date-chip-actual-set .dp-date-chip-icon,.dp-date-chip-actual-set .dp-date-chip-value { color:#16a34a; }
   .dp-date-chip-actual-empty { background:#F8FAFC; }
@@ -9883,15 +9943,6 @@ document.addEventListener('DOMContentLoaded', function() {
   .dp-task-time { display:inline-flex;align-items:center;font-size:11px;color:#94a3b8;margin-top:3px;background:#F1F5F9;padding:1px 6px;border-radius:5px;}
   .dp-task-del { cursor:pointer;color:#CBD5E1;font-size:18px;line-height:1;padding:4px 6px;flex-shrink:0;border-radius:6px;transition:all .15s;}
   .dp-task-del:hover { color:#e24b4a;background:#FEF2F2;transform:scale(1.1); }
-  .dp-tracker-row { display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid #F1F5F9;border-radius:10px;transition:all .15s;}
-  .dp-tracker-row:hover { border-color:#E2E8F0;box-shadow:0 2px 8px rgba(15,23,42,.04); }
-  .dp-tracker-row + .dp-tracker-row { margin-top:10px; }
-  .dp-tracker-main { flex:1;min-width:0;}
-  .dp-tracker-title { font-size:13.5px;color:#1e293b;font-weight:600;}
-  .dp-tracker-meta { display:flex;align-items:center;gap:6px;font-size:11.5px;color:#94a3b8;margin-top:5px;}
-  .dp-team-chip { display:inline-flex;align-items:center;background:#EFF6FF;color:#2979d4;font-weight:600;padding:2px 8px;border-radius:20px;font-size:11px;}
-  .dp-tracker-notes { font-size:12px;color:#64748b;margin-top:6px;background:#F8FAFC;padding:6px 9px;border-radius:6px;}
-  .dp-tracker-status { font-size:11.5px;font-weight:700;border:none;border-radius:20px;padding:6px 14px;flex-shrink:0;cursor:pointer;}
   .dp-input, .dp-select { padding:9px 11px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;color:#334155;transition:border-color .15s,box-shadow .15s;background:#fff;}
   .dp-input:focus, .dp-select:focus { outline:none;border-color:#2979d4;box-shadow:0 0 0 3px rgba(41,121,212,.12); }
   .dp-add-btn { display:inline-flex;align-items:center;gap:5px;background:#2979d4;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;line-height:1;cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s;}
@@ -9906,7 +9957,6 @@ document.addEventListener('DOMContentLoaded', function() {
   <div class="dp-wrap">
     <div class="dp-page-hdr">
       <div class="dp-page-title-wrap">
-        <button class="dp-back-btn" onclick="closeDayPlanner()">&larr; Back</button>
         <div class="dp-page-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
         </div>
@@ -9920,56 +9970,116 @@ document.addEventListener('DOMContentLoaded', function() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M5 8.5V11a2 2 0 0 0 2 2h3"/><path d="M19 8.5V11a2 2 0 0 0-2 2h-3"/></svg>
           Workflows
         </button>
-        <button class="dp-jump-btn" onclick="dpGoToday()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Jump to Today
+        <button class="dp-jump-btn" onclick="openAuditLogDrawer()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          Audit Log
         </button>
       </div>
     </div>
 
     <div class="dp-stats-grid">
-      <div class="dp-card" style="border-left:3px solid #2563EB;">
-        <div class="dp-card-top">
-          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#EFF6FF;color:#2563EB;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>Today's Tasks</div>
-          <div class="dp-progress-ring-wrap">
-            <svg width="44" height="44" viewBox="0 0 44 44">
-              <circle cx="22" cy="22" r="18" fill="none" stroke="#EFF3FA" stroke-width="4"/>
-              <circle id="dpTodayRing" cx="22" cy="22" r="18" fill="none" stroke="#2563EB" stroke-width="4" stroke-linecap="round" stroke-dasharray="113" stroke-dashoffset="113" transform="rotate(-90 22 22)"/>
-            </svg>
-            <div class="dp-progress-ring-label" id="dpStatTodayPct">0%</div>
-          </div>
+      <div class="dp-card dp-card-clickable" style="border-left:4px solid #2979d4;" onclick="dpSwitchTab('myday');dpGoToday();" title="Jump to today">
+        <div class="dp-card-body">
+          <div class="dp-stat-label">Today's Tasks</div>
+          <div class="dp-main-big" id="dpStatTodayFraction">0 / 0</div>
+          <div class="dp-stat-sub-row"><span>Completed today</span><span class="dp-card-cta">Jump to today &rarr;</span></div>
         </div>
-        <div class="dp-main-big" id="dpStatTodayFraction">0 / 0</div>
-        <div class="dp-stat-sub-row"><span>Completed today</span></div>
+        <div class="dp-ring" id="dpTodayRing" style="background:conic-gradient(#2979d4 0deg, #e5e7eb 0deg);">
+          <div class="dp-ring-inner" id="dpStatTodayPct">0%</div>
+        </div>
       </div>
-      <div class="dp-card" style="border-left:3px solid #16a34a;">
-        <div class="dp-card-top">
-          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#F0FDF4;color:#16a34a;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>This Week</div>
+      <div class="dp-card dp-card-clickable" style="border-left:4px solid #1a9e6e;" onclick="dpSwitchTab('myday');dpGoThisWeek();" title="View this week">
+        <div class="dp-card-body">
+          <div class="dp-stat-label">This Week</div>
+          <div class="dp-main-big" id="dpStatWeekFraction">0 / 0</div>
+          <div class="dp-stat-sub-row"><span>Completed across Mon–Fri</span><span class="dp-card-cta">View week &rarr;</span></div>
         </div>
-        <div class="dp-main-big" id="dpStatWeekFraction">0 / 0</div>
-        <div class="dp-stat-sub-row"><span>Completed across Mon–Fri</span></div>
       </div>
-      <div class="dp-card" style="border-left:3px solid #f59e0b;">
-        <div class="dp-card-top">
-          <div class="dp-main-label"><span class="dp-stat-icon" style="background:#FFFBEB;color:#f59e0b;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span>Team Tracker</div>
+      <div class="dp-card dp-card-clickable" style="border-left:4px solid #e8900a;" onclick="dpSwitchTab('tracker');" title="View Team Tracker">
+        <div class="dp-card-body">
+          <div class="dp-stat-label">Team Tracker</div>
+          <div class="dp-main-big" id="dpStatTrackerTotal">0</div>
+          <div id="dpStatTrackerBreakdown" class="dp-stat-dots-row"></div>
         </div>
-        <div class="dp-main-big" id="dpStatTrackerTotal">0</div>
-        <div id="dpStatTrackerBreakdown" class="dp-stat-sub-row" style="flex-wrap:wrap;gap:8px;"></div>
       </div>
     </div>
 
+    <div class="dp-tabs-row">
+      <div class="dp-tab active" id="dpTabMyDayBtn" onclick="dpSwitchTab('myday')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>My Day</div>
+      <div class="dp-tab" id="dpTabTrackerBtn" onclick="dpSwitchTab('tracker')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Team Tracker</div>
+    </div>
     <div class="dp-tabs-card">
-      <div class="dp-tabs-row">
-        <div class="dp-tab active" id="dpTabMyDayBtn" onclick="dpSwitchTab('myday')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>My Day</div>
-        <div class="dp-tab" id="dpTabTrackerBtn" onclick="dpSwitchTab('tracker')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>Team Tracker</div>
-      </div>
       <div class="dp-tab-content">
+        <div id="dpAddTaskBackdrop" style="display:none;" onclick="closeAddTaskModal()"></div>
+        <div id="dpAddTaskModal" class="dp-drawer" style="display:none;">
+          <div class="dp-drawer-accent" id="dpNewTaskDrawerAccent"></div>
+          <div class="dp-drawer-header">
+            <div class="dp-drawer-title-wrap">
+              <div class="dp-drawer-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+              <div class="dp-drawer-title">Add Task</div>
+            </div>
+            <button type="button" class="dp-drawer-close" onclick="closeAddTaskModal()">&times;</button>
+          </div>
+          <div class="dp-drawer-body">
+            <label class="dp-drawer-label" for="dpNewTaskInput">Task title<span class="dp-required-mark">*</span></label>
+            <input type="text" id="dpNewTaskInput" class="dp-input dp-input-lg" placeholder="What needs to get done" required onkeydown="if(event.key==='Enter')dpAddTask()">
+
+            <label class="dp-drawer-label" for="dpNewTaskDesc">Description</label>
+            <textarea id="dpNewTaskDesc" class="dp-input" placeholder="Add more detail (optional)" style="min-height:76px;resize:vertical;font-family:inherit;"></textarea>
+
+            <div class="dp-drawer-row">
+              <div class="dp-drawer-col">
+                <label class="dp-drawer-label" for="dpNewTaskStart">Start date<span class="dp-required-mark">*</span></label>
+                <input type="date" id="dpNewTaskStart" class="dp-input" required onchange="dpSyncNewTaskExpectedMin(this.value)">
+              </div>
+              <div class="dp-drawer-col">
+                <label class="dp-drawer-label" for="dpNewTaskExpected">Expected closure</label>
+                <input type="date" id="dpNewTaskExpected" class="dp-input">
+              </div>
+            </div>
+
+            <label class="dp-drawer-label" for="dpNewTaskStatus"><span class="dp-status-dot-preview" id="dpNewTaskStatusDot"></span>Task Owner<span class="dp-required-mark">*</span></label>
+            <select id="dpNewTaskStatus" class="dp-input dp-select" required onchange="dpNewTaskStatusChange(this);dpUpdateNewTaskStatusDot(this.value)"></select>
+
+            <label class="dp-drawer-label" for="dpNewTaskState">Status<span class="dp-required-mark">*</span></label>
+            <select id="dpNewTaskState" class="dp-input dp-select" required></select>
+          </div>
+          <div class="dp-drawer-footer">
+            <button class="dp-back-btn" onclick="closeAddTaskModal()">Cancel</button>
+            <button class="dp-add-btn" onclick="dpAddTask()">Add Task</button>
+          </div>
+        </div>
+
+        <div id="dpAuditLogBackdrop" style="display:none;" onclick="closeAuditLogDrawer()"></div>
+        <div id="dpAuditLogDrawer" class="dp-drawer" style="display:none;">
+          <div class="dp-drawer-header">
+            <div class="dp-drawer-title-wrap">
+              <div class="dp-drawer-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg></div>
+              <div class="dp-drawer-title">Audit Log</div>
+            </div>
+            <button type="button" class="dp-drawer-close" onclick="closeAuditLogDrawer()">&times;</button>
+          </div>
+          <div class="dp-drawer-body" id="dpAuditLogBody" style="padding-top:8px;"></div>
+        </div>
+
         <div id="dpPanelMyDay">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
             <button class="dp-week-nav-btn" onclick="dpShiftWeek(-1)">&#8249;</button>
-            <div style="display:flex;align-items:center;gap:10px;">
-              <span id="dpWeekLabel" style="font-size:12.5px;color:#64748b;font-weight:600;"></span>
+            <div style="display:flex;align-items:center;gap:10px;position:relative;">
+              <button class="dp-week-label-btn" id="dpWeekLabelBtn" onclick="dpToggleDatePicker()">
+                <span id="dpWeekLabel"></span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
               <button class="dp-today-btn" onclick="dpGoToday()">Today</button>
+              <div class="dp-date-picker-popover" id="dpDatePickerPopover" style="display:none;">
+                <div class="dp-date-picker-hdr">
+                  <button class="dp-week-nav-btn" style="width:26px;height:26px;" onclick="dpPickerShiftMonth(-1)">&#8249;</button>
+                  <div class="dp-date-picker-month" id="dpPickerMonthLabel"></div>
+                  <button class="dp-week-nav-btn" style="width:26px;height:26px;" onclick="dpPickerShiftMonth(1)">&#8250;</button>
+                </div>
+                <div class="dp-date-picker-dow-row"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                <div class="dp-date-picker-grid" id="dpDatePickerGrid"></div>
+              </div>
             </div>
             <button class="dp-week-nav-btn" onclick="dpShiftWeek(1)">&#8250;</button>
           </div>
@@ -9978,86 +10088,19 @@ document.addEventListener('DOMContentLoaded', function() {
             <div id="dpSelectedDateLabel" style="font-size:13.5px;font-weight:700;color:#1e293b;"></div>
             <button class="dp-add-btn" onclick="openAddTaskModal()">+ Add Task</button>
           </div>
+
           <div id="dpTaskList"></div>
         </div>
 
-        <div id="dpAddTaskModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeAddTaskModal()">
-          <div style="background:#fff;border-radius:14px;padding:24px;width:460px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,.25);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-              <div style="font-size:15px;font-weight:700;color:#1e293b;">Add a Task</div>
-              <div class="dp-task-del" onclick="closeAddTaskModal()" style="font-size:20px;">&times;</div>
-            </div>
-            <div class="dp-compose-field" style="margin-bottom:14px;">
-              <label>Heading</label>
-              <input type="text" id="dpNewTaskInput" class="dp-input" placeholder="What's the task?" style="width:100%;" onkeydown="if(event.key==='Enter')dpAddTask()">
-            </div>
-            <div class="dp-compose-field" style="margin-bottom:14px;">
-              <label>Description <span style="text-transform:none;font-weight:500;color:#cbd5e1;">(optional)</span></label>
-              <textarea id="dpNewTaskDesc" class="dp-input" placeholder="Add more detail…" style="width:100%;min-height:60px;resize:vertical;font-family:inherit;"></textarea>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
-              <div class="dp-compose-field">
-                <label>Time</label>
-                <input type="time" id="dpNewTaskTime" class="dp-input" style="width:100%;">
-              </div>
-              <div class="dp-compose-field">
-                <label style="color:#2563EB;">Start Date</label>
-                <input type="date" id="dpNewTaskStart" class="dp-input" style="width:100%;background:#EFF6FF;border-color:#DBEAFE;color:#1e40af;">
-              </div>
-              <div class="dp-compose-field">
-                <label style="color:#d97706;">Expected Closure</label>
-                <input type="date" id="dpNewTaskExpected" class="dp-input" style="width:100%;background:#FFFBEB;border-color:#FDE68A;color:#92400e;">
-              </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;">
-              <button class="dp-back-btn" onclick="closeAddTaskModal()">Cancel</button>
-              <button class="dp-add-btn" onclick="dpAddTask()">Add Task</button>
-            </div>
-          </div>
-        </div>
-
         <div id="dpPanelTracker" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-            <div class="dp-task-group-label dp-task-group-label-team" style="margin:0;">Team Tasks<span class="dp-task-group-count" id="dpTrackerTeamCount">0</span></div>
-            <button class="dp-add-btn" onclick="openTrackerAddModal()">+ Track Task</button>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="dpTrackerFilterRow"></div>
+            <button class="dp-add-btn" onclick="openAddTaskModal('At Product')">+ Track Task</button>
           </div>
-          <div style="font-size:12px;color:#94a3b8;margin:4px 0 12px;">My Day tasks whose status has moved to another team/stage.</div>
-          <div id="dpTrackerTeamTaskList"></div>
 
-          <div class="dp-task-group-label dp-task-group-label-team">Manually Tracked</div>
-          <div style="font-size:12.5px;color:#64748b;margin-bottom:14px;">Track tasks owned by other teams that you're waiting on — no action needed from you, just visibility.</div>
-          <div id="dpTrackerList"></div>
-        </div>
-
-        <div id="dpTrackerAddModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(15,23,42,.45);align-items:center;justify-content:center;" onclick="if(event.target===this)closeTrackerAddModal()">
-          <div style="background:#fff;border-radius:14px;padding:24px;width:440px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(15,23,42,.25);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-              <div style="font-size:15px;font-weight:700;color:#1e293b;">Track a Team Task</div>
-              <div class="dp-task-del" onclick="closeTrackerAddModal()" style="font-size:20px;">&times;</div>
-            </div>
-            <div class="dp-compose-field" style="margin-bottom:14px;">
-              <label>Heading</label>
-              <input type="text" id="dpTrackerTitleInput" class="dp-input" placeholder="Task or deliverable…" style="width:100%;">
-            </div>
-            <div class="dp-compose-field" style="margin-bottom:14px;">
-              <label>Description <span style="text-transform:none;font-weight:500;color:#cbd5e1;">(optional)</span></label>
-              <textarea id="dpTrackerNotesInput" class="dp-input" placeholder="Add more detail…" style="width:100%;min-height:60px;resize:vertical;font-family:inherit;"></textarea>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
-              <div class="dp-compose-field">
-                <label>Owning Team</label>
-                <input type="text" id="dpTrackerTeamInput" class="dp-input" placeholder="e.g. Engineering" style="width:100%;">
-              </div>
-              <div class="dp-compose-field">
-                <label>Due Date</label>
-                <input type="date" id="dpTrackerDueInput" class="dp-input" style="width:100%;">
-              </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;">
-              <button class="dp-back-btn" onclick="closeTrackerAddModal()">Cancel</button>
-              <button class="dp-add-btn" onclick="dpAddTracker()">Track Task</button>
-            </div>
-          </div>
+          <div class="dp-task-group-label dp-task-group-label-team" style="margin-top:0;">Team<span class="dp-task-group-count" id="dpTrackerCount">0</span></div>
+          <div style="font-size:12px;color:#94a3b8;margin:4px 0 12px;">Tasks moved to another team/stage, plus anything you're manually tracking — no action needed from you, just visibility.</div>
+          <div id="dpTrackerCombinedList"></div>
         </div>
       </div>
     </div>

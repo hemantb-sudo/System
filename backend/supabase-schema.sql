@@ -93,13 +93,32 @@ CREATE TABLE IF NOT EXISTS dp_tasks (
   expected_close_date  DATE,
   status               TEXT NOT NULL DEFAULT 'Me',    -- Me | At Product | In Dev | ... | Closed | custom
   closed_date          DATE,
+  assignee             TEXT DEFAULT '',
+  task_state           TEXT NOT NULL DEFAULT 'Open',  -- Open | Hold | Closed — separate from `status` (Task Owner)
   created_at           TIMESTAMPTZ DEFAULT now(),
   updated_at           TIMESTAMPTZ DEFAULT now()
 );
+ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS assignee TEXT DEFAULT '';
+ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS task_state TEXT NOT NULL DEFAULT 'Open';
 
 -- Custom statuses the user has added via the "+ Add new status…" option.
 CREATE TABLE IF NOT EXISTS dp_custom_statuses (
   name TEXT PRIMARY KEY
+);
+
+-- Assignees the user has added via the "+ Add new assignee…" option (independent
+-- of dp_custom_statuses — a separate, unrelated list).
+CREATE TABLE IF NOT EXISTS dp_custom_assignees (
+  name TEXT PRIMARY KEY
+);
+
+-- Audit log: one row per create/change/delete on a My Day task or Team Tracker
+-- item, newest first. Mirrors wf_log's shape/replace-on-save pattern.
+CREATE TABLE IF NOT EXISTS dp_audit_log (
+  id      BIGSERIAL PRIMARY KEY,
+  ts      BIGINT NOT NULL,      -- epoch millis
+  action  TEXT NOT NULL,        -- short label, e.g. 'Task created'
+  detail  TEXT NOT NULL         -- full human-readable sentence
 );
 
 -- ── Team Tracker: manually tracked external-team items ───────────────────────
@@ -110,9 +129,11 @@ CREATE TABLE IF NOT EXISTS dp_tracker_items (
   status     TEXT NOT NULL DEFAULT 'Pending',         -- Pending | In Progress | Blocked | Done
   due_date   DATE,
   notes      TEXT DEFAULT '',
+  assignee   TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+ALTER TABLE dp_tracker_items ADD COLUMN IF NOT EXISTS assignee TEXT DEFAULT '';
 
 -- ── Workflow Builder: workflows ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS wf_workflows (

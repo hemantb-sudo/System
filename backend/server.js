@@ -1039,56 +1039,72 @@ const wfCache = { data: null, failedAt: 0 };
 app.get('/api/day-planner', async (req, res) => {
   if (dpCache.data) return res.json({ ok: true, ...dpCache.data });
   if (dpCache.failedAt && Date.now() - dpCache.failedAt < CACHE_FAIL_MS) {
-    return res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [] });
+    return res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [], customAssignees: [], auditLog: [] });
   }
   try {
-    const [tasks, tracker, customStatuses] = await Promise.all([
+    const [tasks, tracker, customStatuses, customAssignees, auditLog] = await Promise.all([
       q(`SELECT id, title, description, time, start_date::text AS "startDate",
                 expected_close_date::text AS "expectedCloseDate", status,
-                closed_date::text AS "closedDate"
+                closed_date::text AS "closedDate", assignee, task_state AS "taskState"
          FROM dp_tasks ORDER BY created_at`),
-      q(`SELECT id, title, team, status, due_date::text AS "dueDate", notes
+      q(`SELECT id, title, team, status, due_date::text AS "dueDate", notes, assignee
          FROM dp_tracker_items ORDER BY created_at`),
-      q('SELECT name FROM dp_custom_statuses ORDER BY name')
+      q('SELECT name FROM dp_custom_statuses ORDER BY name'),
+      q('SELECT name FROM dp_custom_assignees ORDER BY name'),
+      q('SELECT id, ts, action, detail FROM dp_audit_log ORDER BY id DESC LIMIT 300')
     ]);
-    dpCache.data = { taskList: tasks, tracker, customTaskStatuses: customStatuses.map(r => r.name) };
+    dpCache.data = {
+      taskList: tasks, tracker,
+      customTaskStatuses: customStatuses.map(r => r.name),
+      customAssignees: customAssignees.map(r => r.name),
+      auditLog: auditLog.map(r => ({ id: r.id, ts: Number(r.ts), action: r.action, detail: r.detail }))
+    };
     dpCache.failedAt = 0;
     res.json({ ok: true, ...dpCache.data });
   } catch (e) {
     dpCache.failedAt = Date.now();
-    res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [] });
+    res.json({ ok: true, taskList: [], tracker: [], customTaskStatuses: [], customAssignees: [], auditLog: [] });
   }
 });
 
 app.post('/api/day-planner', async (req, res) => {
   try {
-    const { taskList, tracker, customTaskStatuses } = req.body;
-    if (!Array.isArray(taskList) || !Array.isArray(tracker) || !Array.isArray(customTaskStatuses)) {
-      return res.status(400).json({ ok: false, error: 'Missing taskList/tracker/customTaskStatuses arrays' });
+    const { taskList, tracker, customTaskStatuses, customAssignees, auditLog } = req.body;
+    if (!Array.isArray(taskList) || !Array.isArray(tracker) || !Array.isArray(customTaskStatuses) || !Array.isArray(customAssignees) || !Array.isArray(auditLog)) {
+      return res.status(400).json({ ok: false, error: 'Missing taskList/tracker/customTaskStatuses/customAssignees/auditLog arrays' });
     }
     await withTx(async (c) => {
       await c.query('DELETE FROM dp_tasks');
       const taskRows = buildBulkInsert(
-        'dp_tasks', ['id', 'title', 'description', 'time', 'start_date', 'expected_close_date', 'status', 'closed_date'],
+        'dp_tasks', ['id', 'title', 'description', 'time', 'start_date', 'expected_close_date', 'status', 'closed_date', 'assignee', 'task_state'],
         taskList.map(t => ({
           id: t.id, title: t.title, description: t.description || '', time: t.time || '',
-          start_date: t.startDate, expected_close_date: t.expectedCloseDate || null, status: t.status, closed_date: t.closedDate || null
+          start_date: t.startDate, expected_close_date: t.expectedCloseDate || null, status: t.status, closed_date: t.closedDate || null,
+          assignee: t.assignee || '', task_state: t.taskState || 'Open'
         }))
       );
       if (taskRows) await c.query(taskRows.sql, taskRows.values);
 
       await c.query('DELETE FROM dp_tracker_items');
       const trackerRows = buildBulkInsert(
-        'dp_tracker_items', ['id', 'title', 'team', 'status', 'due_date', 'notes'],
-        tracker.map(t => ({ id: t.id, title: t.title, team: t.team || 'Other Team', status: t.status || 'Pending', due_date: t.dueDate || null, notes: t.notes || '' }))
+        'dp_tracker_items', ['id', 'title', 'team', 'status', 'due_date', 'notes', 'assignee'],
+        tracker.map(t => ({ id: t.id, title: t.title, team: t.team || 'Other Team', status: t.status || 'Pending', due_date: t.dueDate || null, notes: t.notes || '', assignee: t.assignee || '' }))
       );
       if (trackerRows) await c.query(trackerRows.sql, trackerRows.values);
 
       await c.query('DELETE FROM dp_custom_statuses');
       const statusRows = buildBulkInsert('dp_custom_statuses', ['name'], customTaskStatuses.map(name => ({ name })));
       if (statusRows) await c.query(statusRows.sql + ' ON CONFLICT DO NOTHING', statusRows.values);
+
+      await c.query('DELETE FROM dp_custom_assignees');
+      const assigneeRows = buildBulkInsert('dp_custom_assignees', ['name'], customAssignees.map(name => ({ name })));
+      if (assigneeRows) await c.query(assigneeRows.sql + ' ON CONFLICT DO NOTHING', assigneeRows.values);
+
+      await c.query('DELETE FROM dp_audit_log');
+      const auditRows = buildBulkInsert('dp_audit_log', ['ts', 'action', 'detail'], auditLog.map(l => ({ ts: l.ts, action: l.action, detail: l.detail })));
+      if (auditRows) await c.query(auditRows.sql, auditRows.values);
     });
-    dpCache.data = { taskList, tracker, customTaskStatuses };
+    dpCache.data = { taskList, tracker, customTaskStatuses, customAssignees, auditLog };
     dpCache.failedAt = 0;
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -1181,9 +1197,12 @@ const AGENT_TOOLS = [
     date: { type: 'string', description: 'Start date YYYY-MM-DD; defaults to the currently selected day if omitted' },
     status: { type: 'string', description: 'Initial status; defaults to "Me"' }
   }, required: ['title'] } } },
-  { type: 'function', function: { name: 'set_task_status', description: 'Change a task\'s status — use "Closed" to close/complete it. Look up task_id from the current context by title.', parameters: { type: 'object', properties: {
+  { type: 'function', function: { name: 'set_task_status', description: 'Change a task\'s Task Owner (who/what stage it sits with — e.g. "Me", "In Dev", "At CS"). Does not close or complete the task; use set_task_state for that. Look up task_id from the current context by title.', parameters: { type: 'object', properties: {
     task_id: { type: 'string' }, status: { type: 'string' }
   }, required: ['task_id', 'status'] } } },
+  { type: 'function', function: { name: 'set_task_state', description: 'Change a task\'s Status — Open, Hold, or Closed. Use "Closed" to close/complete a task (it then only shows on the day it was closed instead of carrying forward); "Open" makes it carry forward again. Look up task_id from the current context by title.', parameters: { type: 'object', properties: {
+    task_id: { type: 'string' }, state: { type: 'string', enum: ['Open', 'Hold', 'Closed'] }
+  }, required: ['task_id', 'state'] } } },
   { type: 'function', function: { name: 'delete_task', description: 'Delete a task.', parameters: { type: 'object', properties: { task_id: { type: 'string' } }, required: ['task_id'] } } },
   { type: 'function', function: { name: 'set_expected_closure', description: 'Set a task\'s expected closure date.', parameters: { type: 'object', properties: {
     task_id: { type: 'string' }, date: { type: 'string', description: 'YYYY-MM-DD' }
