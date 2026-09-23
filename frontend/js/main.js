@@ -7637,13 +7637,42 @@
         DP_REMOTE_CACHE = data;
         try { localStorage.setItem(DP_STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
     }
+    // Surfaces a small dismissible banner when a save to the server fails, so a
+    // broken DB connection isn't silently invisible — the local cache (and
+    // therefore the UI) is already correct either way, but the change hasn't
+    // actually reached Postgres yet. Clears itself automatically on the next
+    // successful save.
+    function dpShowSyncWarning(message) {
+        var el = document.getElementById('dpSyncWarning');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'dpSyncWarning';
+            el.className = 'dp-sync-warning';
+            document.body.appendChild(el);
+        }
+        el.innerHTML = '<span>' + dpEsc(message) + '</span><button type="button" class="dp-sync-warning-close" onclick="this.parentElement.style.display=\'none\'">&times;</button>';
+        el.style.display = 'flex';
+    }
+    function dpClearSyncWarning() {
+        var el = document.getElementById('dpSyncWarning');
+        if (el) el.style.display = 'none';
+    }
     function dpSaveData(data) {
         dpSetLocalCache(data);
         fetch(API_BASE + '/api/day-planner', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
-        }).catch(function (e) { /* offline-safe — local cache is already updated */ });
+        }).then(function (res) {
+            if (res.ok) { dpClearSyncWarning(); return; }
+            return res.json().catch(function () { return {}; }).then(function (body) {
+                console.error('[Day Planner] Save to server failed (HTTP ' + res.status + '):', body.error || res.statusText);
+                dpShowSyncWarning("Couldn't save to the server — your changes are kept on this device only.");
+            });
+        }).catch(function (e) {
+            console.error('[Day Planner] Save to server failed (network error):', e);
+            dpShowSyncWarning("Couldn't reach the server — your changes are kept on this device only.");
+        });
     }
     // Fetches the persisted state from the backend once on load. If the backend
     // is unreachable, starts empty rather than falling back to old local data.
