@@ -222,7 +222,7 @@ app.post('/api/mets/topup', async (req, res) => {
       await tq(client,
         `INSERT INTO mets_audit_logs
            (action, pool, channel, region, category, amount, reason, notes, details, description, ip, status, user_name, department)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Rahul Anand','Admin')`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Hemant Bhadoria','Admin')`,
         [action, poolKey, null, null, null, totalAmount, poti||null, notes||null, details, description, req.ip||null, 'Success']
       );
     });
@@ -311,7 +311,7 @@ app.post('/api/mets/reversal', async (req, res) => {
       await tq(client,
         `INSERT INTO mets_audit_logs
            (action, pool, channel, region, category, amount, reason, notes, details, description, ip, status, user_name, department)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Rahul Anand','Admin')`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Hemant Bhadoria','Admin')`,
         ['METS Deduction', poolKey, channel||null, region||null, category||null, amount, reason||null, notes||null, crumb, description, req.ip||null, 'Success']
       );
     });
@@ -549,7 +549,7 @@ app.post('/api/mets/pricing-change', async (req, res) => {
       await tq(client,
         `INSERT INTO mets_audit_logs
            (action, pool, channel, region, category, amount, reason, notes, details, description, ip, status, user_name, department)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Rahul Anand','Admin')`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Hemant Bhadoria','Admin')`,
         ['Pricing Change', null, null, null, null, null, null, null, details, description, req.ip||null, 'Success']
       );
     });
@@ -782,7 +782,7 @@ async function insertDeductionLogs(client, transit, poolBreakdown, jobId) {
     await tq(client,
       `INSERT INTO mets_audit_logs
          (action, pool, channel, region, category, amount, reason, notes, details, description, ip, status, user_name, department)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Rahul Anand','Admin')`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'Hemant Bhadoria','Admin')`,
       ['METS Deduction', pool, transit.channel, transit.region, transit.category, logAmt, 'Consumption — Job: '+jobId, null, jobId, desc, null, 'Success']
     );
   }

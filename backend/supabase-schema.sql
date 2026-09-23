@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS mets_audit_logs (
   notes       TEXT,
   details     TEXT,
   description TEXT,
-  user_name   TEXT DEFAULT 'Rahul Anand',
+  user_name   TEXT DEFAULT 'Hemant Bhadoria',
   department  TEXT DEFAULT 'Admin',
   ip          TEXT,
   status      TEXT DEFAULT 'Success'

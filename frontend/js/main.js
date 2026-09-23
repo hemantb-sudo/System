@@ -6255,7 +6255,7 @@
                 + '</div>'
                 + '<div class="al-body">'
                 +   '<div class="al-time">' + timeStr + '</div>'
-                +   '<div class="al-user">' + (l.user_name||'Rahul Anand') + ' \u00b7 ' + (l.department||'Admin') + '</div>'
+                +   '<div class="al-user">' + (l.user_name||'Hemant Bhadoria') + ' \u00b7 ' + (l.department||'Admin') + '</div>'
                 +   '<div class="al-desc">' + (l.description || l.details || '') + '</div>'
                 + '</div>'
                 + '</div>';
