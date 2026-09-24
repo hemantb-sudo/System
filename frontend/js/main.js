@@ -7610,6 +7610,7 @@
     var DP_TASK_STATE_BG = { 'Open': '#ECFDF5', 'Hold': '#FFFBEB', 'Closed': '#F3F4F6' };
     var DP_ICON_CALENDAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
     var DP_ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
+    var DP_ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 
     function dpToDateKey(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -8134,14 +8135,14 @@
         var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
         return '<div class="dp-task-row' + (isClosed ? ' dp-task-done' : '') + '" style="border-left-color:' + color + ';">' +
             '<div class="dp-task-top">' +
-                '<div class="dp-task-text">' +
+                '<div class="dp-task-text dp-task-text-clickable" onclick="dpOpenEditTask(\'' + t.id + '\')" title="Click to view/edit details">' +
                     '<div class="dp-task-title">' + dpEsc(t.title) + '</div>' +
-                    (t.description ? '<div class="dp-task-desc">' + dpEsc(t.description) + '</div>' : '') +
+                    (t.description ? '<div class="dp-task-desc" title="' + dpEsc(t.description) + '">' + dpEsc(t.description) + '</div>' : '') +
                     (t.time ? '<div class="dp-task-time">' + dpEsc(t.time) + '</div>' : '') +
                 '</div>' +
                 '<select class="dp-task-status" style="background-color:' + (DP_TASK_STATE_BG[t.taskState] || DP_TASK_STATE_BG.Open) + ';color:' + (DP_TASK_STATE_COLORS[t.taskState] || DP_TASK_STATE_COLORS.Open) + ';" onchange="dpSetTaskState(\'' + t.id + '\', this.value, \'' + viewedDateKey + '\')">' + dpTaskStateOptions(t.taskState || 'Open') + '</select>' +
                 '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value)">' + dpTaskStatusOptions(data, t.status) + '</select>' +
-                '<div class="dp-task-del" onclick="dpDeleteTask(\'' + t.id + '\')">&times;</div>' +
+                '<div class="dp-task-del" onclick="dpDeleteTask(\'' + t.id + '\')" title="Delete task">' + DP_ICON_TRASH + '</div>' +
             '</div>' +
             '<div class="dp-task-dates">' +
                 '<div class="dp-date-chip dp-date-chip-start"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Start</span><span class="dp-date-chip-value dp-date-chip-value-editable" onclick="dpOpenDateChipPicker(this)">' + (t.startDate ? dpFormatDate(t.startDate) : '—') + '</span><input type="date" class="dp-date-chip-hidden-input" value="' + (t.startDate || '') + '"' + (t.expectedCloseDate ? ' max="' + t.expectedCloseDate + '"' : '') + ' onchange="dpSetTaskDate(\'' + t.id + '\',\'startDate\',this.value)"></div>' +
@@ -8251,6 +8252,11 @@
     // Task title, Start date, Task Owner, and Status are mandatory — this validates
     // all four together (rather than failing silently on the first empty one) so the
     // user sees everything they still need to fill in, highlighted, in one pass.
+    // Same drawer serves both "+ Add Task" (dpEditingTaskId === null) and clicking
+    // an existing task's title to edit it (dpEditingTaskId === that task's id) — the
+    // fields, validation, and mandatory-field rules are identical either way; only
+    // the header/button text and which function dpAddTask hands off to differ.
+    var dpEditingTaskId = null;
     window.dpAddTask = function () {
         var input = document.getElementById('dpNewTaskInput');
         var startInput = document.getElementById('dpNewTaskStart');
@@ -8281,54 +8287,130 @@
             window.alert('Expected closure date cannot be before the start date.');
             return;
         }
-        dpCreateTask({
-            title: title,
-            description: descInput ? descInput.value.trim() : '',
-            startDate: startVal,
-            expectedCloseDate: expectedVal,
-            status: statusVal,
-            taskState: stateVal
-        });
-        input.value = '';
-        if (descInput) descInput.value = '';
-        if (expectedInput) expectedInput.value = '';
-        if (startInput) startInput.value = dpSelectedDate;
-        dpSyncNewTaskExpectedMin(dpSelectedDate);
+        var description = descInput ? descInput.value.trim() : '';
+        if (dpEditingTaskId) {
+            dpSaveTaskEdits(dpEditingTaskId, {
+                title: title, description: description, startDate: startVal, expectedCloseDate: expectedVal,
+                status: statusVal, taskState: stateVal
+            });
+        } else {
+            dpCreateTask({
+                title: title, description: description, startDate: startVal, expectedCloseDate: expectedVal,
+                status: statusVal, taskState: stateVal
+            });
+        }
         closeAddTaskModal();
     };
-    // defaultStatus: 'Me' when opened from My Day's "+ Add Task", or a non-Me status
-    // (e.g. 'At Product') when opened from Team Tracker's "+ Track Task" — the only
-    // difference between the two entry points, since it's the same form either way.
-    window.openAddTaskModal = function (defaultStatus) {
+    // Applies edits from the shared form to an existing task, logging exactly what
+    // changed (skipped entirely if nothing did) rather than always logging a
+    // generic "task updated" — mirrors how each individual-field setter
+    // (dpSetTaskStatus/dpSetTaskState/dpSetTaskDate) describes its own change.
+    function dpSaveTaskEdits(id, fields) {
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (!t) return;
+        var changes = [];
+        if (fields.title !== t.title) { changes.push('title to "' + fields.title + '"'); t.title = fields.title; }
+        if (fields.description !== (t.description || '')) { changes.push('description'); t.description = fields.description; }
+        if (fields.startDate !== t.startDate) { changes.push('start date to ' + dpFormatDate(fields.startDate)); t.startDate = fields.startDate; }
+        if ((fields.expectedCloseDate || null) !== (t.expectedCloseDate || null)) {
+            changes.push('expected closure to ' + (fields.expectedCloseDate ? dpFormatDate(fields.expectedCloseDate) : '(cleared)'));
+            t.expectedCloseDate = fields.expectedCloseDate;
+        }
+        if (fields.status !== t.status) { changes.push('Task Owner to "' + fields.status + '"'); t.status = fields.status; }
+        var stateChanged = fields.taskState !== t.taskState;
+        if (stateChanged) {
+            changes.push('Status to "' + fields.taskState + '"');
+            t.taskState = fields.taskState;
+            t.closedDate = (fields.taskState === 'Closed') ? dpToDateKey(new Date()) : null;
+        }
+        if (!changes.length) return;
+        dpLogAudit(data, 'Task updated', 'Updated "' + t.title + '" — set ' + changes.join(', ') + '.');
+        dpSaveData(data);
+        if (stateChanged && fields.taskState === 'Closed') wfRunTriggers('Task Closed', { taskId: id });
+        dpRenderTasks();
+        dpRenderTracker();
+        dpRenderDateStrip();
+        dashRenderMyTasks();
+    }
+    // Opens the shared drawer pre-filled with an existing task's fields for
+    // editing — triggered by clicking a task row's title/description area.
+    window.dpOpenEditTask = function (id) {
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === id; });
+        if (!t) return;
+        dpEditingTaskId = id;
+        dpShowTaskDrawer('Task Details', 'Save Changes', true);
+        document.getElementById('dpNewTaskInput').value = t.title || '';
+        var descInput = document.getElementById('dpNewTaskDesc');
+        if (descInput) descInput.value = t.description || '';
+        var startInput = document.getElementById('dpNewTaskStart');
+        if (startInput) startInput.value = t.startDate || '';
+        var expectedInput = document.getElementById('dpNewTaskExpected');
+        if (expectedInput) expectedInput.value = t.expectedCloseDate || '';
+        dpSyncNewTaskExpectedMin(t.startDate || '');
+        dpRenderTaskStatusOptions(data, t.status);
+        var stateSel = document.getElementById('dpNewTaskState');
+        if (stateSel) stateSel.innerHTML = dpTaskStateOptions(t.taskState || 'Open');
+    };
+    // Shared show-the-drawer mechanics (backdrop, open transition, focus) for both
+    // create and edit — the two callers differ in header/button text, whether they
+    // reset the fields (create) or populate them from a task (edit), and now in
+    // presentation: create still slides in from the right; opening an existing task
+    // ("view/edit details") centers mid-screen instead, per the request to make
+    // reviewing a task's full details a focused, prominent experience.
+    function dpShowTaskDrawer(title, buttonLabel, centered) {
         var modal = document.getElementById('dpAddTaskModal');
         var backdrop = document.getElementById('dpAddTaskBackdrop');
         if (!modal) return;
         modal.querySelectorAll('.dp-input-invalid').forEach(function (el) { el.classList.remove('dp-input-invalid'); });
-        var startInput = document.getElementById('dpNewTaskStart');
-        if (startInput && !startInput.value) startInput.value = dpSelectedDate;
-        dpSyncNewTaskExpectedMin(startInput ? startInput.value : '');
-        var data = dpLoadData();
-        dpRenderTaskStatusOptions(data, defaultStatus || 'Me');
-        var stateSel = document.getElementById('dpNewTaskState');
-        if (stateSel) stateSel.innerHTML = dpTaskStateOptions('Open');
-        if (backdrop) backdrop.style.display = 'block';
+        var titleEl = document.getElementById('dpTaskDrawerTitle');
+        if (titleEl) titleEl.textContent = title;
+        var btnEl = document.getElementById('dpTaskSubmitBtn');
+        if (btnEl) btnEl.textContent = buttonLabel;
+        modal.classList.toggle('dp-modal-centered', !!centered);
+        if (backdrop) {
+            backdrop.style.display = 'block';
+            backdrop.classList.toggle('dp-backdrop-centered', !!centered);
+        }
         modal.style.display = 'flex';
-        // Force layout before adding the open class so the slide-in transition
-        // actually plays instead of the drawer just appearing already open.
+        // Force layout before adding the open class so the open transition
+        // (slide-in or scale-in) actually plays instead of just appearing already open.
         modal.getBoundingClientRect();
         modal.classList.add('dp-drawer-open');
         setTimeout(function () {
             var input = document.getElementById('dpNewTaskInput');
             if (input) input.focus();
         }, 50);
+    }
+    // defaultStatus: 'Me' when opened from My Day's "+ Add Task", or a non-Me status
+    // (e.g. 'At Product') when opened from Team Tracker's "+ Track Task" — the only
+    // difference between the two entry points, since it's the same form either way.
+    window.openAddTaskModal = function (defaultStatus) {
+        dpEditingTaskId = null;
+        var input = document.getElementById('dpNewTaskInput');
+        if (input) input.value = '';
+        var descInput = document.getElementById('dpNewTaskDesc');
+        if (descInput) descInput.value = '';
+        var expectedInput = document.getElementById('dpNewTaskExpected');
+        if (expectedInput) expectedInput.value = '';
+        var startInput = document.getElementById('dpNewTaskStart');
+        if (startInput) startInput.value = dpSelectedDate;
+        dpSyncNewTaskExpectedMin(dpSelectedDate);
+        var data = dpLoadData();
+        dpRenderTaskStatusOptions(data, defaultStatus || 'Me');
+        var stateSel = document.getElementById('dpNewTaskState');
+        if (stateSel) stateSel.innerHTML = dpTaskStateOptions('Open');
+        dpShowTaskDrawer('Add Task', 'Add Task');
     };
     window.closeAddTaskModal = function () {
         var modal = document.getElementById('dpAddTaskModal');
         var backdrop = document.getElementById('dpAddTaskBackdrop');
         if (!modal) return;
+        dpEditingTaskId = null;
         modal.classList.remove('dp-drawer-open');
-        if (backdrop) backdrop.style.display = 'none';
-        setTimeout(function () { modal.style.display = 'none'; }, 220);
+        if (backdrop) { backdrop.style.display = 'none'; backdrop.classList.remove('dp-backdrop-centered'); }
+        setTimeout(function () { modal.style.display = 'none'; modal.classList.remove('dp-modal-centered'); }, 220);
     };
 
     // Renders the Audit Log drawer's entry list, newest first (already the storage
@@ -8434,10 +8516,10 @@
             '<div class="dp-task-top">' +
                 '<div class="dp-task-text">' +
                     '<div class="dp-task-title">' + dpEsc(t.title) + '</div>' +
-                    (t.notes ? '<div class="dp-task-desc">' + dpEsc(t.notes) + '</div>' : '') +
+                    (t.notes ? '<div class="dp-task-desc" title="' + dpEsc(t.notes) + '">' + dpEsc(t.notes) + '</div>' : '') +
                 '</div>' +
                 '<select class="dp-task-status" style="background-color:' + bg + ';color:' + color + ';" onchange="dpUpdateTrackerStatus(\'' + t.id + '\', this.value)">' + statusOpts + '</select>' +
-                '<div class="dp-task-del" onclick="dpDeleteTracker(\'' + t.id + '\')">&times;</div>' +
+                '<div class="dp-task-del" onclick="dpDeleteTracker(\'' + t.id + '\')" title="Delete tracked item">' + DP_ICON_TRASH + '</div>' +
             '</div>' +
             '<div class="dp-task-dates">' +
                 '<div class="dp-date-chip dp-date-chip-actual-set"><span class="dp-date-chip-icon">' + DP_ICON_CALENDAR + '</span><span class="dp-date-chip-label">Team</span><span class="dp-date-chip-value">' + dpEsc(t.team) + '</span></div>' +
@@ -8561,7 +8643,7 @@
             return '<div class="dtask-row">' +
                 '<div class="task-text' + (isClosed ? ' dtask-done-text' : '') + '" style="flex:1;">' + dpEsc(t.title) + '</div>' +
                 '<select class="dp-task-status dp-task-status-sm" style="background-color:' + bg + ';color:' + color + ';" onchange="dpSetTaskStatus(\'' + t.id + '\', this.value)">' + dpTaskStatusOptions(data, t.status) + '</select>' +
-                '<div class="dtask-del" onclick="dashDeleteQuickTask(\'' + t.id + '\')">&times;</div>' +
+                '<div class="dtask-del" onclick="dashDeleteQuickTask(\'' + t.id + '\')" title="Delete task">' + DP_ICON_TRASH + '</div>' +
             '</div>';
         }).join('');
     }
