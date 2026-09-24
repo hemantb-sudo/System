@@ -1045,7 +1045,8 @@ app.get('/api/day-planner', async (req, res) => {
     const [tasks, tracker, customStatuses, customAssignees, auditLog] = await Promise.all([
       q(`SELECT id, title, description, time, start_date::text AS "startDate",
                 expected_close_date::text AS "expectedCloseDate", status,
-                closed_date::text AS "closedDate", assignee, task_state AS "taskState"
+                closed_date::text AS "closedDate", assignee, task_state AS "taskState",
+                order_index AS "order"
          FROM dp_tasks ORDER BY created_at`),
       q(`SELECT id, title, team, status, due_date::text AS "dueDate", notes, assignee
          FROM dp_tracker_items ORDER BY created_at`),
@@ -1076,11 +1077,11 @@ app.post('/api/day-planner', async (req, res) => {
     await withTx(async (c) => {
       await c.query('DELETE FROM dp_tasks');
       const taskRows = buildBulkInsert(
-        'dp_tasks', ['id', 'title', 'description', 'time', 'start_date', 'expected_close_date', 'status', 'closed_date', 'assignee', 'task_state'],
+        'dp_tasks', ['id', 'title', 'description', 'time', 'start_date', 'expected_close_date', 'status', 'closed_date', 'assignee', 'task_state', 'order_index'],
         taskList.map(t => ({
           id: t.id, title: t.title, description: t.description || '', time: t.time || '',
           start_date: t.startDate, expected_close_date: t.expectedCloseDate || null, status: t.status, closed_date: t.closedDate || null,
-          assignee: t.assignee || '', task_state: t.taskState || 'Open'
+          assignee: t.assignee || '', task_state: t.taskState || 'Open', order_index: (typeof t.order === 'number') ? t.order : null
         }))
       );
       if (taskRows) await c.query(taskRows.sql, taskRows.values);

@@ -95,11 +95,13 @@ CREATE TABLE IF NOT EXISTS dp_tasks (
   closed_date          DATE,
   assignee             TEXT DEFAULT '',
   task_state           TEXT NOT NULL DEFAULT 'Open',  -- Open | Hold | Closed — separate from `status` (Task Owner)
+  order_index          INTEGER,                        -- manual drag-and-drop priority among open tasks; NULL = unset, falls back to creation order
   created_at           TIMESTAMPTZ DEFAULT now(),
   updated_at           TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS assignee TEXT DEFAULT '';
 ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS task_state TEXT NOT NULL DEFAULT 'Open';
+ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS order_index INTEGER;
 
 -- Custom statuses the user has added via the "+ Add new status…" option.
 CREATE TABLE IF NOT EXISTS dp_custom_statuses (

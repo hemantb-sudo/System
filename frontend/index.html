@@ -9924,8 +9924,14 @@ document.addEventListener('DOMContentLoaded', function() {
   .dp-task-row { background:#fafcff;border:1px solid #EEF1F5;border-left:4px solid #CBD5E1;border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .18s,border-color .18s,transform .18s;}
   .dp-task-row:hover { border-color:#dbe4f0;box-shadow:0 6px 18px rgba(15,23,42,.07);transform:translateY(-1px); }
   .dp-task-row:last-child { margin-bottom:0; }
+  .dp-task-row.dp-task-dragging { opacity:.4; }
+  .dp-task-row.dp-task-drop-target { box-shadow:0 -3px 0 0 #2979d4 inset; }
   .dp-task-done { background:#FAFBFC; }
   .dp-task-top { display:flex;align-items:center;gap:12px; }
+  .dp-task-drag-handle { cursor:grab;color:#CBD5E1;display:flex;align-items:center;justify-content:center;padding:4px 2px;flex-shrink:0;border-radius:6px;transition:color .15s,background .15s; }
+  .dp-task-drag-handle:hover { color:#64748b;background:#f1f5f9; }
+  .dp-task-drag-handle:active { cursor:grabbing; }
+  .dp-task-drag-handle-disabled { cursor:default;color:#E5E9F0;pointer-events:none; }
   .dp-task-dates { display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px dashed #EEF1F5; }
   .dp-date-chip { position:relative;display:flex;align-items:center;gap:6px;background:#F8FAFC;border:1px solid #EEF0F3;border-radius:8px;padding:6px 10px;transition:border-color .15s,background .15s,box-shadow .15s; }
   .dp-date-chip:hover { box-shadow:0 2px 8px rgba(15,23,42,.06); }

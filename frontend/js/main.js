@@ -7611,6 +7611,7 @@
     var DP_ICON_CALENDAR = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
     var DP_ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
     var DP_ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+    var DP_ICON_DRAG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 
     function dpToDateKey(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -7718,11 +7719,30 @@
     // A task whose Status is "Closed" is only visible on the day it was closed; Open
     // or Hold both carry the task forward onto every day from its start date on.
     // This is driven by the Status field (taskState), not Task Owner (status).
+    // A task's priority (`order`) is a single global ranking, not per-date — an
+    // open task carries forward on every day from its start date until closed
+    // (see the filter below), so its relative priority should carry forward too.
+    // Tasks created before this field existed fall back to their id's creation
+    // timestamp, which preserves their original relative order unchanged.
+    function dpTaskOrderValue(t) {
+        if (typeof t.order === 'number') return t.order;
+        var ts = parseInt(String(t.id || '').split('_')[1], 10);
+        return isNaN(ts) ? 0 : ts;
+    }
+    // Closed tasks always sort after open ones, regardless of `order` — dragging
+    // never needs to move a task "past" the closed section, it just happens
+    // automatically as soon as a task's state flips to Closed.
+    function dpTaskOrderComparator(a, b) {
+        var closedA = a.taskState === 'Closed' ? 1 : 0;
+        var closedB = b.taskState === 'Closed' ? 1 : 0;
+        if (closedA !== closedB) return closedA - closedB;
+        return dpTaskOrderValue(a) - dpTaskOrderValue(b);
+    }
     function dpVisibleTasksForDate(data, dateKey) {
         return (data.taskList || []).filter(function (t) {
             if (t.taskState === 'Closed') return t.closedDate === dateKey;
             return t.startDate <= dateKey;
-        });
+        }).sort(dpTaskOrderComparator);
     }
 
     function dpFormatDate(key) {
@@ -8133,8 +8153,16 @@
         var isClosed = t.taskState === 'Closed';
         var color = DP_TASK_STATUS_COLORS[t.status] || DP_TASK_STATUS_DEFAULT_COLOR;
         var bg = DP_TASK_STATUS_BG[t.status] || DP_TASK_STATUS_DEFAULT_BG;
-        return '<div class="dp-task-row' + (isClosed ? ' dp-task-done' : '') + '" style="border-left-color:' + color + ';">' +
+        // Closed tasks are pinned to the end automatically (dpTaskOrderComparator)
+        // and can't be dragged or dropped onto — manual priority only applies to
+        // the still-open set.
+        var dragAttrs = isClosed ? '' : (' ondragover="dpTaskDragOver(event)" ondragleave="dpTaskDragLeave(event)" ondrop="dpTaskDrop(event,\'' + t.id + '\')"');
+        var handleHtml = isClosed
+            ? '<div class="dp-task-drag-handle dp-task-drag-handle-disabled">' + DP_ICON_DRAG + '</div>'
+            : ('<div class="dp-task-drag-handle" draggable="true" ondragstart="dpTaskDragStart(event,\'' + t.id + '\')" ondragend="dpTaskDragEnd()" title="Drag to reprioritize">' + DP_ICON_DRAG + '</div>');
+        return '<div class="dp-task-row' + (isClosed ? ' dp-task-done' : '') + '" data-task-id="' + t.id + '" style="border-left-color:' + color + ';"' + dragAttrs + '>' +
             '<div class="dp-task-top">' +
+                handleHtml +
                 '<div class="dp-task-text dp-task-text-clickable" onclick="dpOpenEditTask(\'' + t.id + '\')" title="Click to view/edit details">' +
                     '<div class="dp-task-title">' + dpEsc(t.title) + '</div>' +
                     (t.description ? '<div class="dp-task-desc" title="' + dpEsc(t.description) + '">' + dpEsc(t.description) + '</div>' : '') +
@@ -8176,6 +8204,64 @@
             return;
         }
         list.innerHTML = tasks.map(function (t) { return dpTaskRowHtml(t, data, dpSelectedDate); }).join('');
+    }
+
+    // Drag-and-drop priority reordering for My Day tasks (native HTML5 DnD — no
+    // extra library). Only the drag handle is draggable="true", but the drag
+    // image is set to the whole row so it reads as "picking up the task", not
+    // just the handle icon.
+    var dpDragTaskId = null;
+    window.dpTaskDragStart = function (e, id) {
+        dpDragTaskId = id;
+        var row = document.querySelector('.dp-task-row[data-task-id="' + id + '"]');
+        if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', id);
+            if (row) e.dataTransfer.setDragImage(row, 24, 24);
+        }
+        if (row) row.classList.add('dp-task-dragging');
+    };
+    window.dpTaskDragOver = function (e) {
+        if (!dpDragTaskId) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        var row = e.currentTarget;
+        if (row.getAttribute('data-task-id') !== dpDragTaskId) row.classList.add('dp-task-drop-target');
+    };
+    window.dpTaskDragLeave = function (e) {
+        e.currentTarget.classList.remove('dp-task-drop-target');
+    };
+    window.dpTaskDragEnd = function () {
+        document.querySelectorAll('.dp-task-dragging').forEach(function (el) { el.classList.remove('dp-task-dragging'); });
+        document.querySelectorAll('.dp-task-drop-target').forEach(function (el) { el.classList.remove('dp-task-drop-target'); });
+        dpDragTaskId = null;
+    };
+    window.dpTaskDrop = function (e, targetId) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('dp-task-drop-target');
+        var draggedId = dpDragTaskId;
+        dpDragTaskId = null;
+        if (!draggedId || draggedId === targetId) return;
+        dpReorderTask(draggedId, targetId);
+    };
+    // Reprioritizes within the full open-task set (not just the tasks visible on
+    // the currently selected date) so the new order holds consistently across
+    // every day the dragged task appears on, then renumbers 0..N-1 so `order`
+    // values stay small and unambiguous.
+    function dpReorderTask(draggedId, targetId) {
+        var data = dpLoadData();
+        var openTasks = (data.taskList || []).filter(function (t) { return t.taskState !== 'Closed'; });
+        openTasks.sort(dpTaskOrderComparator);
+        var fromIdx = openTasks.findIndex(function (t) { return t.id === draggedId; });
+        var toIdx = openTasks.findIndex(function (t) { return t.id === targetId; });
+        if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+        var moved = openTasks.splice(fromIdx, 1)[0];
+        openTasks.splice(toIdx, 0, moved);
+        openTasks.forEach(function (t, i) { t.order = i; });
+        dpSaveData(data);
+        dpRenderTasks();
+        dpRenderTracker();
+        dashRenderMyTasks();
     }
 
     // Core task-creation logic, shared by the DOM-driven "+ Add Task" form and
