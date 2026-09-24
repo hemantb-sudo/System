@@ -7612,6 +7612,7 @@
     var DP_ICON_CHECK = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>';
     var DP_ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
     var DP_ICON_DRAG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+    var DP_CURRENT_USER = 'Hemant Bhadoria';
 
     function dpToDateKey(d) {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -8276,7 +8277,9 @@
             expectedCloseDate: opts.expectedCloseDate || null,
             status: opts.status || 'Me', closedDate: null,
             assignee: opts.assignee || '',
-            taskState: opts.taskState || 'Open'
+            taskState: opts.taskState || 'Open',
+            notes: opts.notes || '',
+            comments: []
         });
         dpLogAudit(data, 'Task created', 'Created "' + opts.title + '" (Task Owner: ' + (opts.status || 'Me') + ', Status: ' + (opts.taskState || 'Open') + ').');
         dpSaveData(data);
@@ -8348,6 +8351,7 @@
         var startInput = document.getElementById('dpNewTaskStart');
         var expectedInput = document.getElementById('dpNewTaskExpected');
         var descInput = document.getElementById('dpNewTaskDesc');
+        var notesInput = document.getElementById('dpNewTaskNotes');
         var statusInput = document.getElementById('dpNewTaskStatus');
         var stateInput = document.getElementById('dpNewTaskState');
         if (!input) return;
@@ -8374,15 +8378,16 @@
             return;
         }
         var description = descInput ? descInput.value.trim() : '';
+        var notes = notesInput ? notesInput.value.trim() : '';
         if (dpEditingTaskId) {
             dpSaveTaskEdits(dpEditingTaskId, {
                 title: title, description: description, startDate: startVal, expectedCloseDate: expectedVal,
-                status: statusVal, taskState: stateVal
+                status: statusVal, taskState: stateVal, notes: notes
             });
         } else {
             dpCreateTask({
                 title: title, description: description, startDate: startVal, expectedCloseDate: expectedVal,
-                status: statusVal, taskState: stateVal
+                status: statusVal, taskState: stateVal, notes: notes
             });
         }
         closeAddTaskModal();
@@ -8404,6 +8409,7 @@
             t.expectedCloseDate = fields.expectedCloseDate;
         }
         if (fields.status !== t.status) { changes.push('Task Owner to "' + fields.status + '"'); t.status = fields.status; }
+        if (fields.notes !== (t.notes || '')) { changes.push('notes'); t.notes = fields.notes; }
         var stateChanged = fields.taskState !== t.taskState;
         if (stateChanged) {
             changes.push('Status to "' + fields.taskState + '"');
@@ -8438,6 +8444,11 @@
         dpRenderTaskStatusOptions(data, t.status);
         var stateSel = document.getElementById('dpNewTaskState');
         if (stateSel) stateSel.innerHTML = dpTaskStateOptions(t.taskState || 'Open');
+        var notesInput = document.getElementById('dpNewTaskNotes');
+        if (notesInput) notesInput.value = t.notes || '';
+        var commentsSection = document.getElementById('dpTaskCommentsSection');
+        if (commentsSection) commentsSection.style.display = 'block';
+        dpRenderComments(t);
     };
     // Shared show-the-drawer mechanics (backdrop, open transition, focus) for both
     // create and edit — the two callers differ in header/button text, whether they
@@ -8487,6 +8498,12 @@
         dpRenderTaskStatusOptions(data, defaultStatus || 'Me');
         var stateSel = document.getElementById('dpNewTaskState');
         if (stateSel) stateSel.innerHTML = dpTaskStateOptions('Open');
+        var notesInput = document.getElementById('dpNewTaskNotes');
+        if (notesInput) notesInput.value = '';
+        var commentsSection = document.getElementById('dpTaskCommentsSection');
+        if (commentsSection) commentsSection.style.display = 'none';
+        var commentInput = document.getElementById('dpNewCommentInput');
+        if (commentInput) commentInput.value = '';
         dpShowTaskDrawer('Add Task', 'Add Task');
     };
     window.closeAddTaskModal = function () {
@@ -8497,6 +8514,56 @@
         modal.classList.remove('dp-drawer-open');
         if (backdrop) { backdrop.style.display = 'none'; backdrop.classList.remove('dp-backdrop-centered'); }
         setTimeout(function () { modal.style.display = 'none'; modal.classList.remove('dp-modal-centered'); }, 220);
+    };
+    function dpFormatCommentTs(ts) {
+        return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+    // Comments only exist on already-created tasks (each needs a real task id to
+    // attach to), so this section is shown/rendered only from dpOpenEditTask, never
+    // from the "+ Add Task" creation flow — see openAddTaskModal, which hides it.
+    function dpRenderComments(t) {
+        var list = document.getElementById('dpTaskCommentsList');
+        if (!list) return;
+        var comments = t.comments || [];
+        if (!comments.length) {
+            list.innerHTML = '<div class="dp-comments-empty">No comments yet.</div>';
+            return;
+        }
+        list.innerHTML = comments.map(function (c) {
+            return '<div class="dp-comment-item">' +
+                '<div class="dp-comment-item-body">' +
+                    '<div class="dp-comment-item-text">' + dpEsc(c.text) + '</div>' +
+                    '<div class="dp-comment-item-meta">' + dpEsc(c.author || DP_CURRENT_USER) + ' · ' + dpFormatCommentTs(c.ts) + '</div>' +
+                '</div>' +
+                '<div class="dp-comment-item-del" onclick="dpDeleteComment(\'' + c.id + '\')" title="Delete comment">' + DP_ICON_TRASH + '</div>' +
+            '</div>';
+        }).join('');
+    }
+    window.dpAddComment = function () {
+        if (!dpEditingTaskId) return;
+        var input = document.getElementById('dpNewCommentInput');
+        var text = input ? input.value.trim() : '';
+        if (!text) return;
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === dpEditingTaskId; });
+        if (!t) return;
+        if (!t.comments) t.comments = [];
+        t.comments.push({ id: 'cm_' + Date.now() + '_' + Math.floor(Math.random() * 1000), ts: Date.now(), author: DP_CURRENT_USER, text: text });
+        dpLogAudit(data, 'Comment added', 'Commented on "' + t.title + '": ' + text);
+        dpSaveData(data);
+        if (input) input.value = '';
+        dpRenderComments(t);
+    };
+    window.dpDeleteComment = function (commentId) {
+        if (!dpEditingTaskId) return;
+        var data = dpLoadData();
+        var t = (data.taskList || []).find(function (x) { return x.id === dpEditingTaskId; });
+        if (!t || !t.comments) return;
+        var idx = t.comments.findIndex(function (c) { return c.id === commentId; });
+        if (idx === -1) return;
+        t.comments.splice(idx, 1);
+        dpSaveData(data);
+        dpRenderComments(t);
     };
 
     // Renders the Audit Log drawer's entry list, newest first (already the storage

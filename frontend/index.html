@@ -9896,6 +9896,18 @@ document.addEventListener('DOMContentLoaded', function() {
   .dp-drawer-body .dp-input:focus, .dp-drawer-body .dp-select:focus { box-shadow:0 0 0 4px rgba(41,121,212,.14); }
   .dp-input-lg { font-size:15px;font-weight:600;padding:12px 14px; }
   .dp-status-dot-preview { display:inline-block;width:8px;height:8px;border-radius:999px;margin-right:7px;background:#94a3b8;transition:background .2s ease;box-shadow:0 0 0 3px rgba(0,0,0,.04); }
+  .dp-comments-list { display:flex;flex-direction:column;gap:8px;max-height:180px;overflow-y:auto;margin-bottom:10px; }
+  .dp-comment-item { background:#f8fafc;border:1px solid #EEF1F5;border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between;gap:8px;align-items:flex-start; }
+  .dp-comment-item-body { flex:1 1 auto;min-width:0; }
+  .dp-comment-item-text { font-size:13px;color:#1f2937;white-space:pre-wrap;word-break:break-word;line-height:1.45; }
+  .dp-comment-item-meta { font-size:11px;color:#94a3b8;margin-top:3px; }
+  .dp-comment-item-del { cursor:pointer;color:#CBD5E1;flex-shrink:0;padding:3px 5px;border-radius:6px;transition:all .15s;display:flex;align-items:center;justify-content:center; }
+  .dp-comment-item-del:hover { color:#e24b4a;background:#FEF2F2; }
+  .dp-comments-empty { font-size:12.5px;color:#94a3b8;padding:4px 2px 10px; }
+  .dp-comment-input-row { display:flex;gap:8px;align-items:center; }
+  .dp-comment-input-row .dp-input { flex:1 1 auto; }
+  .dp-comment-add-btn { background:#2979d4;color:#fff;border:none;border-radius:8px;padding:0 16px;height:38px;font-size:12.5px;font-weight:700;cursor:pointer;transition:all .15s;flex-shrink:0; }
+  .dp-comment-add-btn:hover { background:#1f5fab;transform:translateY(-1px); }
   .dp-drawer-footer { display:flex;justify-content:flex-end;gap:10px;padding:18px 26px;border-top:1px solid #f1f5f9;flex-shrink:0;background:#fafbfc; }
   .dp-drawer-footer .dp-back-btn:hover { transform:translateY(-1px); }
   .dp-drawer-footer .dp-add-btn:hover { transform:translateY(-1px);box-shadow:0 6px 16px rgba(41,121,212,.32); }
@@ -10064,6 +10076,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
             <label class="dp-drawer-label" for="dpNewTaskState">Status<span class="dp-required-mark">*</span></label>
             <select id="dpNewTaskState" class="dp-input dp-select" required></select>
+
+            <label class="dp-drawer-label" for="dpNewTaskNotes">Notes</label>
+            <textarea id="dpNewTaskNotes" class="dp-input" placeholder="Ongoing notes about this task (optional)" style="min-height:64px;resize:vertical;font-family:inherit;"></textarea>
+
+            <div id="dpTaskCommentsSection" style="display:none;">
+              <label class="dp-drawer-label">Comments</label>
+              <div id="dpTaskCommentsList" class="dp-comments-list"></div>
+              <div class="dp-comment-input-row">
+                <input type="text" id="dpNewCommentInput" class="dp-input" placeholder="Add a comment…" onkeydown="if(event.key==='Enter'){event.preventDefault();dpAddComment();}">
+                <button type="button" class="dp-comment-add-btn" onclick="dpAddComment()">Post</button>
+              </div>
+            </div>
           </div>
           <div class="dp-drawer-footer">
             <button class="dp-back-btn" onclick="closeAddTaskModal()">Cancel</button>

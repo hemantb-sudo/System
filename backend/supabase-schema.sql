@@ -96,12 +96,16 @@ CREATE TABLE IF NOT EXISTS dp_tasks (
   assignee             TEXT DEFAULT '',
   task_state           TEXT NOT NULL DEFAULT 'Open',  -- Open | Hold | Closed — separate from `status` (Task Owner)
   order_index          INTEGER,                        -- manual drag-and-drop priority among open tasks; NULL = unset, falls back to creation order
+  notes                TEXT DEFAULT '',                 -- freeform ongoing notes, separate from the initial description
+  comments              JSONB DEFAULT '[]',              -- [{id, ts, author, text}, ...]
   created_at           TIMESTAMPTZ DEFAULT now(),
   updated_at           TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS assignee TEXT DEFAULT '';
 ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS task_state TEXT NOT NULL DEFAULT 'Open';
 ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS order_index INTEGER;
+ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT '';
+ALTER TABLE dp_tasks ADD COLUMN IF NOT EXISTS comments JSONB DEFAULT '[]';
 
 -- Custom statuses the user has added via the "+ Add new status…" option.
 CREATE TABLE IF NOT EXISTS dp_custom_statuses (
