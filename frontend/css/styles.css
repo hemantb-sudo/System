@@ -1980,6 +1980,7 @@
         .lv-avatar.v5{background:linear-gradient(135deg,#10b981,#059669);}
         .lv-user-cell{display:flex;align-items:center;gap:12px;}
         .lv-user-name{font-weight:600;color:#111827;font-size:13.5px;line-height:1.2;}
+        .lv-user-name-link{font-weight:600;color:#4f6ef7;font-size:13.5px;line-height:1.2;cursor:pointer;transition:color .15s;}.lv-user-name-link:hover{color:#3b5de7;text-decoration:underline;}
         .lv-user-sub{font-size:11.5px;color:#9ca3af;font-weight:400;margin-top:1px;}
         .lv-status-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 12px;border-radius:6px;border:none;}
         .lv-status-pill::before{content:'';width:6px;height:6px;border-radius:50%;}

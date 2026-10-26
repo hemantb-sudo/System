@@ -391,7 +391,7 @@
                 var firstId = g.lm ? g.lm.id : g.am.id;
                 var createdStr = g.createdAt && g.createdAt !== Infinity ? lvFmtDate(g.createdAt) : '—';
                 return '<tr class="lv-row-clickable" onclick="lvOpenEdit(' + firstId + ')">' +
-                    '<td><div class="lv-user-cell"><div class="lv-avatar ' + avatarCls + '">' + initials + '</div><div class="lv-user-name">' + g.user + '</div></div></td>' +
+                    '<td><div class="lv-user-cell"><div class="lv-avatar ' + avatarCls + '">' + initials + '</div><div class="lv-user-name-link">' + g.user + '</div></div></td>' +
                     '<td style="color:#374151;font-size:13px;">' + sectionHtml + '</td>' +
                     '<td style="color:#6b7280;font-size:12.5px;">' + createdStr + '</td>' +
                     '<td style="color:#6b7280;font-size:12.5px;">' + lvFmtDate(g.updatedAt) + '</td>' +
