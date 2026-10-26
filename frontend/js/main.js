@@ -184,13 +184,17 @@
 
         function lvFmtDate(ts) {
             var d = new Date(ts);
-            var now = new Date();
-            var diff = now - d;
-            if (diff < 60000) return 'Just now';
-            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
-            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
-            if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
-            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            if (isNaN(d.getTime())) return '—';
+            var dd = String(d.getDate()).padStart(2, '0');
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var yyyy = d.getFullYear();
+            var h = d.getHours();
+            var ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            var hh = String(h).padStart(2, '0');
+            var mi = String(d.getMinutes()).padStart(2, '0');
+            var ss = String(d.getSeconds()).padStart(2, '0');
+            return dd + '/' + mm + '/' + yyyy + ', ' + hh + ':' + mi + ':' + ss + ' ' + ampm;
         }
         function lvGetInitials(name) {
             var parts = name.trim().split(/\s+/);
@@ -377,9 +381,9 @@
                 var initials = lvGetInitials(g.user);
                 var avatarCls = lvAvatarClass(g.user);
                 var sections = [];
-                if (g.lm) sections.push('<span class="lv-section-pill lm"><span class="lv-sp-dot lm"></span>Lead Manager</span>');
-                if (g.am) sections.push('<span class="lv-section-pill am"><span class="lv-sp-dot am"></span>Application Manager</span>');
-                var sectionHtml = sections.length ? sections.join('') : '<span style="color:#9ca3af;">—</span>';
+                if (g.lm) sections.push('Lead Manager');
+                if (g.am) sections.push('Application Manager');
+                var sectionHtml = sections.length ? sections.join(', ') : '<span style="color:#9ca3af;">—</span>';
                 var hasActive = (g.am && g.am.active) || (g.lm && g.lm.active);
                 var statusHtml = hasActive
                     ? '<span class="lv-status-badge active"><span class="lv-status-dot active"></span>Active</span>'
@@ -388,7 +392,7 @@
                 var createdStr = g.createdAt && g.createdAt !== Infinity ? lvFmtDate(g.createdAt) : '—';
                 return '<tr class="lv-row-clickable" onclick="lvOpenEdit(' + firstId + ')">' +
                     '<td><div class="lv-user-cell"><div class="lv-avatar ' + avatarCls + '">' + initials + '</div><div class="lv-user-name">' + g.user + '</div></div></td>' +
-                    '<td><div class="lv-section-pills">' + sectionHtml + '</div></td>' +
+                    '<td style="color:#374151;font-size:13px;">' + sectionHtml + '</td>' +
                     '<td style="color:#6b7280;font-size:12.5px;">' + createdStr + '</td>' +
                     '<td style="color:#6b7280;font-size:12.5px;">' + lvFmtDate(g.updatedAt) + '</td>' +
                     '<td>' + statusHtml + '</td>' +
