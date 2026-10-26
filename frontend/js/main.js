@@ -121,7 +121,7 @@
         var lvEntryMod = 'am';
         var lvMappings = [];
         var lvNextId = 1;
-        var LV_API = '/api/limited-view';
+        var LV_API = API_BASE + '/api/limited-view';
 
         function lvLoadMappings(cb) {
             fetch(LV_API).then(function(r) { return r.json(); }).then(function(data) {
