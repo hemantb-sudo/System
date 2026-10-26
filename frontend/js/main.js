@@ -4,7 +4,7 @@
     : 'https://system-uf5p.onrender.com';
 
         function hideAllPanels() {
-            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','api-keys-view'].forEach(function(id) {
+            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','limited-view-view','api-keys-view'].forEach(function(id) {
                 var el = document.getElementById(id);
                 if (el) { el.classList.remove('active'); el.style.display = ''; }
             });
@@ -58,6 +58,830 @@
             if (onbHead) onbHead.classList.remove('open');
             if (onbItems) onbItems.classList.remove('open');
         }
+        function openLimitedView(mod) {
+            lvEntryMod = (mod === 'lm') ? 'lm' : 'am';
+            _showPanel('limited-view-view', 'Limited View', LV_SECTIONS[lvEntryMod].backAccordion);
+            var onbHead = document.getElementById('acc-general');
+            var onbItems = document.getElementById('items-acc-general');
+            if (onbHead) onbHead.classList.remove('open');
+            if (onbItems) onbItems.classList.remove('open');
+            trackVisit('Limited View', function(){ openLimitedView(lvEntryMod); });
+            lvEnterFullPage();
+            lvUpdateBreadcrumb();
+            lvOpenList();
+        }
+
+        // ── Limited View: unified field-mapping picker (Application Manager / Lead Manager) ──
+        var LV_AM_FORMS = [
+            { id: 'ug_admission', name: 'UG Admission Form', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Entrance Score','Rank','Seat Allotment'] },
+            { id: 'pg_admission', name: 'PG Admission Form', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Research Topic','Work Experience','Entrance Score'] },
+            { id: 'lateral_entry', name: 'Lateral Entry Form', fields: ['Application Id','Application Date','Application Status','Program','Transfer Credits','Previous Institution'] },
+            { id: 'scholarship', name: 'Scholarship Form', fields: ['Application Id','Application Date','Application Status','Scholarship Type','Family Income','Merit Score','Award Amount'] },
+            { id: 'hostel', name: 'Hostel Application', fields: ['Application Id','Application Date','Application Status','Room Type','Meal Plan','Floor Preference'] },
+            { id: 'exam_reg', name: 'Exam Registration', fields: ['Application Id','Application Date','Application Status','Exam Center','Exam Slot','Hall Ticket No'] },
+            { id: 'international', name: 'International Admission', fields: ['Application Id','Application Date','Application Status','Program','Passport No','Visa Status','Country of Origin','IELTS Score'] },
+            { id: 'diploma', name: 'Diploma Program', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Duration'] },
+            { id: 'certificate', name: 'Certificate Course', fields: ['Application Id','Application Date','Application Status','Course Name','Mode','Duration'] },
+            { id: 'phd', name: 'PhD Admission', fields: ['Application Id','Application Date','Application Status','Research Area','Supervisor','Publications','Fellowship'] }
+        ];
+        var LV_AM_COMMON_CATS = [
+            { title: 'Lead Details', fields: ['Registration Date','Country Dial Code','Registered Country','State','City','Course','Registration Device','Registration Channel','Widget Name','First User Activity Date','Last User Activity Date','Email Verification Status','Lead Id','Mobile Verification Status'] },
+            { title: 'Payment Details', fields: ['Payment Status','Payment Amount','Payment Date','Transaction Id'] },
+            { title: 'User Details', fields: ['User Name','User Email','User Mobile','User Role'] },
+            { title: 'Campaign Details', fields: ['Campaign Name','Campaign Source','Campaign Medium','UTM Source'] },
+            { title: 'Miscellaneous', fields: ['Tags','Notes','Priority'] },
+            { title: 'Admin Fields', fields: ['Created By','Modified By','Created Date'] }
+        ];
+
+        var LV_SECTIONS = {
+            am: {
+                label: 'Application Manager',
+                parentLabel: 'Account Setup',
+                backSection: 'sec-accsettings-extra',
+                backAccordion: 'acc-accsettings',
+                hasForms: true,
+                forms: LV_AM_FORMS,
+                commonCategories: LV_AM_COMMON_CATS,
+                categories: LV_AM_COMMON_CATS
+            },
+            lm: {
+                label: 'Lead Manager',
+                parentLabel: 'CRM',
+                backSection: 'sec-crm-leadflow',
+                backAccordion: 'acc-crm',
+                categories: [
+                    { title: 'Lead Details', fields: ['Registration Date','Country Dial Code','Registered Country','State','City','Course','Registration Device','Registration Channel','Widget Name','First User Activity Date','Last User Activity Date','Email Verification Status','Lead Id','Mobile Verification Status'] },
+                    { title: 'Campaign Details', fields: ['Campaign Name','Campaign Source','Campaign Medium','UTM Source'] },
+                    { title: 'Miscellaneous', fields: ['Tags','Notes','Priority'] },
+                    { title: 'Admin Fields', fields: ['Created By','Modified By','Created Date'] }
+                ]
+            }
+        };
+        var LV_USERS = ['Priya Sharma','Rohit Verma','Ankit Mehta','Neha Kulkarni'];
+        var lvEntryMod = 'am';
+        var lvMappings = [];
+        var lvNextId = 1;
+        var LV_API = '/api/limited-view';
+
+        function lvLoadMappings(cb) {
+            fetch(LV_API).then(function(r) { return r.json(); }).then(function(data) {
+                if (data.ok && data.mappings) {
+                    lvMappings = data.mappings.map(function(m) {
+                        return {
+                            id: m.id,
+                            section: m.section,
+                            user: m.username,
+                            fields: m.fields,
+                            active: m.active,
+                            createdAt: new Date(m.createdAt).getTime(),
+                            updatedAt: new Date(m.updatedAt).getTime()
+                        };
+                    });
+                    lvNextId = lvMappings.length ? Math.max.apply(null, lvMappings.map(function(m) { return m.id; })) + 1 : 1;
+                }
+                if (cb) cb();
+            }).catch(function() { if (cb) cb(); });
+        }
+
+        function lvApiSave(user, section, fields, cb) {
+            fetch(LV_API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, section: section, fields: fields })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (cb) cb(data);
+            }).catch(function() { if (cb) cb(null); });
+        }
+
+        function lvApiDelete(user, cb) {
+            fetch(LV_API + '/user/' + encodeURIComponent(user), { method: 'DELETE' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (cb) cb(data); })
+                .catch(function() { if (cb) cb(null); });
+        }
+
+        function lvApiToggleUser(user, active, cb) {
+            fetch(LV_API + '/toggle-user', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, active: active })
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                if (cb) cb(data);
+            }).catch(function() { if (cb) cb(null); });
+        }
+        var lvEditingId = null;
+        var lvWizardSection = null;
+        var lvSelectedSet = {};
+        var lvActiveFormId = 'all';
+        var lvPendingAvail = {};
+        var lvPendingSel = {};
+        var lvSortDir = 'desc';
+        var lvSortCol = 'updatedAt';
+        var lvPage = 1;
+        var LV_PAGE_SIZE = 10;
+        var _lvActionBtn = null;
+        var LV_AVATAR_COLORS = ['v1','v2','v3','v4','v5'];
+
+        function lvFmtDate(ts) {
+            var d = new Date(ts);
+            var now = new Date();
+            var diff = now - d;
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+            if (diff < 604800000) return Math.floor(diff / 86400000) + 'd ago';
+            return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        function lvGetInitials(name) {
+            var parts = name.trim().split(/\s+/);
+            if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            return name.substring(0, 2).toUpperCase();
+        }
+        function lvAvatarClass(name) {
+            var h = 0;
+            for (var i = 0; i < name.length; i++) h = ((h << 5) - h) + name.charCodeAt(i);
+            return LV_AVATAR_COLORS[Math.abs(h) % LV_AVATAR_COLORS.length];
+        }
+
+        function lvKey(cat, field) { return cat + '|||' + field; }
+        function lvEsc(s) { return String(s).replace(/'/g, "\\'"); }
+
+        function lvEnterFullPage() {
+            var hdr = document.getElementById('stgHdr');
+            if (hdr) hdr.style.display = 'none';
+            var nav = document.querySelector('.stg-detail-nav');
+            if (nav) nav.style.display = 'none';
+            var bar = document.getElementById('stgRecentBar');
+            if (bar) bar.style.display = 'none';
+        }
+        function lvExitFullPage() {
+            var hdr = document.getElementById('stgHdr');
+            if (hdr) hdr.style.display = '';
+            var nav = document.querySelector('.stg-detail-nav');
+            if (nav) nav.style.display = '';
+            var title = document.getElementById('stgTitle');
+            if (title) title.textContent = 'Settings';
+            var bar = document.getElementById('stgRecentBar');
+            if (bar) bar.style.display = '';
+        }
+        function lvUpdateBreadcrumb() {
+            var el = document.getElementById('lvBackLinkLabel');
+            if (el) el.textContent = 'Back to ' + LV_SECTIONS[lvEntryMod].parentLabel;
+        }
+        function lvBackToParent() {
+            var cfg = LV_SECTIONS[lvEntryMod];
+            lvExitFullPage();
+            openSection(cfg.backSection, cfg.backAccordion);
+        }
+
+        function lvOpenList() {
+            document.getElementById('lvListView').style.display = 'block';
+            document.getElementById('lvStep1View').style.display = 'none';
+            var fv = document.getElementById('lvFormView'); if (fv) fv.style.display = 'none';
+            var searchInput = document.getElementById('lvFieldSearchInput'); if (searchInput) searchInput.value = '';
+            lvLoadMappings(function() {
+                lvPopulateFilterManagers();
+                lvRenderStats();
+                lvRenderTable();
+            });
+        }
+        var lvStatFilter = '';
+        function lvFilterByStat(type) {
+            lvStatFilter = (lvStatFilter === type) ? '' : type;
+            lvPage = 1;
+            lvRenderStats();
+            lvRenderTable();
+        }
+        function lvRenderStats() {
+            var total = lvMappings.length;
+            var badge = document.getElementById('lvHeaderBadge');
+            if (badge) badge.textContent = 'Total Views — ' + total;
+        }
+
+        function lvPopulateFilterManagers() {
+            var sel = document.getElementById('lvFilterManager');
+            if (!sel) return;
+            var current = sel.value;
+            sel.innerHTML = '<option value="">All Managers</option>' +
+                LV_USERS.map(function(u) { return '<option value="' + u + '">' + u + '</option>'; }).join('');
+            sel.value = current;
+        }
+
+        function lvGetFilteredMappings() {
+            var section = (document.getElementById('lvFilterSection') || {}).value || '';
+            var manager = (document.getElementById('lvFilterManager') || {}).value || '';
+            var status = (document.getElementById('lvFilterStatus') || {}).value || '';
+            var search = ((document.getElementById('lvSearchInput') || {}).value || '').toLowerCase().trim();
+            return lvMappings.filter(function(m) {
+                if (section && m.section !== section) return false;
+                if (manager && m.user !== manager) return false;
+                if (status === 'active' && !m.active) return false;
+                if (status === 'inactive' && m.active) return false;
+                if (search && m.user.toLowerCase().indexOf(search) === -1) return false;
+                return true;
+            }).sort(function(a, b) {
+                if (lvSortCol === 'user') {
+                    var cmp = a.user.localeCompare(b.user);
+                    return lvSortDir === 'asc' ? cmp : -cmp;
+                }
+                if (lvSortCol === 'fields') {
+                    return lvSortDir === 'asc' ? a.fields.length - b.fields.length : b.fields.length - a.fields.length;
+                }
+                return lvSortDir === 'asc' ? a.updatedAt - b.updatedAt : b.updatedAt - a.updatedAt;
+            });
+        }
+
+        function lvApplyFilters() { lvPage = 1; lvRenderTable(); }
+        function lvResetFilters() {
+            var s = document.getElementById('lvFilterSection'); if (s) s.value = '';
+            var m = document.getElementById('lvFilterManager'); if (m) m.value = '';
+            var st = document.getElementById('lvFilterStatus'); if (st) st.value = '';
+            var si = document.getElementById('lvSearchInput'); if (si) si.value = '';
+            lvStatFilter = '';
+            lvPage = 1;
+            lvRenderTable();
+        }
+
+        function lvToggleSort(col) {
+            if (lvSortCol === col) { lvSortDir = lvSortDir === 'asc' ? 'desc' : 'asc'; }
+            else { lvSortCol = col; lvSortDir = col === 'user' ? 'asc' : 'desc'; }
+            lvRenderTable();
+        }
+
+        function lvSortIcon(col) {
+            if (lvSortCol !== col) return '<svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M7 8l3-3 3 3M7 12l3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            if (lvSortDir === 'asc') return '<svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M7 12l3-3 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            return '<svg width="12" height="12" viewBox="0 0 20 20" fill="none"><path d="M7 8l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+
+        function lvGroupByUser() {
+            var map = {};
+            lvMappings.forEach(function(m) {
+                if (!map[m.user]) map[m.user] = { user: m.user, am: null, lm: null, createdAt: Infinity, updatedAt: 0 };
+                map[m.user][m.section] = m;
+                if (m.createdAt && m.createdAt < map[m.user].createdAt) map[m.user].createdAt = m.createdAt;
+                if (m.updatedAt > map[m.user].updatedAt) map[m.user].updatedAt = m.updatedAt;
+            });
+            return Object.keys(map).map(function(k) { return map[k]; });
+        }
+
+        function lvGetFilteredGroups() {
+            var section = (document.getElementById('lvFilterSection') || {}).value || '';
+            var manager = (document.getElementById('lvFilterManager') || {}).value || '';
+            var status = (document.getElementById('lvFilterStatus') || {}).value || lvStatFilter;
+            var search = ((document.getElementById('lvSearchInput') || {}).value || '').toLowerCase().trim();
+            return lvGroupByUser().filter(function(g) {
+                if (manager && g.user !== manager) return false;
+                if (search && g.user.toLowerCase().indexOf(search) === -1) return false;
+                if (section === 'am' && !g.am) return false;
+                if (section === 'lm' && !g.lm) return false;
+                if (status === 'active') {
+                    if ((!g.am || !g.am.active) && (!g.lm || !g.lm.active)) return false;
+                }
+                if (status === 'inactive') {
+                    var hasActive = (g.am && g.am.active) || (g.lm && g.lm.active);
+                    if (hasActive) return false;
+                }
+                return true;
+            }).sort(function(a, b) {
+                if (lvSortCol === 'user') {
+                    var cmp = a.user.localeCompare(b.user);
+                    return lvSortDir === 'asc' ? cmp : -cmp;
+                }
+                return lvSortDir === 'asc' ? a.updatedAt - b.updatedAt : b.updatedAt - a.updatedAt;
+            });
+        }
+
+        function lvRenderTable() {
+            var wrap = document.getElementById('lvTableWrap');
+            if (!wrap) return;
+            if (!lvMappings.length) {
+                wrap.innerHTML = '<div class="lv-empty-state">' +
+                    '<div class="lv-empty-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></div>' +
+                    '<div class="lv-empty-title">No Views Created Yet</div>' +
+                    '<div class="lv-empty-desc">Create your first view to control which fields each user can see in their Lead and Application Manager listing page.</div>' +
+                    '<button onclick="lvOpenCreate()" style="margin:0 auto;border-radius:10px;padding:10px 28px;font-size:13.5px;display:flex;align-items:center;gap:7px;background:#4f6ef7;color:#fff;border:none;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(79,110,247,.25);"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg> Add New View</button></div>';
+                return;
+            }
+            var groups = lvGetFilteredGroups();
+            var totalPages = Math.max(1, Math.ceil(groups.length / LV_PAGE_SIZE));
+            if (lvPage > totalPages) lvPage = totalPages;
+            var start = (lvPage - 1) * LV_PAGE_SIZE;
+            var visible = groups.slice(start, start + LV_PAGE_SIZE);
+            if (!groups.length) {
+                wrap.innerHTML = '<div class="lv-empty-state" style="padding:48px 24px;"><div class="lv-empty-title">No results found</div><div class="lv-empty-desc">Try changing your search or filter criteria.</div></div>';
+                return;
+            }
+            var fieldIcon = '<svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M7 8h6M7 12h4"/></svg>';
+            var rows = visible.map(function(g) {
+                var initials = lvGetInitials(g.user);
+                var avatarCls = lvAvatarClass(g.user);
+                var sections = [];
+                if (g.lm) sections.push('<span class="lv-section-pill lm"><span class="lv-sp-dot lm"></span>Lead Manager</span>');
+                if (g.am) sections.push('<span class="lv-section-pill am"><span class="lv-sp-dot am"></span>Application Manager</span>');
+                var sectionHtml = sections.length ? sections.join('') : '<span style="color:#9ca3af;">—</span>';
+                var hasActive = (g.am && g.am.active) || (g.lm && g.lm.active);
+                var statusHtml = hasActive
+                    ? '<span class="lv-status-badge active"><span class="lv-status-dot active"></span>Active</span>'
+                    : '<span class="lv-status-badge inactive"><span class="lv-status-dot inactive"></span>Inactive</span>';
+                var firstId = g.lm ? g.lm.id : g.am.id;
+                var createdStr = g.createdAt && g.createdAt !== Infinity ? lvFmtDate(g.createdAt) : '—';
+                return '<tr class="lv-row-clickable" onclick="lvOpenEdit(' + firstId + ')">' +
+                    '<td><div class="lv-user-cell"><div class="lv-avatar ' + avatarCls + '">' + initials + '</div><div class="lv-user-name">' + g.user + '</div></div></td>' +
+                    '<td><div class="lv-section-pills">' + sectionHtml + '</div></td>' +
+                    '<td style="color:#6b7280;font-size:12.5px;">' + createdStr + '</td>' +
+                    '<td style="color:#6b7280;font-size:12.5px;">' + lvFmtDate(g.updatedAt) + '</td>' +
+                    '<td>' + statusHtml + '</td>' +
+                    '<td style="width:48px;text-align:center;"><button class="lv-action-btn" onclick="event.stopPropagation();lvUserActionToggle(this,event,\'' + lvEsc(g.user) + '\')"><svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><circle cx="10" cy="4" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="10" cy="16" r="1.5"/></svg></button></td>' +
+                    '</tr>';
+            }).join('');
+            var pageSizeOptions = [10, 20, 50].map(function(n) {
+                return '<option value="' + n + '"' + (LV_PAGE_SIZE === n ? ' selected' : '') + '>' + n + '</option>';
+            }).join('');
+            wrap.innerHTML = '<div class="lv-table-card"><table>' +
+                '<thead><tr>' +
+                '<th class="lv-th-sort" onclick="lvToggleSort(\'user\')">User ' + lvSortIcon('user') + '</th>' +
+                '<th>Module</th>' +
+                '<th>Created on</th>' +
+                '<th class="lv-th-sort" onclick="lvToggleSort(\'updatedAt\')">Modified on ' + lvSortIcon('updatedAt') + '</th>' +
+                '<th>Status</th>' +
+                '<th style="width:48px;">Action</th>' +
+                '</tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>' +
+                '<div class="lv-table-foot">' +
+                '<div class="lv-pag-right">' +
+                '<span class="lv-pag-total">Total Records ' + groups.length + '</span>' +
+                '<span class="lv-pag-label">Show Rows</span>' +
+                '<select class="lv-pag-select" onchange="lvChangePageSize(this.value)">' + pageSizeOptions + '</select>' +
+                '<span class="lv-pag-label">Go to</span>' +
+                '<input class="lv-pag-input" type="number" min="1" max="' + totalPages + '" value="' + lvPage + '" onchange="lvGoToPage(this.value)" onkeydown="if(event.key===\'Enter\')lvGoToPage(this.value)"/>' +
+                '<span class="lv-pag-label">of ' + totalPages + '</span>' +
+                '<button class="lv-pag-arrow" onclick="lvGoPage(' + (lvPage - 1) + ')"' + (lvPage <= 1 ? ' disabled' : '') + '><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M12 5l-5 5 5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+                '<button class="lv-pag-arrow" onclick="lvGoPage(' + (lvPage + 1) + ')"' + (lvPage >= totalPages ? ' disabled' : '') + '><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+                '</div></div></div>';
+        }
+
+        function lvGoPage(p) {
+            var filtered = lvGetFilteredGroups();
+            var totalPages = Math.max(1, Math.ceil(filtered.length / LV_PAGE_SIZE));
+            if (p < 1 || p > totalPages) return;
+            lvPage = p;
+            lvRenderTable();
+        }
+
+        function lvChangePageSize(val) {
+            LV_PAGE_SIZE = parseInt(val, 10) || 10;
+            lvPage = 1;
+            lvRenderTable();
+        }
+
+        function lvGoToPage(val) {
+            var p = parseInt(val, 10);
+            if (p && p >= 1) lvGoPage(p);
+        }
+
+        function lvUserActionToggle(btn, e, user) {
+            e.stopPropagation();
+            var menu = document.getElementById('lv-action-menu');
+            if (_lvActionBtn === btn && menu.style.display === 'block') {
+                menu.style.display = 'none';
+                _lvActionBtn = null;
+                return;
+            }
+            _lvActionBtn = btn;
+            var userMappings = lvMappings.filter(function(x) { return x.user === user; });
+            var firstId = userMappings.length ? userMappings[0].id : null;
+            if (!firstId) return;
+            var allActive = userMappings.every(function(m) { return m.active; });
+            var menuBtnStyle = 'display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;background:none;border:none;font-size:13px;color:#374151;cursor:pointer;text-align:left;font-family:inherit;border-radius:8px;transition:background .1s;';
+            menu.innerHTML =
+                '<button onclick="lvUserAction(\'edit\',\'' + lvEsc(user) + '\')" style="' + menuBtnStyle + '" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">' +
+                    '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-6"/><path d="M14.5 2.5a1.5 1.5 0 0 1 2 2L9 12l-3 1 1-3z"/></svg>Edit Configuration' +
+                '</button>' +
+                '<button onclick="lvUserAction(\'toggle\',\'' + lvEsc(user) + '\')" style="' + menuBtnStyle + '" onmouseover="this.style.background=\'#f3f4f6\'" onmouseout="this.style.background=\'\'">' +
+                    '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 6v4l3 2"/></svg>' + (allActive ? 'Mark All Inactive' : 'Mark All Active') +
+                '</button>' +
+                '<div style="height:1px;background:#f3f4f6;margin:4px 0;"></div>' +
+                '<button onclick="lvUserAction(\'delete\',\'' + lvEsc(user) + '\')" style="' + menuBtnStyle + 'color:#dc2626;" onmouseover="this.style.background=\'#fef2f2\'" onmouseout="this.style.background=\'\'">' +
+                    '<svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h12M8 6V4h4v2M6 6v9a1 1 0 001 1h6a1 1 0 001-1V6"/></svg>Delete All' +
+                '</button>';
+            var rect = btn.getBoundingClientRect();
+            menu.style.display = 'block';
+            var menuW = 180;
+            var left = rect.right - menuW;
+            if (left < 8) left = 8;
+            menu.style.top = (rect.bottom + 4) + 'px';
+            menu.style.left = left + 'px';
+        }
+        function lvUserAction(action, user) {
+            document.getElementById('lv-action-menu').style.display = 'none';
+            _lvActionBtn = null;
+            var userMappings = lvMappings.filter(function(x) { return x.user === user; });
+            if (action === 'edit') {
+                if (userMappings.length) lvOpenEdit(userMappings[0].id);
+                return;
+            }
+            if (action === 'delete') {
+                lvApiDelete(user, function() {
+                    lvMappings = lvMappings.filter(function(m) { return m.user !== user; });
+                    lvRenderStats(); lvRenderTable();
+                    lvShowToast('All mappings deleted for ' + user + '.');
+                });
+                return;
+            }
+            if (action === 'toggle') {
+                var allActive = userMappings.every(function(m) { return m.active; });
+                var newActive = !allActive;
+                lvApiToggleUser(user, newActive, function() {
+                    userMappings.forEach(function(m) { m.active = newActive; m.updatedAt = Date.now(); });
+                    lvRenderStats(); lvRenderTable();
+                    lvShowToast(newActive ? 'All mappings marked Active for ' + user + '.' : 'All mappings marked Inactive for ' + user + '.');
+                });
+            }
+        }
+        document.addEventListener('click', function(e) {
+            var menu = document.getElementById('lv-action-menu');
+            if (menu && !menu.contains(e.target) && e.target !== _lvActionBtn) {
+                menu.style.display = 'none';
+                _lvActionBtn = null;
+            }
+        });
+
+        var lvSelectedUsers = [];
+        var lvMultiOpen = false;
+
+        function lvPopulateUserSelect(users) {
+            lvSelectedUsers = users || [];
+            lvRenderMultiTags();
+            lvRenderMultiOptions();
+        }
+
+        function lvToggleUserDropdown() {
+            lvMultiOpen = !lvMultiOpen;
+            var dd = document.getElementById('lvMultiDropdown');
+            var wrap = document.getElementById('lvMultiSelect');
+            if (dd) dd.style.display = lvMultiOpen ? 'block' : 'none';
+            if (wrap) wrap.classList.toggle('open', lvMultiOpen);
+            if (lvMultiOpen) {
+                var si = document.getElementById('lvMultiSearch');
+                if (si) { si.value = ''; si.focus(); }
+                lvRenderMultiOptions();
+            }
+        }
+
+        function lvFilterUserDropdown() { lvRenderMultiOptions(); }
+
+        function lvRenderMultiTags() {
+            var el = document.getElementById('lvMultiTags');
+            if (!el) return;
+            if (!lvSelectedUsers.length) {
+                el.innerHTML = '<span class="lvf-multisel-placeholder">Click to select users...</span>';
+                return;
+            }
+            el.innerHTML = lvSelectedUsers.map(function(u) {
+                return '<span class="lvf-multisel-tag">' + u +
+                    '<span class="lvf-multisel-tag-x" onclick="event.stopPropagation();lvRemoveUser(\'' + lvEsc(u) + '\')">' +
+                    '<svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></span>';
+            }).join('');
+        }
+
+        function lvRenderMultiOptions() {
+            var el = document.getElementById('lvMultiOptions');
+            if (!el) return;
+            var searchVal = '';
+            var si = document.getElementById('lvMultiSearch');
+            if (si) searchVal = si.value.trim().toLowerCase();
+            var filtered = LV_USERS.filter(function(u) {
+                return !searchVal || u.toLowerCase().indexOf(searchVal) !== -1;
+            });
+            if (!filtered.length) {
+                el.innerHTML = '<div class="lvf-multisel-empty">No users found</div>';
+                return;
+            }
+            var checkSvg = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            el.innerHTML = filtered.map(function(u) {
+                var isSel = lvSelectedUsers.indexOf(u) !== -1;
+                var initials = lvGetInitials(u);
+                var avatarCls = lvAvatarClass(u);
+                return '<div class="lvf-multisel-opt' + (isSel ? ' selected' : '') + '" onclick="lvToggleUser(\'' + lvEsc(u) + '\', event)">' +
+                    '<div class="lvf-multisel-check">' + (isSel ? checkSvg : '') + '</div>' +
+                    '<div class="lvf-multisel-opt-avatar lv-avatar ' + avatarCls + '">' + initials + '</div>' +
+                    u + '</div>';
+            }).join('');
+        }
+
+        function lvToggleUser(user, evt) {
+            if (evt) { evt.stopPropagation(); evt.preventDefault(); }
+            var idx = lvSelectedUsers.indexOf(user);
+            if (idx !== -1) lvSelectedUsers.splice(idx, 1);
+            else lvSelectedUsers.push(user);
+            lvRenderMultiTags();
+            lvRenderMultiOptions();
+        }
+
+        function lvRemoveUser(user) {
+            var idx = lvSelectedUsers.indexOf(user);
+            if (idx !== -1) lvSelectedUsers.splice(idx, 1);
+            lvRenderMultiTags();
+            lvRenderMultiOptions();
+        }
+
+        document.addEventListener('click', function(e) {
+            var wrap = document.getElementById('lvMultiSelect');
+            if (wrap && lvMultiOpen && !wrap.contains(e.target)) {
+                lvMultiOpen = false;
+                var dd = document.getElementById('lvMultiDropdown');
+                if (dd) dd.style.display = 'none';
+                wrap.classList.remove('open');
+            }
+        });
+
+        var lvCatOpen = {};
+        var lvSectionFields = { am: {}, lm: {} };
+
+        function lvOpenCreate() {
+            lvEditingId = null;
+            lvWizardSection = 'lm';
+            lvSelectedSet = {};
+            lvSectionFields = { am: {}, lm: {} };
+            lvCatOpen = {};
+            document.getElementById('lvFormTitle').textContent = 'Create New View';
+            lvPopulateUserSelect([]);
+            lvUpdateSectionToggle();
+            lvUpdateTabCounts();
+            lvRenderFieldGrid();
+            document.getElementById('lvListView').style.display = 'none';
+            document.getElementById('lvStep1View').style.display = 'none';
+            document.getElementById('lvFormView').style.display = 'flex';
+        }
+
+        function lvSwitchSection(sec) {
+            lvSectionFields[lvWizardSection] = JSON.parse(JSON.stringify(lvSelectedSet));
+            lvWizardSection = sec;
+            lvSelectedSet = JSON.parse(JSON.stringify(lvSectionFields[sec]));
+            lvCatOpen = {};
+            lvActiveFormId = 'all';
+            lvUpdateSectionToggle();
+            lvRenderFieldGrid();
+        }
+
+        function lvUpdateSectionToggle() {
+            var toggle = document.getElementById('lvSectionToggle');
+            if (!toggle) return;
+            var cards = toggle.querySelectorAll('.lvf-sec-card');
+            for (var i = 0; i < cards.length; i++) {
+                cards[i].classList.toggle('active', cards[i].getAttribute('data-sec') === lvWizardSection);
+            }
+        }
+
+        function lvUpdateTabCounts() {
+            var amC = document.getElementById('lvAmCount');
+            var lmC = document.getElementById('lvLmCount');
+            var amN = Object.keys(lvSectionFields.am).length;
+            var lmN = Object.keys(lvSectionFields.lm).length;
+            if (amC) amC.textContent = amN + ' field' + (amN !== 1 ? 's' : '');
+            if (lmC) lmC.textContent = lmN + ' field' + (lmN !== 1 ? 's' : '');
+            lvUpdateFooterSummary();
+        }
+
+        function lvUpdateFooterSummary() {
+            var el = document.getElementById('lvFooterSummary');
+            if (!el) return;
+            var total = Object.keys(lvSectionFields.am).length + Object.keys(lvSectionFields.lm).length;
+            var parts = [];
+            var amN = Object.keys(lvSectionFields.am).length;
+            var lmN = Object.keys(lvSectionFields.lm).length;
+            if (amN) parts.push(amN + ' in Application Manager');
+            if (lmN) parts.push(lmN + ' in Lead Manager');
+            el.className = 'lvf-footer-summary' + (total === 0 ? ' empty' : '');
+            el.querySelector('span').textContent = total === 0 ? 'No fields selected yet' : total + ' field' + (total !== 1 ? 's' : '') + ' selected' + (parts.length ? ' — ' + parts.join(', ') : '');
+        }
+
+        function lvToggleCat(catId) {
+            var el = document.getElementById(catId);
+            if (el) el.classList.toggle('open');
+        }
+
+        function lvSelectCatFields(catTitle, fields) {
+            var allSelected = fields.every(function(f) { return lvSelectedSet[lvKey(catTitle, f)]; });
+            if (allSelected) {
+                fields.forEach(function(f) { delete lvSelectedSet[lvKey(catTitle, f)]; });
+            } else {
+                fields.forEach(function(f) { lvSelectedSet[lvKey(catTitle, f)] = true; });
+            }
+            lvSyncCurrentSection();
+            lvRenderFieldGrid();
+        }
+
+        function lvOpenEdit(id) {
+            var m = lvMappings.filter(function(x) { return x.id === id; })[0];
+            if (!m) return;
+            lvEditingId = id;
+            lvWizardSection = m.section;
+            lvSectionFields = { am: {}, lm: {} };
+            lvCatOpen = {};
+            var fieldSet = {};
+            m.fields.forEach(function(f) { fieldSet[lvKey(f.cat, f.field)] = true; });
+            lvSectionFields[m.section] = fieldSet;
+            var otherSec = m.section === 'am' ? 'lm' : 'am';
+            var otherMapping = lvMappings.filter(function(x) { return x.user === m.user && x.section === otherSec; })[0];
+            if (otherMapping) {
+                var otherSet = {};
+                otherMapping.fields.forEach(function(f) { otherSet[lvKey(f.cat, f.field)] = true; });
+                lvSectionFields[otherSec] = otherSet;
+            }
+            lvSelectedSet = JSON.parse(JSON.stringify(lvSectionFields[lvWizardSection]));
+            document.getElementById('lvFormTitle').textContent = 'Edit View — ' + m.user;
+            lvPopulateUserSelect([m.user]);
+            lvUpdateSectionToggle();
+            lvUpdateTabCounts();
+            lvRenderFieldGrid();
+            document.getElementById('lvListView').style.display = 'none';
+            document.getElementById('lvStep1View').style.display = 'none';
+            document.getElementById('lvFormView').style.display = 'flex';
+        }
+
+        function lvFilterFields() { lvRenderFieldGrid(); }
+
+        function lvSwitchForm(formId) {
+            lvActiveFormId = formId;
+            lvRenderFieldGrid();
+        }
+
+        function lvRenderFieldGrid() {
+            var sec = LV_SECTIONS[lvWizardSection];
+            if (!sec) return;
+            var searchVal = '';
+            var searchInput = document.getElementById('lvFieldSearchInput');
+            if (searchInput) searchVal = searchInput.value.trim().toLowerCase();
+
+            var checkSvg = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            var chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            var html = '';
+            var catIdx = 0;
+
+            function buildCatBlock(catTitle, fields, catNamespace, forceOpen) {
+                var filteredFields = fields;
+                if (searchVal) filteredFields = fields.filter(function(f) { return f.toLowerCase().indexOf(searchVal) !== -1 || catTitle.toLowerCase().indexOf(searchVal) !== -1; });
+                if (!filteredFields.length) return '';
+                var selCount = 0;
+                filteredFields.forEach(function(f) { if (lvSelectedSet[lvKey(catNamespace, f)]) selCount++; });
+                var catId = 'lvCat' + catIdx++;
+                var isOpen = true;
+                var chips = filteredFields.map(function(f) {
+                    var k = lvKey(catNamespace, f);
+                    var isOn = lvSelectedSet[k] ? true : false;
+                    return '<div class="lvf-chip' + (isOn ? ' on' : '') + '" onclick="lvToggleField(\'' + lvEsc(catNamespace) + '\',\'' + lvEsc(f) + '\')">' +
+                        '<div class="lvf-chip-check">' + checkSvg + '</div>' + f + '</div>';
+                }).join('');
+                var fieldsJson = JSON.stringify(filteredFields).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                return '<div class="lvf-cat' + (isOpen ? ' open' : '') + '" id="' + catId + '">' +
+                    '<div class="lvf-cat-hdr" onclick="lvToggleCat(\'' + catId + '\')">' +
+                        '<div class="lvf-cat-title">' + catTitle + '</div>' +
+                        '<span class="lvf-cat-count' + (selCount > 0 ? ' has' : '') + '">' + selCount + '/' + filteredFields.length + '</span>' +
+                        '<button class="lvf-cat-selall" onclick="event.stopPropagation();lvSelectCatFields(\'' + lvEsc(catNamespace) + '\',' + fieldsJson + ')">' + (selCount === filteredFields.length ? 'Deselect all' : 'Select all') + '</button>' +
+                        '<div class="lvf-cat-chevron">' + chevronSvg + '</div>' +
+                    '</div>' +
+                    '<div class="lvf-chips">' + chips + '</div></div>';
+            }
+
+            if (sec.hasForms && lvWizardSection === 'am') {
+                var formPills = '<div class="lvf-form-selector"><div class="lvf-form-label">Application Forms</div><div class="lvf-form-pills">';
+                formPills += '<div class="lvf-form-pill' + (lvActiveFormId === 'all' ? ' active' : '') + '" onclick="lvSwitchForm(\'all\')">All Common Fields</div>';
+                sec.forms.forEach(function(form) {
+                    var formFieldCount = 0;
+                    form.fields.forEach(function(f) {
+                        if (lvSelectedSet[lvKey(form.name, f)]) formFieldCount++;
+                    });
+                    formPills += '<div class="lvf-form-pill' + (lvActiveFormId === form.id ? ' active' : '') + '" onclick="lvSwitchForm(\'' + form.id + '\')">' +
+                        form.name + (formFieldCount > 0 ? ' <span class="lvf-form-pill-count">' + formFieldCount + '</span>' : '') + '</div>';
+                });
+                formPills += '</div></div>';
+                html += formPills;
+
+                if (lvActiveFormId === 'all') {
+                    sec.commonCategories.forEach(function(cat) {
+                        html += buildCatBlock(cat.title, cat.fields, cat.title, false);
+                    });
+                } else {
+                    var activeForm = sec.forms.filter(function(f) { return f.id === lvActiveFormId; })[0];
+                    if (activeForm) {
+                        html += buildCatBlock(activeForm.name + ' Fields', activeForm.fields, activeForm.name, true);
+                        html += '<div class="lvf-form-divider"><span>Common Fields</span></div>';
+                        sec.commonCategories.forEach(function(cat) {
+                            html += buildCatBlock(cat.title, cat.fields, cat.title, false);
+                        });
+                    }
+                }
+            } else {
+                sec.categories.forEach(function(cat) {
+                    html += buildCatBlock(cat.title, cat.fields, cat.title, false);
+                });
+            }
+
+            var grid = document.getElementById('lvFieldGrid');
+            if (grid) grid.innerHTML = html || '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">No fields match your search</div>';
+        }
+
+        function lvSyncCurrentSection() {
+            lvSectionFields[lvWizardSection] = JSON.parse(JSON.stringify(lvSelectedSet));
+            lvUpdateTabCounts();
+        }
+
+        function lvToggleField(cat, field) {
+            var k = lvKey(cat, field);
+            if (lvSelectedSet[k]) delete lvSelectedSet[k]; else lvSelectedSet[k] = true;
+            lvSyncCurrentSection();
+            lvRenderFieldGrid();
+        }
+
+        function lvSelectAllFields() {
+            var sec = LV_SECTIONS[lvWizardSection];
+            if (!sec) return;
+            if (sec.hasForms && lvWizardSection === 'am') {
+                sec.commonCategories.forEach(function(cat) {
+                    cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; });
+                });
+                if (lvActiveFormId !== 'all') {
+                    var form = sec.forms.filter(function(f) { return f.id === lvActiveFormId; })[0];
+                    if (form) form.fields.forEach(function(f) { lvSelectedSet[lvKey(form.name, f)] = true; });
+                } else {
+                    sec.forms.forEach(function(form) {
+                        form.fields.forEach(function(f) { lvSelectedSet[lvKey(form.name, f)] = true; });
+                    });
+                }
+            } else {
+                sec.categories.forEach(function(cat) {
+                    cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; });
+                });
+            }
+            lvSyncCurrentSection();
+            lvRenderFieldGrid();
+        }
+
+        function lvDeselectAllFields() {
+            lvSelectedSet = {};
+            lvSyncCurrentSection();
+            lvRenderFieldGrid();
+        }
+
+        function lvCancel() { lvOpenList(); }
+
+        function lvSave() {
+            if (!lvSelectedUsers.length) { alert('Please select at least one user'); return; }
+            lvSectionFields[lvWizardSection] = JSON.parse(JSON.stringify(lvSelectedSet));
+            var sections = ['am', 'lm'];
+            var pending = [];
+            lvSelectedUsers.forEach(function(user) {
+                sections.forEach(function(sec) {
+                    var sFields = lvSectionFields[sec];
+                    var fields = Object.keys(sFields).map(function(k) {
+                        var p = k.split('|||'); return { cat: p[0], field: p[1] };
+                    });
+                    if (fields.length > 0) {
+                        pending.push({ user: user, section: sec, fields: fields });
+                    }
+                });
+            });
+            if (!pending.length) {
+                lvOpenList();
+                lvShowToast('No fields selected — nothing saved.');
+                return;
+            }
+            var done = 0;
+            var names = lvSelectedUsers.length === 1 ? lvSelectedUsers[0] : lvSelectedUsers.length + ' users';
+            pending.forEach(function(p) {
+                lvApiSave(p.user, p.section, p.fields, function() {
+                    done++;
+                    if (done === pending.length) {
+                        lvOpenList();
+                        lvShowToast('Visibility settings saved for ' + names + '.');
+                    }
+                });
+            });
+        }
+
+        function lvDelete(id) {
+            var m = lvMappings.filter(function(x) { return x.id === id; })[0];
+            if (!m) return;
+            fetch(LV_API + '/' + id, { method: 'DELETE' }).then(function() {
+                lvMappings = lvMappings.filter(function(x) { return x.id !== id; });
+                lvRenderTable();
+                lvShowToast('Mapping deleted successfully.');
+            }).catch(function() {
+                lvMappings = lvMappings.filter(function(x) { return x.id !== id; });
+                lvRenderTable();
+                lvShowToast('Mapping deleted successfully.');
+            });
+        }
+
+        function lvShowToast(msg) {
+            var t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.15);';
+            document.body.appendChild(t);
+            setTimeout(function() { t.remove(); }, 2200);
+        }
         function openRenameTagsView() {
             _showPanel('rename-tags-view', 'Rename Tags', 'acc-accsettings');
             var onbHead = document.getElementById('acc-general');
@@ -67,6 +891,7 @@
         }
         function cancelToSettings() {
             hideAllPanels();
+            lvExitFullPage();
             var dc = document.querySelector('.stg-detail-content');
             if (dc) dc.style.display = 'block'; // restore for next openSection call
             stgDetailWrap.classList.remove('show');
@@ -2477,7 +3302,7 @@
             // Show the section list, hide all panels
             hideAllPanels();
             // Explicitly hide non-section panels so they never bleed through
-            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','api-keys-view','mets-config-view'].forEach(function(id){
+            ['org-profile-form','manage-accounts-view','account-notification-view','rename-tags-view','user-default-page-view','limited-view-view','api-keys-view','mets-config-view'].forEach(function(id){
                 var el = document.getElementById(id); if (el) el.style.display = 'none';
             });
             var dc = document.querySelector('.stg-detail-content');

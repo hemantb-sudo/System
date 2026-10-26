@@ -228,9 +228,9 @@
     </div>
 
     <div id="settings-view">
-        <div class="stg-hdr">
+        <div class="stg-hdr" id="stgHdr">
             <button class="stg-back-btn" id="stgBackBtn">Back</button>
-            <div class="stg-title">Settings</div>
+            <div class="stg-title" id="stgTitle">Settings</div>
             <div class="stg-search-wrap" id="stgSearchWrap">
                 <div class="stg-search">
                     <input type="text" id="stgSearchInput" placeholder="Search Settings" autocomplete="off">
@@ -268,9 +268,9 @@
 
         <div class="stg-body">
             <div class="stg-home" id="stgHome">
-                <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">CRM</div><div class="stg-card-desc">Basic Settings to help you get your CRM up and running</div></div><span class="stg-card-count">8</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadflow','acc-crm')">Lead Flow</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadstage','acc-crm')">Lead Stage</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-funnel','acc-crm')">Conversion Funnel</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-campaign','acc-crm')">Campaign Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-score','acc-crm')">Lead Score</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-allocation','acc-crm')">Lead Allocation</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-agent','acc-crm')">Agent</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-customflow','acc-crm')">Custom Flow</div></div></div>
+                <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 9h12M9 14h6M11 19h2"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">CRM</div><div class="stg-card-desc">Basic Settings to help you get your CRM up and running</div></div><span class="stg-card-count">9</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadflow','acc-crm')">Lead Flow</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-leadstage','acc-crm')">Lead Stage</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-funnel','acc-crm')">Conversion Funnel</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-campaign','acc-crm')">Campaign Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-score','acc-crm')">Lead Score</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-allocation','acc-crm')">Lead Allocation</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-agent','acc-crm')">Agent</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-crm-customflow','acc-crm')">Custom Flow</div><div class="stg-card-item" onclick="event.stopPropagation();openLimitedView('lm')">Limited View</div></div></div>
                 <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21V12h6v9"/><path d="M9 8h.01M12 8h.01M15 8h.01M9 12h.01M15 12h.01"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Onboarding</div><div class="stg-card-desc">Institute profile &amp; accounts</div></div><span class="stg-card-count">3</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openOrgProfile(null)">Organisation Profile</div><div class="stg-card-item" onclick="event.stopPropagation();openManageAccounts()">Manage Accounts</div><div class="stg-card-item" onclick="event.stopPropagation();openAccountNotification()">Account Notification</div></div></div>
-                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Account Setup</div><div class="stg-card-desc">Tags, fields &amp; preferences</div></div><span class="stg-card-count">12</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-mets','acc-accsettings')">METS</div><div class="stg-card-item" onclick="event.stopPropagation();openRenameTagsView()">Rename Tags</div><div class="stg-card-item" onclick="event.stopPropagation();openUserDefaultPage()">User Default Page</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Custom Fields</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Display Preferences</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Notification Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Limits</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Telephony Version Config</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Business Hours</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Allocation Quota</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Process TAT</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Check-In / Check-Out</div></div></div>
+                <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Account Setup</div><div class="stg-card-desc">Tags, fields &amp; preferences</div></div><span class="stg-card-count">12</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-mets','acc-accsettings')">METS</div><div class="stg-card-item" onclick="event.stopPropagation();openRenameTagsView()">Rename Tags</div><div class="stg-card-item" onclick="event.stopPropagation();openUserDefaultPage()">User Default Page</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Custom Fields</div><div class="stg-card-item" onclick="event.stopPropagation();openLimitedView('am')">Limited View</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Notification Settings</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Limits</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Telephony Version Config</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Business Hours</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Allocation Quota</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Process TAT</div><div class="stg-card-item" onclick="event.stopPropagation();openSection('sec-accsettings-extra','acc-accsettings')">Check-In / Check-Out</div></div></div>
                 <div class="stg-card" style="--card-accent:#2979d4;--card-icon-bg:#EFF6FF;--card-icon-color:#2979d4;--card-count-bg:#DBEAFE;--card-accent-text:#2979d4;--card-hover-bg:#F0F7FF" onclick="openSection('sec-users','acc-users')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Users &amp; Teams</div><div class="stg-card-desc">Roles, permissions &amp; hierarchy</div></div><span class="stg-card-count">6</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">User Management</div><div class="stg-card-item">Role Hierarchy</div><div class="stg-card-item">Permission Groups</div><div class="stg-card-item">Teams</div><div class="stg-card-item">Counsellor Config</div><div class="stg-card-item">Field Force Tracking</div></div></div>
                 <div class="stg-card" style="--card-accent:#475569;--card-icon-bg:#F1F5F9;--card-icon-color:#475569;--card-count-bg:#E2E8F0;--card-accent-text:#334155;--card-hover-bg:#F8FAFC" onclick="openSection('sec-security','acc-security')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Security &amp; Compliance</div><div class="stg-card-desc">Access controls &amp; audit</div></div><span class="stg-card-count">8</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">Login Methods</div><div class="stg-card-item">Session</div><div class="stg-card-item">SSO / SAML</div><div class="stg-card-item">TOTP Authenticator</div><div class="stg-card-item">IP Allowlist</div><div class="stg-card-item">PII Masking</div><div class="stg-card-item">Audit Trail</div><div class="stg-card-item">Grant Access</div></div></div>
                 <div class="stg-card" style="--card-accent:#1a9e6e;--card-icon-bg:#DCFCE7;--card-icon-color:#1a9e6e;--card-count-bg:#BBF7D0;--card-accent-text:#166534;--card-hover-bg:#F0FDF4" onclick="openSection('sec-comms','acc-comms')"><div class="stg-card-hdr"><div class="stg-card-icon-wrap"><span class="stg-card-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></div><div class="stg-card-hdr-text"><div class="stg-card-title">Communication</div><div class="stg-card-desc">Channels, templates &amp; providers</div></div><span class="stg-card-count">7</span><div class="stg-card-grip"><span></span><span></span><span></span><span></span><span></span><span></span></div></div><div class="stg-card-divider"></div><div class="stg-card-items"><div class="stg-card-item">WhatsApp National</div><div class="stg-card-item">WhatsApp International</div><div class="stg-card-item">Meta WABA</div><div class="stg-card-item">SMS / OTP</div><div class="stg-card-item">Email Provider</div><div class="stg-card-item">Telephony / IVR</div><div class="stg-card-item">Template Library</div></div></div>
@@ -298,6 +298,7 @@
                             <div class="acc-item" onclick="openSection('sec-crm-allocation','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Lead Allocation</span></div>
                             <div class="acc-item" onclick="openSection('sec-crm-agent','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Agent</span></div>
                             <div class="acc-item" onclick="openSection('sec-crm-customflow','acc-crm')"><span class="acc-dot"></span><span class="acc-lbl">Custom Flow</span></div>
+                            <div class="acc-item" onclick="openLimitedView('lm')"><span class="acc-dot"></span><span class="acc-lbl">Limited View</span></div>
                         </div>
                     </div>
                     <div class="acc-category open" id="acc-general">
@@ -323,7 +324,7 @@
                             <div class="acc-item" onclick="openRenameTagsView()"><span class="acc-dot"></span><span class="acc-lbl">Rename Tags</span></div>
                             <div class="acc-item" onclick="openUserDefaultPage()"><span class="acc-dot"></span><span class="acc-lbl">User Default Page</span></div>
                             <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Custom Fields</span></div>
-                            <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Display Preferences</span></div>
+                            <div class="acc-item" onclick="openLimitedView('am')"><span class="acc-dot"></span><span class="acc-lbl">Limited View</span></div>
                             <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Notification Settings</span></div>
                             <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Limits</span></div>
                             <div class="acc-item" onclick="openSection('sec-accsettings-extra','acc-accsettings')"><span class="acc-dot"></span><span class="acc-lbl">Telephony Version Config</span></div>
@@ -511,9 +512,7 @@
                 <div class="stg-section" id="sec-accsettings-extra" style="display:none;">
                     <div class="stg-section-hdr"><span class="stg-section-icon" style="display:flex;align-items:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/></svg></span><div><div class="stg-section-name">Account Setup</div></div></div>
                     <div class="stg-section-rows">
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Fields</div><div class="stg-row-card-desc">Add or manage custom lead/application fields</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Display Preferences</div><div class="stg-row-card-desc">Choose default views, density and theme</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
-                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Notification Settings</div><div class="stg-row-card-desc">In-app and email notification triggers</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
+                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Custom Fields</div><div class="stg-row-card-desc">Add or manage custom lead/application fields</div></div></div><div class="stg-row-card-right"><span class="stg-status-inactive">Not Set</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>                        <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Notification Settings</div><div class="stg-row-card-desc">In-app and email notification triggers</div></div></div><div class="stg-row-card-right"><span class="stg-status-pending">Pending</span><button class="stg-row-card-btn" onclick="stgConfigureRow(this)">Configure</button></div></div>
 
                         <div class="stg-row-card"><div class="stg-row-card-left"><div class="stg-row-card-text"><div class="stg-row-card-name">Limits</div><div class="stg-row-card-desc">Configure the limits for Report Builder, Opportunity, Field Sync &amp; Campaign</div></div></div><div class="stg-row-card-right"><span class="stg-status-configured">Configured</span><button class="stg-row-card-btn" onclick="stgConfigureLimits(this)">Configure</button></div></div>
 
@@ -1761,6 +1760,179 @@
 
                   </div>
                 </div>
+
+                <!-- Limited View (unified: Application Manager + Lead Manager) -->
+                <div id="limited-view-view">
+                  <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;background:#f3f4f6;">
+
+                    <button class="lv-link-btn" id="lvBackLink" onclick="lvBackToParent()" style="display:none;">
+                      <span id="lvBackLinkLabel"></span>
+                    </button>
+
+                    <!-- LIST -->
+                    <div id="lvListView">
+                      <div class="lv-header">
+                        <div class="lv-header-left">
+                          <div class="lv-page-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                          <span class="lv-header-title">Limited View</span>
+                        </div>
+                      </div>
+                      <div class="lv-toolbar">
+                        <div class="lv-toolbar-left">
+                          <div class="lv-filter-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 4.5h18M6 9.5h12M9 14.5h6M11 19.5h2" stroke="#4f6ef7" stroke-width="2" stroke-linecap="round"/></svg>
+                          </div>
+                          <div class="lv-filter-group">
+                            <div class="lv-filter-item">
+                              <label class="lv-filter-label">Module</label>
+                              <select id="lvFilterSection" class="lv-filter-select" onchange="lvApplyFilters()">
+                                <option value="">All Modules</option>
+                                <option value="am">Application Manager</option>
+                                <option value="lm">Lead Manager</option>
+                              </select>
+                            </div>
+                            <div class="lv-filter-item">
+                              <label class="lv-filter-label">User</label>
+                              <select id="lvFilterManager" class="lv-filter-select" onchange="lvApplyFilters()">
+                                <option value="">All Users</option>
+                              </select>
+                            </div>
+                            <div class="lv-filter-item">
+                              <label class="lv-filter-label">Status</label>
+                              <select id="lvFilterStatus" class="lv-filter-select" onchange="lvApplyFilters()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                              </select>
+                            </div>
+                          </div>
+                          <button class="lv-apply-btn" onclick="lvApplyFilters()">Apply</button>
+                          <button class="lv-reset-btn" onclick="lvResetFilters()">Reset</button>
+                        </div>
+                        <div class="lv-toolbar-right">
+                          <button class="lv-create-btn" onclick="lvOpenCreate()">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            Add New View
+                          </button>
+                        </div>
+                      </div>
+                      <div class="lv-content-card">
+                        <div id="lvTableWrap"></div>
+                      </div>
+                    </div>
+
+                    <!-- CONFIGURE VIEW -->
+                    <div id="lvStep1View" style="display:none;"></div>
+                    <div id="lvFormView" style="display:none;">
+                      <!-- Hero Header -->
+                      <div class="lvf-hero">
+                        <div class="lvf-hero-left">
+                          <button class="lvf-back" onclick="lvCancel()"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M13 16l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                          <div>
+                            <div class="lvf-hero-title" id="lvFormTitle">Create New View</div>
+                            <div class="lvf-hero-sub">Choose users and pick which fields they can see in their dashboard</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="lvf-body" id="lvFormBody">
+                        <!-- Step 1: Users Card -->
+                        <div class="lvf-card">
+                          <div class="lvf-card-header">
+                            <div class="lvf-card-icon users"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+                            <div class="lvf-card-header-text">
+                              <div class="lvf-card-title">Who is this view for?</div>
+                              <div class="lvf-card-desc">Select one or more users who will see this limited view</div>
+                            </div>
+                          </div>
+                          <div class="lvf-multisel" id="lvMultiSelect">
+                            <div class="lvf-multisel-display" id="lvMultiDisplay" onclick="lvToggleUserDropdown()">
+                              <div class="lvf-multisel-tags" id="lvMultiTags">
+                                <span class="lvf-multisel-placeholder">Click to select users...</span>
+                              </div>
+                              <svg class="lvf-multisel-arrow" width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="lvf-multisel-dropdown" id="lvMultiDropdown" style="display:none;">
+                              <div class="lvf-multisel-search-wrap">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#9ca3af" stroke-width="1.5"><circle cx="9" cy="9" r="5.5"/><path d="M13 13l3.5 3.5"/></svg>
+                                <input type="text" class="lvf-multisel-search" id="lvMultiSearch" placeholder="Search users..." oninput="lvFilterUserDropdown()">
+                              </div>
+                              <div class="lvf-multisel-options" id="lvMultiOptions"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Step 2: Section Selection Cards -->
+                        <div class="lvf-card">
+                          <div class="lvf-card-header">
+                            <div class="lvf-card-icon sections"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+                            <div class="lvf-card-header-text">
+                              <div class="lvf-card-title">Which Module to configure?</div>
+                              <div class="lvf-card-desc">Pick a module to choose what fields are visible there</div>
+                            </div>
+                          </div>
+                          <div class="lvf-section-cards" id="lvSectionToggle">
+                            <div class="lvf-sec-card active" data-sec="lm" onclick="lvSwitchSection('lm')">
+                              <div class="lvf-sec-card-top">
+                                <div class="lvf-sec-card-icon lm"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
+                                <div class="lvf-sec-card-badge" id="lvLmCount">0 fields</div>
+                              </div>
+                              <div class="lvf-sec-card-name">Lead Manager</div>
+                              <div class="lvf-sec-card-desc">Choose which lead and campaign fields are visible to the selected users in Lead Manager</div>
+                            </div>
+                            <div class="lvf-sec-card" data-sec="am" onclick="lvSwitchSection('am')">
+                              <div class="lvf-sec-card-top">
+                                <div class="lvf-sec-card-icon am"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M9 2v4M15 2v4M3 10h18"/></svg></div>
+                                <div class="lvf-sec-card-badge" id="lvAmCount">0 fields</div>
+                              </div>
+                              <div class="lvf-sec-card-name">Application Manager</div>
+                              <div class="lvf-sec-card-desc">Choose which form fields and lead details are visible to the selected users in Application Manager</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Step 3: Field Selection -->
+                        <div class="lvf-card lvf-fields-card">
+                          <div class="lvf-card-header">
+                            <div class="lvf-card-icon fields"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg></div>
+                            <div class="lvf-card-header-text">
+                              <div class="lvf-card-title">Choose visible fields</div>
+                              <div class="lvf-card-desc">Click on a field to show or hide it for the selected users</div>
+                            </div>
+                            <div class="lvf-field-actions">
+                              <div class="lvf-search-mini">
+                                <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                                <input type="text" id="lvFieldSearchInput" placeholder="Search fields..." oninput="lvFilterFields()">
+                              </div>
+                              <button class="lvf-action-link" onclick="lvSelectAllFields()"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 10l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Select all</button>
+                              <button class="lvf-action-link" onclick="lvDeselectAllFields()"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Clear all</button>
+                            </div>
+                          </div>
+                          <div id="lvFieldGrid" class="lvf-grid"></div>
+                        </div>
+                      </div>
+
+                      <!-- Sticky Save Footer -->
+                      <div class="lvf-footer" id="lvFormFooter">
+                        <div class="lvf-footer-summary" id="lvFooterSummary">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
+                          <span>0 fields selected</span>
+                        </div>
+                        <div class="lvf-footer-actions">
+                          <button class="lvf-cancel-btn" onclick="lvCancel()">Cancel</button>
+                          <button class="lvf-save-btn" onclick="lvSave()">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            Save View
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <!-- Shared Limited View row-action dropdown (fixed position, escapes table overflow clipping) -->
+                <div id="lv-action-menu" style="display:none;position:fixed;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.04);z-index:99999;min-width:180px;padding:6px;"></div>
 
                 <!-- API Keys -->
                 <div id="api-keys-view">

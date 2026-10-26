@@ -1277,6 +1277,166 @@ app.post('/api/agent/chat', async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// ── Limited View Mappings ────────────────────────────────────────────────────
+// Write-through cache: GETs are always served from memory (zero DB round-trip).
+// Writes go to DB first, then update the cache; on DB failure the cache acts as
+// the authoritative store so the feature keeps working during outages.
+// On first GET, the cache is populated from DB (or stays empty on failure).
+const LV_MIGRATE = `
+  CREATE TABLE IF NOT EXISTS limited_view_mappings (
+    id          SERIAL PRIMARY KEY,
+    username    TEXT NOT NULL,
+    section     TEXT NOT NULL CHECK (section IN ('am', 'lm')),
+    fields      JSONB NOT NULL DEFAULT '[]',
+    active      BOOLEAN NOT NULL DEFAULT true,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(username, section)
+  )`;
+pool.query(LV_MIGRATE).catch(e => console.error('LV migrate:', e.message));
+
+const lvCache = {
+  data: null,       // null = not yet loaded; [] = loaded empty
+  failedAt: 0,      // timestamp of last DB failure
+  nextMemId: 1,     // auto-increment for fallback inserts
+};
+
+function lvRow(m) {
+  return { id: m.id, username: m.username, section: m.section, fields: m.fields, active: m.active, createdAt: m.createdAt, updatedAt: m.updatedAt };
+}
+
+async function lvEnsureCache() {
+  if (lvCache.data !== null) return;
+  if (lvCache.failedAt && Date.now() - lvCache.failedAt < CACHE_FAIL_MS) {
+    lvCache.data = [];
+    return;
+  }
+  try {
+    const rows = await q(`SELECT id, username, section, fields, active,
+      created_at AS "createdAt", updated_at AS "updatedAt"
+      FROM limited_view_mappings ORDER BY created_at`);
+    lvCache.data = rows;
+    lvCache.failedAt = 0;
+    const maxId = rows.reduce((mx, r) => Math.max(mx, r.id), 0);
+    if (maxId >= lvCache.nextMemId) lvCache.nextMemId = maxId + 1;
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+    lvCache.data = [];
+  }
+}
+
+app.get('/api/limited-view', async (req, res) => {
+  await lvEnsureCache();
+  res.json({ ok: true, mappings: lvCache.data.map(lvRow) });
+});
+
+app.post('/api/limited-view', async (req, res) => {
+  const { username, section, fields } = req.body;
+  if (!username || !section || !fields) return res.status(400).json({ ok: false, error: 'Missing fields' });
+  await lvEnsureCache();
+  try {
+    const row = await q1(`
+      INSERT INTO limited_view_mappings (username, section, fields)
+      VALUES ($1, $2, $3::jsonb)
+      ON CONFLICT (username, section)
+      DO UPDATE SET fields = $3::jsonb, updated_at = now()
+      RETURNING id, username, section, fields, active,
+        created_at AS "createdAt", updated_at AS "updatedAt"
+    `, [username, section, JSON.stringify(fields)]);
+    lvCache.failedAt = 0;
+    const idx = lvCache.data.findIndex(m => m.username === username && m.section === section);
+    if (idx >= 0) lvCache.data[idx] = row; else lvCache.data.push(row);
+    if (row.id >= lvCache.nextMemId) lvCache.nextMemId = row.id + 1;
+    res.json({ ok: true, mapping: lvRow(row) });
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+    const now = new Date().toISOString();
+    const idx = lvCache.data.findIndex(m => m.username === username && m.section === section);
+    if (idx >= 0) {
+      lvCache.data[idx].fields = fields;
+      lvCache.data[idx].updatedAt = now;
+      res.json({ ok: true, mapping: lvRow(lvCache.data[idx]) });
+    } else {
+      const m = { id: lvCache.nextMemId++, username, section, fields, active: true, createdAt: now, updatedAt: now };
+      lvCache.data.push(m);
+      res.json({ ok: true, mapping: lvRow(m) });
+    }
+  }
+});
+
+app.put('/api/limited-view/:id/toggle', async (req, res) => {
+  await lvEnsureCache();
+  const cIdx = lvCache.data.findIndex(x => x.id === +req.params.id);
+  try {
+    const row = await q1(`
+      UPDATE limited_view_mappings SET active = NOT active, updated_at = now()
+      WHERE id = $1
+      RETURNING id, username, section, fields, active,
+        created_at AS "createdAt", updated_at AS "updatedAt"
+    `, [req.params.id]);
+    if (!row) return res.status(404).json({ ok: false, error: 'Not found' });
+    lvCache.failedAt = 0;
+    if (cIdx >= 0) lvCache.data[cIdx] = row;
+    res.json({ ok: true, mapping: lvRow(row) });
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+    if (cIdx >= 0) {
+      lvCache.data[cIdx].active = !lvCache.data[cIdx].active;
+      lvCache.data[cIdx].updatedAt = new Date().toISOString();
+      res.json({ ok: true, mapping: lvRow(lvCache.data[cIdx]) });
+    } else {
+      res.status(404).json({ ok: false, error: 'Not found' });
+    }
+  }
+});
+
+app.put('/api/limited-view/toggle-user', async (req, res) => {
+  const { username, active } = req.body;
+  await lvEnsureCache();
+  try {
+    const rows = await q(`
+      UPDATE limited_view_mappings SET active = $2, updated_at = now()
+      WHERE username = $1
+      RETURNING id, username, section, fields, active,
+        created_at AS "createdAt", updated_at AS "updatedAt"
+    `, [username, active]);
+    lvCache.failedAt = 0;
+    rows.forEach(r => { const i = lvCache.data.findIndex(m => m.id === r.id); if (i >= 0) lvCache.data[i] = r; });
+    res.json({ ok: true, mappings: rows.map(lvRow) });
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+    const now = new Date().toISOString();
+    const updated = lvCache.data.filter(m => m.username === username);
+    updated.forEach(m => { m.active = active; m.updatedAt = now; });
+    res.json({ ok: true, mappings: updated.map(lvRow) });
+  }
+});
+
+app.delete('/api/limited-view/:id', async (req, res) => {
+  await lvEnsureCache();
+  try {
+    await q('DELETE FROM limited_view_mappings WHERE id = $1', [req.params.id]);
+    lvCache.failedAt = 0;
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+  }
+  lvCache.data = lvCache.data.filter(m => m.id !== +req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/limited-view/user/:username', async (req, res) => {
+  await lvEnsureCache();
+  const uname = decodeURIComponent(req.params.username);
+  try {
+    await q('DELETE FROM limited_view_mappings WHERE username = $1', [uname]);
+    lvCache.failedAt = 0;
+  } catch (e) {
+    lvCache.failedAt = Date.now();
+  }
+  lvCache.data = lvCache.data.filter(m => m.username !== uname);
+  res.json({ ok: true });
+});
+
 // ── Fallback → index.html ─────────────────────────────────────────────────────
 app.get('*', (req, res) => {
   res.sendFile(path.join(FRONTEND, 'index.html'));
