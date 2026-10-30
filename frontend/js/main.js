@@ -72,18 +72,28 @@
         }
 
         // ── Limited View: unified field-mapping picker (Application Manager / Lead Manager) ──
-        var LV_AM_FORMS = [
-            { id: 'ug_admission', name: 'UG Admission Form', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Entrance Score','Rank','Seat Allotment'] },
-            { id: 'pg_admission', name: 'PG Admission Form', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Research Topic','Work Experience','Entrance Score'] },
-            { id: 'lateral_entry', name: 'Lateral Entry Form', fields: ['Application Id','Application Date','Application Status','Program','Transfer Credits','Previous Institution'] },
-            { id: 'scholarship', name: 'Scholarship Form', fields: ['Application Id','Application Date','Application Status','Scholarship Type','Family Income','Merit Score','Award Amount'] },
-            { id: 'hostel', name: 'Hostel Application', fields: ['Application Id','Application Date','Application Status','Room Type','Meal Plan','Floor Preference'] },
-            { id: 'exam_reg', name: 'Exam Registration', fields: ['Application Id','Application Date','Application Status','Exam Center','Exam Slot','Hall Ticket No'] },
-            { id: 'international', name: 'International Admission', fields: ['Application Id','Application Date','Application Status','Program','Passport No','Visa Status','Country of Origin','IELTS Score'] },
-            { id: 'diploma', name: 'Diploma Program', fields: ['Application Id','Application Date','Application Status','Program','Specialization','Duration'] },
-            { id: 'certificate', name: 'Certificate Course', fields: ['Application Id','Application Date','Application Status','Course Name','Mode','Duration'] },
-            { id: 'phd', name: 'PhD Admission', fields: ['Application Id','Application Date','Application Status','Research Area','Supervisor','Publications','Fellowship'] }
+        var LV_FIELD_GROUPS = [
+            { title: 'Personal Information', fields: ['First Name','Last Name','Date of Birth','Gender','Blood Group','Nationality','Religion','Category','Aadhaar Number','PAN Number'] },
+            { title: 'Contact Details', fields: ['Email Address','Mobile Number','Alternate Phone','WhatsApp Number','Emergency Contact Name','Emergency Phone','Personal Email','Office Phone','Fax Number','Preferred Contact Mode'] },
+            { title: 'Address Information', fields: ['Address Line 1','Address Line 2','City','State','Country','Pin Code','Permanent Address','Correspondence City','District','Landmark'] },
+            { title: 'Academic Background', fields: ['10th Board','10th Percentage','10th Year of Passing','12th Board','12th Percentage','12th Year of Passing','Graduation University','Graduation Percentage','Graduation Year','Degree Name'] },
+            { title: 'Guardian Details', fields: ["Father\'s Name","Father\'s Occupation","Annual Income (Father)","Father\'s Phone","Mother\'s Name","Mother\'s Occupation","Annual Income (Mother)","Mother\'s Phone","Guardian Name","Guardian Relation"] },
+            { title: 'Document Uploads', fields: ['Photograph','Signature','10th Marksheet','12th Marksheet','Graduation Certificate','Transfer Certificate','Migration Certificate','Income Certificate','Caste Certificate','ID Proof'] },
+            { title: 'Application Meta', fields: ['Application ID','Application Date','Application Status','Program Applied','Specialization','Admission Year','Academic Session','Quota Type','Admission Category','Campus Preference'] },
+            { title: 'Entrance & Merit', fields: ['Entrance Exam Name','Entrance Score','Entrance Rank','Merit Score','Category Rank','All India Rank','State Rank','Counseling Round','Seat Allotment Status','Reporting Date'] },
+            { title: 'Payment & Fees', fields: ['Fee Amount','Payment Status','Payment Date','Transaction ID','Payment Mode','Bank Name','Challan Number','Scholarship Amount','Fee Waiver','Balance Due'] },
+            { title: 'System & Admin', fields: ['Created By','Created Date','Modified By','Modified Date','Assigned To','Current Stage','Remarks','Internal Notes','Verification Status','Approval Status'] }
         ];
+        var LV_AM_DEPTS = ['Engineering','Medical','Commerce','Arts','Science','Law','Architecture','Design','Pharmacy','Management','Education','Agriculture','Nursing','Dental','Hospitality'];
+        var LV_AM_TYPES = ['UG Admission','PG Admission','PhD Application','Diploma Program','Certificate Course','Lateral Entry','Distance Learning','Executive Program','Professional Course','Integrated Program'];
+        var LV_AM_FORMS = [];
+        var lvFormNumBase = 10001;
+        LV_AM_DEPTS.forEach(function(dept) {
+            LV_AM_TYPES.forEach(function(type) {
+                var formNum = lvFormNumBase++;
+                LV_AM_FORMS.push({ id: (type + '_' + dept).toLowerCase().replace(/\s+/g, '_'), formNum: formNum, name: type + ' — ' + dept, type: type, dept: dept, groups: LV_FIELD_GROUPS });
+            });
+        });
         var LV_AM_COMMON_CATS = [
             { title: 'Lead Details', fields: ['Registration Date','Country Dial Code','Registered Country','State','City','Course','Registration Device','Registration Channel','Widget Name','First User Activity Date','Last User Activity Date','Email Verification Status','Lead Id','Mobile Verification Status'] },
             { title: 'Payment Details', fields: ['Payment Status','Payment Amount','Payment Date','Transaction Id'] },
@@ -121,6 +131,11 @@
         var lvEntryMod = 'am';
         var lvMappings = [];
         var lvNextId = 1;
+        var lvFormPage = 1;
+        var lvFormSearch = '';
+        var lvFormsPerPage = 30;
+        var lvFieldSearch = '';
+        var lvAmOpenGroups = {};
         var LV_API = API_BASE + '/api/limited-view';
 
         function lvLoadMappings(cb) {
@@ -624,7 +639,8 @@
             lvWizardSection = sec;
             lvSelectedSet = JSON.parse(JSON.stringify(lvSectionFields[sec]));
             lvCatOpen = {};
-            lvActiveFormId = 'all';
+            lvActiveFormId = 'common';
+            lvFormPage = 1; lvFormSearch = ''; lvFieldSearch = '';
             lvUpdateSectionToggle();
             lvRenderFieldGrid();
         }
@@ -663,7 +679,12 @@
 
         function lvToggleCat(catId) {
             var el = document.getElementById(catId);
-            if (el) el.classList.toggle('open');
+            if (el) {
+                el.classList.toggle('open');
+                if (catId.indexOf('lvAmGrp') === 0) {
+                    lvAmOpenGroups[catId] = el.classList.contains('open');
+                }
+            }
         }
 
         function lvSelectCatFields(catTitle, fields) {
@@ -709,82 +730,316 @@
 
         function lvSwitchForm(formId) {
             lvActiveFormId = formId;
+            lvFieldSearch = '';
+            lvAmOpenGroups = {};
+            var filtered = lvGetFilteredForms();
+            var idx = -1;
+            for (var i = 0; i < filtered.length; i++) { if (filtered[i].id === formId) { idx = i; break; } }
+            if (idx >= 0) lvFormPage = Math.floor(idx / lvFormsPerPage) + 1;
             lvRenderFieldGrid();
+        }
+
+        var lvFormSearchTimer = null;
+        function lvAmFormSearch(val) {
+            clearTimeout(lvFormSearchTimer);
+            var raw = val.trim().toLowerCase();
+            lvFormSearchTimer = setTimeout(function() {
+                if (raw.length >= 3 || raw.length === 0) {
+                    lvFormSearch = raw;
+                } else if (lvFormSearch) {
+                    lvFormSearch = '';
+                } else {
+                    return;
+                }
+                lvFormPage = 1;
+                var input = document.querySelector('.lvam-sb-search input');
+                var pos = input ? input.selectionStart : 0;
+                lvRenderAMSidebar();
+                var input2 = document.querySelector('.lvam-sb-search input');
+                if (input2) { input2.focus(); input2.setSelectionRange(pos, pos); }
+            }, 300);
+        }
+
+        var lvFieldSearchTimer = null;
+        function lvAmFieldSearchFn(val) {
+            clearTimeout(lvFieldSearchTimer);
+            var raw = val.trim().toLowerCase();
+            lvFieldSearchTimer = setTimeout(function() {
+                if (raw.length >= 3 || raw.length === 0) {
+                    lvFieldSearch = raw;
+                } else if (lvFieldSearch) {
+                    lvFieldSearch = '';
+                } else {
+                    return;
+                }
+                var input = document.getElementById('lvAmFieldSearch');
+                var pos = input ? input.selectionStart : 0;
+                lvRenderAMFields();
+                var input2 = document.getElementById('lvAmFieldSearch');
+                if (input2) { input2.focus(); input2.setSelectionRange(pos, pos); }
+            }, 300);
+        }
+
+        function lvAmFormPage(page) {
+            lvFormPage = page;
+            lvRenderAMSidebar();
+        }
+
+        function lvGetFilteredForms() {
+            if (!lvFormSearch) return LV_AM_FORMS;
+            return LV_AM_FORMS.filter(function(f) {
+                return f.name.toLowerCase().indexOf(lvFormSearch) !== -1 || f.type.toLowerCase().indexOf(lvFormSearch) !== -1 || f.dept.toLowerCase().indexOf(lvFormSearch) !== -1 || String(f.formNum).indexOf(lvFormSearch) !== -1;
+            });
+        }
+
+        function lvGetFormFieldCount(form) {
+            var count = 0;
+            form.groups.forEach(function(g) {
+                g.fields.forEach(function(f) { if (lvSelectedSet[lvKey(form.id + '::' + g.title, f)]) count++; });
+            });
+            return count;
+        }
+
+        function lvGetFormTotalFields(form) {
+            var total = 0;
+            form.groups.forEach(function(g) { total += g.fields.length; });
+            return total;
         }
 
         function lvRenderFieldGrid() {
             var sec = LV_SECTIONS[lvWizardSection];
             if (!sec) return;
-            var searchVal = '';
-            var searchInput = document.getElementById('lvFieldSearchInput');
-            if (searchInput) searchVal = searchInput.value.trim().toLowerCase();
-
-            var checkSvg = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-            var chevronSvg = '<svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-            var html = '';
-            var catIdx = 0;
-
-            function buildCatBlock(catTitle, fields, catNamespace, forceOpen) {
-                var filteredFields = fields;
-                if (searchVal) filteredFields = fields.filter(function(f) { return f.toLowerCase().indexOf(searchVal) !== -1 || catTitle.toLowerCase().indexOf(searchVal) !== -1; });
-                if (!filteredFields.length) return '';
-                var selCount = 0;
-                filteredFields.forEach(function(f) { if (lvSelectedSet[lvKey(catNamespace, f)]) selCount++; });
-                var catId = 'lvCat' + catIdx++;
-                var isOpen = true;
-                var chips = filteredFields.map(function(f) {
-                    var k = lvKey(catNamespace, f);
-                    var isOn = lvSelectedSet[k] ? true : false;
-                    return '<div class="lvf-chip' + (isOn ? ' on' : '') + '" onclick="lvToggleField(\'' + lvEsc(catNamespace) + '\',\'' + lvEsc(f) + '\')">' +
-                        '<div class="lvf-chip-check">' + checkSvg + '</div>' + f + '</div>';
-                }).join('');
-                var fieldsJson = JSON.stringify(filteredFields).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                return '<div class="lvf-cat' + (isOpen ? ' open' : '') + '" id="' + catId + '">' +
-                    '<div class="lvf-cat-hdr" onclick="lvToggleCat(\'' + catId + '\')">' +
-                        '<div class="lvf-cat-title">' + catTitle + '</div>' +
-                        '<span class="lvf-cat-count' + (selCount > 0 ? ' has' : '') + '">' + selCount + '/' + filteredFields.length + '</span>' +
-                        '<button class="lvf-cat-selall" onclick="event.stopPropagation();lvSelectCatFields(\'' + lvEsc(catNamespace) + '\',' + fieldsJson + ')">' + (selCount === filteredFields.length ? 'Deselect all' : 'Select all') + '</button>' +
-                        '<div class="lvf-cat-chevron">' + chevronSvg + '</div>' +
-                    '</div>' +
-                    '<div class="lvf-chips">' + chips + '</div></div>';
-            }
-
             if (sec.hasForms && lvWizardSection === 'am') {
-                var formPills = '<div class="lvf-form-selector"><div class="lvf-form-label">Application Forms</div><div class="lvf-form-pills">';
-                formPills += '<div class="lvf-form-pill' + (lvActiveFormId === 'all' ? ' active' : '') + '" onclick="lvSwitchForm(\'all\')">All Common Fields</div>';
-                sec.forms.forEach(function(form) {
-                    var formFieldCount = 0;
-                    form.fields.forEach(function(f) {
-                        if (lvSelectedSet[lvKey(form.name, f)]) formFieldCount++;
-                    });
-                    formPills += '<div class="lvf-form-pill' + (lvActiveFormId === form.id ? ' active' : '') + '" onclick="lvSwitchForm(\'' + form.id + '\')">' +
-                        form.name + (formFieldCount > 0 ? ' <span class="lvf-form-pill-count">' + formFieldCount + '</span>' : '') + '</div>';
-                });
-                formPills += '</div></div>';
-                html += formPills;
-
-                if (lvActiveFormId === 'all') {
-                    sec.commonCategories.forEach(function(cat) {
-                        html += buildCatBlock(cat.title, cat.fields, cat.title, false);
-                    });
+                var panel = document.querySelector('.lvam-panel');
+                if (!panel) {
+                    lvRenderAMTwoPanel();
                 } else {
-                    var activeForm = sec.forms.filter(function(f) { return f.id === lvActiveFormId; })[0];
-                    if (activeForm) {
-                        html += buildCatBlock(activeForm.name + ' Fields', activeForm.fields, activeForm.name, true);
-                        html += '<div class="lvf-form-divider"><span>Common Fields</span></div>';
-                        sec.commonCategories.forEach(function(cat) {
-                            html += buildCatBlock(cat.title, cat.fields, cat.title, false);
-                        });
-                    }
+                    lvRenderAMSidebar();
+                    lvRenderAMFields();
                 }
             } else {
-                sec.categories.forEach(function(cat) {
-                    html += buildCatBlock(cat.title, cat.fields, cat.title, false);
-                });
+                lvRenderLMFields();
             }
+        }
 
+        function lvRenderAMTwoPanel() {
             var grid = document.getElementById('lvFieldGrid');
-            if (grid) grid.innerHTML = html || '<div style="padding:32px;text-align:center;color:#9ca3af;font-size:13px;">No fields match your search</div>';
+            if (!grid) return;
+            var headerActions = document.querySelector('.lvf-fields-card .lvf-field-actions');
+            if (headerActions) headerActions.style.display = 'none';
+            if (!lvActiveFormId || (lvActiveFormId !== 'common' && !LV_AM_FORMS.some(function(f){return f.id===lvActiveFormId;}))) lvActiveFormId = 'common';
+            grid.innerHTML = '<div class="lvam-panel"><div class="lvam-sidebar" id="lvAmSidebar"></div><div class="lvam-content" id="lvAmContent"></div></div>';
+            lvRenderAMSidebar();
+            lvRenderAMFields();
+        }
+
+        function lvRenderAMSidebar() {
+            var sidebar = document.getElementById('lvAmSidebar');
+            if (!sidebar) return;
+            var filtered = lvGetFilteredForms();
+            var totalPages = Math.ceil(filtered.length / lvFormsPerPage) || 1;
+            if (lvFormPage > totalPages) lvFormPage = totalPages;
+            var start = (lvFormPage - 1) * lvFormsPerPage;
+            var pageItems = filtered.slice(start, start + lvFormsPerPage);
+            var h = '<div class="lvam-sb-search"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input type="text" placeholder="Search 150 forms..." value="' + (lvFormSearch||'').replace(/"/g,'&quot;') + '" oninput="lvAmFormSearch(this.value)"></div>';
+            var commonSel = 0;
+            LV_AM_COMMON_CATS.forEach(function(cat) { cat.fields.forEach(function(f) { if (lvSelectedSet[lvKey(cat.title, f)]) commonSel++; }); });
+            var commonTotal = 0;
+            LV_AM_COMMON_CATS.forEach(function(cat) { commonTotal += cat.fields.length; });
+            h += '<div class="lvam-sb-common' + (lvActiveFormId === 'common' ? ' active' : '') + '" onclick="lvSwitchForm(\'common\')" title="Fields shared across all forms"><div class="lvam-sb-common-icon"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M10 2l6 3.5v5L10 14 4 10.5v-5L10 2z" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/><path d="M10 8v6M4 5.5L10 9l6-3.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="lvam-sb-common-info"><div class="lvam-sb-common-name">Common Fields</div><div class="lvam-sb-common-sub">' + commonSel + ' of ' + commonTotal + ' selected</div></div>' + (commonSel > 0 ? '<div class="lvam-sb-common-badge">' + commonSel + '</div>' : '') + '</div>';
+            h += '<div class="lvam-sb-count">' + filtered.length + ' form' + (filtered.length !== 1 ? 's' : '') + (lvFormSearch ? ' found' : '') + '</div>';
+            h += '<div class="lvam-sb-list">';
+            pageItems.forEach(function(form) {
+                var sel = lvGetFormFieldCount(form);
+                var tot = lvGetFormTotalFields(form);
+                h += '<div class="lvam-sb-item' + (lvActiveFormId === form.id ? ' active' : '') + '" onclick="lvSwitchForm(\'' + form.id + '\')" title="' + form.name.replace(/"/g,'&quot;') + ' (#' + form.formNum + ')">' +
+                    '<div class="lvam-sb-item-info"><div class="lvam-sb-item-name">' + form.name + '<span class="lvam-sb-item-id">(#' + form.formNum + ')</span></div><div class="lvam-sb-item-type">' + form.type + '</div></div>' +
+                    (sel > 0 ? '<div class="lvam-sb-item-badge">' + sel + '</div>' : '') +
+                '</div>';
+            });
+            if (!pageItems.length) h += '<div class="lvam-sb-empty">No forms match your search</div>';
+            h += '</div>';
+            if (totalPages > 1) {
+                h += '<div class="lvam-sb-pager">' +
+                    '<button class="lvam-sb-pg-btn" onclick="lvAmFormPage(' + Math.max(1,lvFormPage-1) + ')"' + (lvFormPage<=1?' disabled':'') + '><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M12 15l-5-5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+                    '<span class="lvam-sb-pg-info">Page ' + lvFormPage + ' of ' + totalPages + '</span>' +
+                    '<button class="lvam-sb-pg-btn" onclick="lvAmFormPage(' + Math.min(totalPages,lvFormPage+1) + ')"' + (lvFormPage>=totalPages?' disabled':'') + '><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+                '</div>';
+            }
+            sidebar.innerHTML = h;
+        }
+
+        function lvRenderAMFields() {
+            var content = document.getElementById('lvAmContent');
+            if (!content) return;
+            if (lvActiveFormId === 'common') {
+                lvRenderAMCommonFields(content);
+                return;
+            }
+            var form = LV_AM_FORMS.filter(function(f) { return f.id === lvActiveFormId; })[0];
+            if (!form) {
+                content.innerHTML = '<div class="lvam-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><div class="lvam-empty-title">Select a form</div><div class="lvam-empty-desc">Choose an application form from the sidebar to configure its visible fields</div></div>';
+                return;
+            }
+            var totalFields = lvGetFormTotalFields(form);
+            var selectedFields = lvGetFormFieldCount(form);
+            var h = '<div class="lvam-ct-header"><div class="lvam-ct-header-left"><div class="lvam-ct-form-name">' + form.name + '<span class="lvam-ct-form-id">(#' + form.formNum + ')</span></div><div class="lvam-ct-form-stats"><span class="lvam-ct-sel-num">' + selectedFields + '</span> of ' + totalFields + ' fields visible</div></div><div class="lvam-ct-header-actions"><button class="lvam-ct-btn select" onclick="lvAmSelectAllForm(\'' + form.id + '\')"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 10l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Select all</button><button class="lvam-ct-btn" onclick="lvAmClearForm(\'' + form.id + '\')"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Clear all</button></div></div>';
+            h += '<div class="lvam-ct-search"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input type="text" id="lvAmFieldSearch" placeholder="Search fields in this form..." value="' + (lvFieldSearch||'').replace(/"/g,'&quot;') + '" oninput="lvAmFieldSearchFn(this.value)"></div>';
+            h += '<div class="lvam-ct-groups">';
+            var grpIdx = 0;
+            form.groups.forEach(function(group) {
+                var ff = group.fields;
+                if (lvFieldSearch) ff = group.fields.filter(function(f) { return f.toLowerCase().indexOf(lvFieldSearch) !== -1 || group.title.toLowerCase().indexOf(lvFieldSearch) !== -1; });
+                if (!ff.length) return;
+                var ns = form.id + '::' + group.title;
+                var sel = 0;
+                ff.forEach(function(f) { if (lvSelectedSet[lvKey(ns, f)]) sel++; });
+                var allSel = sel === ff.length;
+                var gid = 'lvAmGrp' + grpIdx++;
+                var grpOpen = lvAmOpenGroups[gid] !== false;
+                var fJson = JSON.stringify(ff).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+                var checkSvg = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                h += '<div class="lvam-grp' + (grpOpen ? ' open' : '') + '" id="' + gid + '"><div class="lvam-grp-hdr" onclick="lvToggleCat(\'' + gid + '\')"><svg class="lvam-grp-chevron" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="lvam-grp-title">' + group.title + '</div><span class="lvam-grp-count' + (sel>0?' has':'') + '">' + sel + '/' + ff.length + '</span><button class="lvam-grp-selall" onclick="event.stopPropagation();lvAmToggleGroup(\'' + lvEsc(form.id) + '\',\'' + lvEsc(group.title) + '\',' + fJson + ')">' + (allSel?'Deselect all':'Select all') + '</button></div><div class="lvam-grp-body">';
+                ff.forEach(function(field) {
+                    var k = lvKey(ns, field);
+                    var isOn = lvSelectedSet[k] ? true : false;
+                    h += '<div class="lvam-field-row' + (isOn?' on':'') + '" onclick="lvToggleField(\'' + lvEsc(ns) + '\',\'' + lvEsc(field) + '\')"><div class="lvam-field-check">' + checkSvg + '</div><span class="lvam-field-name">' + field + '</span></div>';
+                });
+                h += '</div></div>';
+            });
+            h += '</div>';
+            content.innerHTML = h;
+        }
+
+        function lvRenderAMCommonFields(content) {
+            var totalFields = 0;
+            var selectedFields = 0;
+            LV_AM_COMMON_CATS.forEach(function(cat) { totalFields += cat.fields.length; cat.fields.forEach(function(f) { if (lvSelectedSet[lvKey(cat.title, f)]) selectedFields++; }); });
+            var h = '<div class="lvam-ct-header"><div class="lvam-ct-header-left"><div class="lvam-ct-form-name">Common Fields</div><div class="lvam-ct-form-stats"><span class="lvam-ct-sel-num">' + selectedFields + '</span> of ' + totalFields + ' fields &middot; Shared across all forms</div></div><div class="lvam-ct-header-actions"><button class="lvam-ct-btn select" onclick="lvAmSelectAllCommon()"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 10l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Select all</button><button class="lvam-ct-btn" onclick="lvAmClearCommon()"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Clear all</button></div></div>';
+            h += '<div class="lvam-ct-search"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input type="text" id="lvAmFieldSearch" placeholder="Search common fields..." value="' + (lvFieldSearch||'').replace(/"/g,'&quot;') + '" oninput="lvAmFieldSearchFn(this.value)"></div>';
+            h += '<div class="lvam-ct-groups">';
+            var grpIdx = 0;
+            var checkSvg = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            LV_AM_COMMON_CATS.forEach(function(cat) {
+                var ff = cat.fields;
+                if (lvFieldSearch) ff = cat.fields.filter(function(f) { return f.toLowerCase().indexOf(lvFieldSearch) !== -1 || cat.title.toLowerCase().indexOf(lvFieldSearch) !== -1; });
+                if (!ff.length) return;
+                var sel = 0;
+                ff.forEach(function(f) { if (lvSelectedSet[lvKey(cat.title, f)]) sel++; });
+                var allSel = sel === ff.length;
+                var gid = 'lvAmGrp' + grpIdx++;
+                var grpOpen = lvAmOpenGroups[gid] !== false;
+                var fJson = JSON.stringify(ff).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+                h += '<div class="lvam-grp' + (grpOpen ? ' open' : '') + '" id="' + gid + '"><div class="lvam-grp-hdr" onclick="lvToggleCat(\'' + gid + '\')"><svg class="lvam-grp-chevron" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="lvam-grp-title">' + cat.title + '</div><span class="lvam-grp-count' + (sel>0?' has':'') + '">' + sel + '/' + ff.length + '</span><button class="lvam-grp-selall" onclick="event.stopPropagation();lvSelectCatFields(\'' + lvEsc(cat.title) + '\',' + fJson + ')">' + (allSel?'Deselect all':'Select all') + '</button></div><div class="lvam-grp-body">';
+                ff.forEach(function(field) {
+                    var k = lvKey(cat.title, field);
+                    var isOn = lvSelectedSet[k] ? true : false;
+                    h += '<div class="lvam-field-row' + (isOn?' on':'') + '" onclick="lvToggleField(\'' + lvEsc(cat.title) + '\',\'' + lvEsc(field) + '\')"><div class="lvam-field-check">' + checkSvg + '</div><span class="lvam-field-name">' + field + '</span></div>';
+                });
+                h += '</div></div>';
+            });
+            h += '</div>';
+            content.innerHTML = h;
+        }
+
+        function lvAmSelectAllCommon() {
+            LV_AM_COMMON_CATS.forEach(function(cat) { cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; }); });
+            lvSyncCurrentSection();
+            lvRenderAMFields();
+            lvRenderAMSidebar();
+        }
+
+        function lvAmClearCommon() {
+            LV_AM_COMMON_CATS.forEach(function(cat) { cat.fields.forEach(function(f) { delete lvSelectedSet[lvKey(cat.title, f)]; }); });
+            lvSyncCurrentSection();
+            lvRenderAMFields();
+            lvRenderAMSidebar();
+        }
+
+        function lvAmToggleGroup(formId, groupTitle, fields) {
+            var ns = formId + '::' + groupTitle;
+            var allSel = fields.every(function(f) { return lvSelectedSet[lvKey(ns, f)]; });
+            fields.forEach(function(f) { if (allSel) delete lvSelectedSet[lvKey(ns, f)]; else lvSelectedSet[lvKey(ns, f)] = true; });
+            lvSyncCurrentSection();
+            var gs = 0; var grpEl = document.querySelector('.lvam-ct-groups'); if (grpEl) gs = grpEl.scrollTop;
+            lvRenderAMFields();
+            lvRenderAMSidebar();
+            var grpEl2 = document.querySelector('.lvam-ct-groups'); if (grpEl2) grpEl2.scrollTop = gs;
+        }
+
+        function lvAmSelectAllForm(formId) {
+            var form = LV_AM_FORMS.filter(function(f) { return f.id === formId; })[0];
+            if (!form) return;
+            form.groups.forEach(function(g) { g.fields.forEach(function(f) { lvSelectedSet[lvKey(formId + '::' + g.title, f)] = true; }); });
+            lvSyncCurrentSection();
+            lvRenderAMFields();
+            lvRenderAMSidebar();
+        }
+
+        function lvAmClearForm(formId) {
+            var form = LV_AM_FORMS.filter(function(f) { return f.id === formId; })[0];
+            if (!form) return;
+            form.groups.forEach(function(g) { g.fields.forEach(function(f) { delete lvSelectedSet[lvKey(formId + '::' + g.title, f)]; }); });
+            lvSyncCurrentSection();
+            lvRenderAMFields();
+            lvRenderAMSidebar();
+        }
+
+        function lvRenderLMFields() {
+            var headerActions = document.querySelector('.lvf-fields-card .lvf-field-actions');
+            if (headerActions) headerActions.style.display = 'none';
+            var sec = LV_SECTIONS[lvWizardSection];
+            if (!sec) return;
+            var grid = document.getElementById('lvFieldGrid');
+            if (!grid) return;
+            var totalFields = 0, selectedFields = 0;
+            sec.categories.forEach(function(cat) { totalFields += cat.fields.length; cat.fields.forEach(function(f) { if (lvSelectedSet[lvKey(cat.title, f)]) selectedFields++; }); });
+            var h = '<div class="lvam-lm-panel">';
+            h += '<div class="lvam-ct-header"><div class="lvam-ct-header-left"><div class="lvam-ct-form-name">Lead Manager Fields</div><div class="lvam-ct-form-stats"><span class="lvam-ct-sel-num">' + selectedFields + '</span> of ' + totalFields + ' fields</div></div><div class="lvam-ct-header-actions"><button class="lvam-ct-btn select" onclick="lvSelectAllFields()"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M6 10l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Select all</button><button class="lvam-ct-btn" onclick="lvDeselectAllFields()"><svg width="13" height="13" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="3" stroke="currentColor" stroke-width="1.5"/></svg> Clear all</button></div></div>';
+            h += '<div class="lvam-ct-search"><svg width="14" height="14" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><input type="text" id="lvLmFieldSearch" placeholder="Search fields..." value="' + (lvFieldSearch||'').replace(/"/g,'&quot;') + '" oninput="lvLmFieldSearchFn(this.value)"></div>';
+            h += '<div class="lvam-ct-groups">';
+            var grpIdx = 0;
+            var checkSvg = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            sec.categories.forEach(function(cat) {
+                var ff = cat.fields;
+                if (lvFieldSearch) ff = cat.fields.filter(function(f) { return f.toLowerCase().indexOf(lvFieldSearch) !== -1 || cat.title.toLowerCase().indexOf(lvFieldSearch) !== -1; });
+                if (!ff.length) return;
+                var sel = 0;
+                ff.forEach(function(f) { if (lvSelectedSet[lvKey(cat.title, f)]) sel++; });
+                var allSel = sel === ff.length;
+                var gid = 'lvLmGrp' + grpIdx++;
+                var grpOpen = lvAmOpenGroups[gid] !== false;
+                var fJson = JSON.stringify(ff).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+                h += '<div class="lvam-grp' + (grpOpen ? ' open' : '') + '" id="' + gid + '"><div class="lvam-grp-hdr" onclick="lvToggleCat(\'' + gid + '\')"><svg class="lvam-grp-chevron" width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M8 5l5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="lvam-grp-title">' + cat.title + '</div><span class="lvam-grp-count' + (sel>0?' has':'') + '">' + sel + '/' + ff.length + '</span><button class="lvam-grp-selall" onclick="event.stopPropagation();lvSelectCatFields(\'' + lvEsc(cat.title) + '\',' + fJson + ')">' + (allSel?'Deselect all':'Select all') + '</button></div><div class="lvam-grp-body">';
+                ff.forEach(function(field) {
+                    var k = lvKey(cat.title, field);
+                    var isOn = lvSelectedSet[k] ? true : false;
+                    h += '<div class="lvam-field-row' + (isOn?' on':'') + '" onclick="lvToggleField(\'' + lvEsc(cat.title) + '\',\'' + lvEsc(field) + '\')"><div class="lvam-field-check">' + checkSvg + '</div><span class="lvam-field-name">' + field + '</span></div>';
+                });
+                h += '</div></div>';
+            });
+            h += '</div></div>';
+            grid.innerHTML = h;
+        }
+
+        var lvLmFieldSearchTimer = null;
+        function lvLmFieldSearchFn(val) {
+            clearTimeout(lvLmFieldSearchTimer);
+            var raw = val.trim().toLowerCase();
+            lvLmFieldSearchTimer = setTimeout(function() {
+                if (raw.length >= 3 || raw.length === 0) {
+                    lvFieldSearch = raw;
+                } else if (lvFieldSearch) {
+                    lvFieldSearch = '';
+                } else {
+                    return;
+                }
+                var input = document.getElementById('lvLmFieldSearch');
+                var pos = input ? input.selectionStart : 0;
+                lvRenderLMFields();
+                var input2 = document.getElementById('lvLmFieldSearch');
+                if (input2) { input2.focus(); input2.setSelectionRange(pos, pos); }
+            }, 300);
         }
 
         function lvSyncCurrentSection() {
@@ -796,35 +1051,44 @@
             var k = lvKey(cat, field);
             if (lvSelectedSet[k]) delete lvSelectedSet[k]; else lvSelectedSet[k] = true;
             lvSyncCurrentSection();
-            lvRenderFieldGrid();
+            if (lvWizardSection === 'am' && document.querySelector('.lvam-panel')) {
+                var grpScroll = document.querySelector('.lvam-ct-groups');
+                var gs = grpScroll ? grpScroll.scrollTop : 0;
+                lvRenderAMFields();
+                lvRenderAMSidebar();
+                var grpScroll2 = document.querySelector('.lvam-ct-groups');
+                if (grpScroll2) grpScroll2.scrollTop = gs;
+            } else if (lvWizardSection === 'lm' && document.querySelector('.lvam-lm-panel')) {
+                var grpScroll = document.querySelector('.lvam-ct-groups');
+                var gs = grpScroll ? grpScroll.scrollTop : 0;
+                lvRenderLMFields();
+                var grpScroll2 = document.querySelector('.lvam-ct-groups');
+                if (grpScroll2) grpScroll2.scrollTop = gs;
+            } else {
+                lvRenderFieldGrid();
+            }
         }
 
         function lvSelectAllFields() {
             var sec = LV_SECTIONS[lvWizardSection];
             if (!sec) return;
             if (sec.hasForms && lvWizardSection === 'am') {
-                sec.commonCategories.forEach(function(cat) {
-                    cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; });
-                });
-                if (lvActiveFormId !== 'all') {
-                    var form = sec.forms.filter(function(f) { return f.id === lvActiveFormId; })[0];
-                    if (form) form.fields.forEach(function(f) { lvSelectedSet[lvKey(form.name, f)] = true; });
-                } else {
-                    sec.forms.forEach(function(form) {
-                        form.fields.forEach(function(f) { lvSelectedSet[lvKey(form.name, f)] = true; });
-                    });
-                }
+                var form = sec.forms.filter(function(f) { return f.id === lvActiveFormId; })[0];
+                if (form) form.groups.forEach(function(g) { g.fields.forEach(function(f) { lvSelectedSet[lvKey(form.id + '::' + g.title, f)] = true; }); });
             } else {
-                sec.categories.forEach(function(cat) {
-                    cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; });
-                });
+                sec.categories.forEach(function(cat) { cat.fields.forEach(function(f) { lvSelectedSet[lvKey(cat.title, f)] = true; }); });
             }
             lvSyncCurrentSection();
             lvRenderFieldGrid();
         }
 
         function lvDeselectAllFields() {
-            lvSelectedSet = {};
+            if (lvWizardSection === 'am') {
+                var form = LV_AM_FORMS.filter(function(f) { return f.id === lvActiveFormId; })[0];
+                if (form) form.groups.forEach(function(g) { g.fields.forEach(function(f) { delete lvSelectedSet[lvKey(form.id + '::' + g.title, f)]; }); });
+            } else {
+                lvSelectedSet = {};
+            }
             lvSyncCurrentSection();
             lvRenderFieldGrid();
         }
