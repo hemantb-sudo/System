@@ -1300,6 +1300,7 @@
 
                 <!-- Manage Accounts -->
                 <div id="manage-accounts-view">
+                <div id="maListView" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
                   <div class="ma-header"><div class="ma-title">Manage Accounts</div><div class="ma-header-actions">
                     <div style="position:relative;width:220px;">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1324,6 +1325,71 @@
                     <tr id="ma-no-results-row" style="display:none;cursor:default;"><td colspan="10" style="text-align:center;color:#9ca3af;padding:22px;">No accounts match your search.</td></tr>
                   </tbody></table></div>
                   <div class="ma-footer"><span class="ma-footer-copy">Copyright &copy; 2026 NoPaperForms Solutions Limited. All Rights Reserved</span><div class="ma-footer-social"><a class="ma-social-icon">in</a><a class="ma-social-icon">X</a><a class="ma-social-icon">f</a><a class="ma-social-icon">Y</a></div></div>
+                </div>
+
+                <!-- Edit Account (Account Setup) — full page within Manage Accounts, same takeover pattern as Limited View's list/form toggle -->
+                <div id="maEditView" class="ea-page">
+                  <div class="ea-head">
+                    <div class="ea-head-left">
+                      <div>
+                        <div class="ea-head-title">Account Setup</div>
+                        <div class="ea-head-sub" id="ea-sub">&nbsp;</div>
+                      </div>
+                    </div>
+                    <div class="ea-crumb" id="ea-crumb"></div>
+                    <button class="ea-close-btn" onclick="closeEditAccountModal()" title="Back to Manage Accounts"><svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M13 16l-6-6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                  </div>
+                  <div class="ea-body" id="ea-body"></div>
+                  <div class="ea-footer" id="ea-footer"></div>
+                </div>
+                </div>
+
+                <!-- Change Plan confirmation modal -->
+                <div id="ea-cp-overlay" class="ea-cp-overlay" onclick="eaCloseChangePlanConfirm()"></div>
+                <div id="ea-cp-modal" class="ea-cp-modal">
+                  <div class="ea-cp-title">Change Plan?</div>
+                  <div class="ea-cp-body" id="ea-cp-body"></div>
+                  <div class="ea-cp-actions">
+                    <button class="ea-btn-sec" onclick="eaCloseChangePlanConfirm()">Cancel</button>
+                    <button class="ea-btn-prim" onclick="eaApplyPlanChange()">Confirm Change</button>
+                  </div>
+                </div>
+
+                <!-- Set Permission drawer (per-feature addon toggles for the active plan) -->
+                <div id="ea-sp-overlay" class="ea-sp-overlay" onclick="eaCloseSetPermission()"></div>
+                <div id="ea-sp-drawer" class="ea-sp-drawer">
+                  <div class="ea-sp-head">
+                    <div>
+                      <div class="ea-sp-title">Set Permission</div>
+                      <div class="ea-sp-sub" id="ea-sp-sub">&nbsp;</div>
+                    </div>
+                    <button class="ea-close-btn" onclick="eaCloseSetPermission()">&times;</button>
+                  </div>
+                  <div class="ea-sp-body" id="ea-sp-body"></div>
+                  <div class="ea-sp-footer">
+                    <div style="flex:1;font-size:11.5px;color:#9ca3af;" id="ea-sp-count"></div>
+                    <button class="ea-btn-sec" onclick="eaCloseSetPermission()">Cancel</button>
+                    <button class="ea-btn-prim" onclick="eaSaveSetPermission()">Save Changes</button>
+                  </div>
+                </div>
+
+                <!-- Feature Impact drawer — shown instead of the plain confirm when the newly chosen
+                     plan/package offers fewer features than the account currently has -->
+                <div id="ea-fi-overlay" class="ea-sp-overlay" onclick="eaCloseFeatureImpact()"></div>
+                <div id="ea-fi-drawer" class="ea-sp-drawer">
+                  <div class="ea-sp-head">
+                    <div>
+                      <div class="ea-sp-title">Review Feature Changes</div>
+                      <div class="ea-sp-sub" id="ea-fi-sub">&nbsp;</div>
+                    </div>
+                    <button class="ea-close-btn" onclick="eaCloseFeatureImpact()">&times;</button>
+                  </div>
+                  <div class="ea-sp-body" id="ea-fi-body"></div>
+                  <div class="ea-sp-footer">
+                    <div style="flex:1;font-size:11.5px;color:#9ca3af;" id="ea-fi-count"></div>
+                    <button class="ea-btn-sec" onclick="eaCloseFeatureImpact()">Cancel</button>
+                    <button class="ea-btn-prim" onclick="eaApplyFeatureImpact()">Confirm Change</button>
+                  </div>
                 </div>
 
                 <!-- Shared Manage Accounts row-action dropdown (fixed position, escapes table overflow clipping) -->

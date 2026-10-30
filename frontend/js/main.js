@@ -15,6 +15,17 @@
             // Also hide the section list so it doesn't take flex space
             var dc = document.querySelector('.stg-detail-content');
             if (dc) dc.style.display = 'none';
+            // Restore the standard Settings chrome (header/categories nav/recent bar) in case a
+            // full-page view (Limited View, Manage Accounts) hid it and the user navigated away
+            // without going through that view's own "back" handler.
+            var hdr = document.getElementById('stgHdr'); if (hdr) hdr.style.display = '';
+            var nav = document.querySelector('.stg-detail-nav'); if (nav) nav.style.display = '';
+            var bar = document.getElementById('stgRecentBar'); if (bar) bar.style.display = '';
+        }
+        function maEnterFullPage() {
+            var hdr = document.getElementById('stgHdr'); if (hdr) hdr.style.display = 'none';
+            var nav = document.querySelector('.stg-detail-nav'); if (nav) nav.style.display = 'none';
+            var bar = document.getElementById('stgRecentBar'); if (bar) bar.style.display = 'none';
         }
         function _showPanel(panelId, navLabel, accordionId) {
             stgHome.style.display = 'none';
@@ -40,7 +51,7 @@
             }
         }
         function openOrgProfile(el) { _showPanel('org-profile-form', 'Organisation Profile', 'acc-general'); }
-        function openManageAccounts() { _showPanel('manage-accounts-view', 'Manage Accounts', 'acc-general'); }
+        function openManageAccounts() { _showPanel('manage-accounts-view', 'Manage Accounts', 'acc-general'); maEnterFullPage(); }
         function openAccountNotification() {
             _showPanel('account-notification-view', 'Account Notification', 'acc-general');
             var instSel = document.querySelector('.institute-selector');
@@ -6750,7 +6761,10 @@
         var accountName = row ? row.querySelector('.ma-td-name').textContent : '';
         var accountId = row ? row.children[0].textContent.trim() : '';
         if (action === 'edit-details') {
-            console.log('Edit Details clicked for account:', accountName);
+            var vertical = row ? row.children[3].textContent.trim() : '';
+            var pkg = row ? row.children[4].textContent.trim() : '';
+            var plan = row ? row.children[5].textContent.trim() : '';
+            openEditAccountModal(accountId, accountName, vertical, pkg, plan);
         } else if (action === 'renewal') {
             console.log('Renewal clicked for account:', accountName);
         } else if (action === 'notif-settings') {
@@ -6764,8 +6778,622 @@
             _maActionBtn = null;
         }
     });
-    function maFilterRows(q) {
-        q = q.toLowerCase();
+    // ───────────────────────── Edit Account (Account Setup) ─────────────────────
+    // Captured directly from the live Meritto admin's Account Setup > Package Selection page (account #5137).
+    // Each tab has its own tier set and feature list — they are NOT shared across tabs, and the two "Mio"
+    // tabs only ever show a single "Starter" tier (no Standard/Growth/Pro column at all).
+    var EA_PACKAGE_DATA = [
+        { name:'Enrollment Cloud', activeTier:null, tiers:['Starter','Standard','Growth','Pro'], features:[
+            { label:'Lead Management',                values:['7/17','10/17','10/17','10/17'] },
+            { label:'User Management Platform',       values:['7/16','10/16','10/16','12/16'] },
+            { label:'MIO AI',                         values:['0/6','0/6','0/6','0/6'] },
+            { label:'Marketing Platform',              values:['5/15','8/15','11/15','11/15'] },
+            { label:'Campaign Management Platform',   values:['6/8','8/8','8/8','8/8'] },
+            { label:'User and Team Management',       values:['6/17','8/17','8/17','10/17'] },
+            { label:'Logs',                           values:['4/4','4/4','4/4','4/4'] },
+            { label:'Application Automation Platform',values:['6/15','8/15','11/15','11/15'] },
+            { label:'App Store',                      values:['2/3','2/3','2/3','2/3'] },
+            { label:'Data Administration',            values:['0/1','0/1','0/1','0/1'] },
+            { label:'Extensions',                     values:['1/12','1/12','1/12','1/12'] },
+            { label:'Mobile CRM',                     values:['1/3','1/3','1/3','2/3'] },
+            { label:'Prospecta',                      values:['1/1','1/1','1/1','1/1'] },
+            { label:'Developer Portal',                values:['1/1','1/1','1/1','1/1'] },
+            { label:'Webhook',                        values:['0/1','0/1','0/1','0/1'] },
+            { label:'Payment Management (Collexo)',   values:['1/5','1/5','2/5','5/5'] },
+            { label:'Virtual Post Application',       values:['0/9','0/9','0/9','0/9'] }
+        ]},
+        { name:'Application Automation Cloud', activeTier:'Pro', tiers:['Starter','Standard','Growth','Pro'], features:[
+            { label:'Lead Management',                values:['0/17','0/17','0/17','17/17'] },
+            { label:'User Management Platform',       values:['0/16','0/16','0/16','16/16'] },
+            { label:'MIO AI',                         values:['0/6','0/6','0/6','6/6'] },
+            { label:'Marketing Platform',              values:['1/15','1/15','1/15','15/15'] },
+            { label:'Campaign Management Platform',   values:['0/8','0/8','0/8','8/8'] },
+            { label:'User and Team Management',       values:['4/17','5/17','5/17','14/17'] },
+            { label:'Logs',                           values:['4/4','4/4','4/4','4/4'] },
+            { label:'Application Automation Platform',values:['6/15','8/15','11/15','15/15'] },
+            { label:'App Store',                      values:['2/3','2/3','2/3','3/3'] },
+            { label:'Data Administration',            values:['0/1','0/1','0/1','1/1'] },
+            { label:'Extensions',                     values:['1/12','1/12','1/12','12/12'] },
+            { label:'Mobile CRM',                     values:['1/3','1/3','1/3','3/3'] },
+            { label:'Prospecta',                      values:['1/1','1/1','1/1','1/1'] },
+            { label:'Developer Portal',                values:['0/1','0/1','0/1','1/1'] },
+            { label:'Webhook',                        values:['0/1','0/1','0/1','1/1'] },
+            { label:'Payment Management (Collexo)',   values:['1/5','1/5','2/5','5/5'] },
+            { label:'Virtual Post Application',       values:['0/9','0/9','0/9','9/9'] }
+        ]},
+        { name:'Education CRM Cloud', activeTier:null, tiers:['Starter','Standard','Growth','Pro'], features:[
+            { label:'Lead Management',                values:['7/17','10/17','10/17','10/17'] },
+            { label:'Extensions',                     values:['2/13','2/13','2/13','2/13'] },
+            { label:'App Store',                      values:['3/4','3/4','3/4','3/4'] },
+            { label:'User Management Platform',       values:['7/16','10/16','10/16','12/16'] },
+            { label:'MIO AI',                         values:['0/6','0/6','0/6','0/6'] },
+            { label:'Marketing Platform',              values:['5/15','8/15','11/15','11/15'] },
+            { label:'Campaign Management Platform',   values:['6/8','8/8','8/8','8/8'] },
+            { label:'User and Team Management',       values:['5/16','7/16','7/16','9/16'] },
+            { label:'Logs',                           values:['4/4','4/4','4/4','4/4'] },
+            { label:'Application Automation Platform',values:['1/15','1/15','1/15','1/15'] },
+            { label:'Data Administration',            values:['0/1','0/1','0/1','0/1'] },
+            { label:'Mobile CRM',                     values:['1/3','1/3','1/3','2/3'] },
+            { label:'Prospecta',                      values:['1/1','1/1','1/1','1/1'] },
+            { label:'Developer Portal',                values:['1/1','1/1','1/1','1/1'] },
+            { label:'Webhook',                        values:['0/1','0/1','0/1','0/1'] },
+            { label:'Payment Management (Collexo)',   values:['0/5','0/5','0/5','0/5'] },
+            { label:'Virtual Post Application',       values:['0/9','0/9','0/9','0/9'] }
+        ]},
+        { name:'Chatbot', activeTier:null, tiers:['Starter','Standard','Growth','Pro'], features:[
+            { label:'Lead Management',                values:['3/16','3/16','1/16','1/16'] },
+            { label:'User Management Platform',       values:['1/16','1/16','0/16','0/16'] },
+            { label:'MIO AI',                         values:['0/6','0/6','0/6','0/6'] },
+            { label:'Marketing Platform',              values:['0/15','0/15','0/15','0/15'] },
+            { label:'Campaign Management Platform',   values:['0/8','0/8','0/8','0/8'] },
+            { label:'User and Team Management',       values:['3/12','4/12','3/12','3/12'] },
+            { label:'Logs',                           values:['4/4','4/4','0/4','0/4'] },
+            { label:'Application Automation Platform',values:['1/15','1/15','1/15','1/15'] },
+            { label:'App Store',                      values:['1/3','1/3','0/3','0/3'] },
+            { label:'Data Administration',            values:['0/1','0/1','0/1','0/1'] },
+            { label:'Extensions',                     values:['0/12','0/12','0/12','0/12'] },
+            { label:'Mobile CRM',                     values:['1/3','1/3','1/3','1/3'] },
+            { label:'Prospecta',                      values:['1/1','1/1','1/1','1/1'] },
+            { label:'Developer Portal',                values:['0/1','0/1','0/1','0/1'] },
+            { label:'Webhook',                        values:['0/1','0/1','0/1','0/1'] },
+            { label:'Payment Management (Collexo)',   values:['0/5','0/5','0/5','0/5'] },
+            { label:'Virtual Post Application',       values:['0/9','0/9','0/9','0/9'] }
+        ]},
+        { name:'Mio', activeTier:null, tiers:['Starter'], features:[
+            { label:'Mio',                            values:['0/2'] },
+            { label:'Lead Management',                values:['4/5'] },
+            { label:'User and Team Management',       values:['4/4'] },
+            { label:'Marketing Platform',              values:['1/1'] }
+        ]}
+    ];
+    // Sub-feature breakdown shown when a module row's accordion is expanded — sized to the largest
+    // total that module reaches across any tab, then sliced down to whatever total applies on the tab
+    // actually being viewed. A sub-feature at position i counts as included for a tier whenever the
+    // tier's "used" count (parsed from its "x/total" cell) is greater than i.
+    var EA_PKG_SUBFEATURES = {
+        'Lead Management': ['Lead Capture','Lead Scoring','Lead Assignment','Duplicate Detection','Lead Merge','Lead Import','Lead Export','Custom Fields','Lead Status Tracking','Source Tracking','Lead Timeline','Bulk Actions','Lead Tags','Saved Filters','Lead Notes','Activity Log','Lead Reassignment'],
+        'User Management Platform': ['User Creation','Role Assignment','Team Hierarchy','Login Access Control','User Deactivation','Bulk User Import','User Audit Log','Session Management','Password Policy','Two-Factor Auth','User Groups','Delegate Access','User Profile Fields','Shift Scheduling','User Notifications','User Status'],
+        'MIO AI': ['Mio AI Guide','Mio AI Voice','Smart Suggestions','Auto-Reply','Sentiment Analysis','Conversation Summary'],
+        'Marketing Platform': ['Campaign Builder','Landing Pages','Email Templates','SMS Campaigns','WhatsApp Campaigns','Ad Integration','UTM Tracking','A/B Testing','Drip Campaigns','Segment Builder','Marketing Calendar','Retargeting','Lead Nurturing','Campaign Analytics','Social Media Integration'],
+        'Campaign Management Platform': ['Campaign Scheduling','Budget Tracking','Channel Mix','Campaign Approval','Campaign Cloning','Performance Dashboard','Multi-Channel Sync','Campaign Archival'],
+        'User and Team Management': ['Team Creation','Role Hierarchy','Permission Groups','Counsellor Config','Field Force Tracking','Shift Management','Team Targets','Performance Reports','Escalation Matrix','Team Chat','Attendance Tracking','Leave Management','Team Announcements','Cross-Team Transfer','Team Audit Log','Manager Dashboard','Team Tags'],
+        'Logs': ['Login Logs','Activity Logs','API Logs','Error Logs'],
+        'Application Automation Platform': ['Workflow Builder','Trigger Rules','Auto Status Update','Document Auto-Fill','Auto Notifications','Approval Chains','Conditional Routing','SLA Timers','Auto Reminders','Form Auto-Population','Bulk Workflow Actions','Workflow Templates','Workflow Analytics','Error Handling','Workflow Versioning'],
+        'App Store': ['Payment Gateway Apps','Communication Apps','Analytics Apps','Third-Party CRM Apps'],
+        'Data Administration': ['Master Data Management'],
+        'Extensions': ['Chrome Extension','Mobile App Extension','Browser Notifications','Calendar Sync','Email Plugin','Zapier Integration','Custom API Access','Webhook Triggers','Data Export Tools','Backup Scheduler','Audit Extension','Custom Scripts','Third-Party Sync'],
+        'Mobile CRM': ['Mobile Lead Capture','Mobile Notifications','Offline Mode'],
+        'Prospecta': ['Prospecta Access'],
+        'Developer Portal': ['API Documentation Access'],
+        'Webhook': ['Webhook Configuration'],
+        'Payment Management (Collexo)': ['Fee Collection','Payment Gateway Setup','Installment Plans','Payment Reminders','Refund Management'],
+        'Virtual Post Application': ['Document Upload','ID Verification','Application Review','Status Tracking','Auto Approval Rules','Digital Signature','Application History','Notification Alerts','Application Export'],
+        'Mio': ['Mio AI Guide','Mio AI Voice']
+    };
+    var ea_pkgExpanded = {}; // keyed by "<tabIndex>:<featureLabel>"
+    var ea_pendingPlan = null;   // {tabIdx, tier} awaiting confirmation
+    var ea_spOpenFeat = {};      // Set Permission drawer's own per-feature accordion state
+    var ea_spWorking = null;     // working copy of ea_data.addons while the drawer is open (discarded on Cancel)
+    var EA_LIMIT_SECTIONS = [
+        { title:'Users', fields:[
+            { label:'Users', key:'usersLimit', sub:'(All the users will have only Web access default)', used:323 },
+            { label:'Publisher Users', key:'publisherUsersLimit', sub:'(All the users defined here would have only publisher panel access by default)', used:9 }
+        ]},
+        { title:'Traffic Channel', fields:[
+            { label:'Traffic Channel Limit', key:'trafficChannelLimit', note:'Maximum limit can be increased upto 50.' }
+        ]},
+        { title:'Publisher', fields:[
+            { label:'Publisher Limit', key:'publisherLimit' }
+        ]},
+        { title:'Dynamic Activity', fields:[
+            { label:'Activities', key:'activitiesLimit', used:8 }
+        ]},
+        { title:'Lead Manager', note:'The Lead limit functionality is currently not active.', fields:[
+            { label:'Custom Fields', key:'customFieldsLimit', used:248, linkLabel:'View Field Wise Limit' },
+            { label:'Leads', key:'leadsLimit', used:15402 },
+            { label:'Widget', key:'widgetLimit', sub:'Widget limit', used:147 }
+        ]},
+        { title:'App Telephony Users', fields:[
+            { label:'App Telephony Users Limit', key:'telephonyLimit', sub:'Out of the Users, The users defined here will have App Telephony access in addition.', used:1 }
+        ]},
+        { title:'Developer Portal', note:'For every limit increased, the client is to be charged by a multiple of Rs. 8640 every month', fields:[
+            { label:'Single API Limit', key:'singleApiLimit', note:'A maximum of 40 hits per 5 second is allowed as per your plan' },
+            { label:'Bulk API Limit', key:'bulkApiLimit', note:'A maximum of 30 hits per 5 second is allowed as per your plan' }
+        ]},
+        { title:'Automation', fields:[
+            { label:'No of Automation', key:'automationLimit', used:1087 }
+        ]},
+        { title:'Smart Forms', fields:[
+            { label:'Smart Forms Limit', key:'smartFormsLimit', used:7 }
+        ]},
+        { title:'Flow Configuration', fields:[
+            { label:'Flow Configuration', key:'flowConfigLimit' }
+        ]},
+        { title:'Field Force Tracking', fields:[
+            { label:'Field Force Tracking User Limits', key:'fieldForceLimit', sub:'Out of the Users, The users defined here will have Field Force Tracking access in addition.', used:1 }
+        ]}
+    ];
+    var ea_accountId = null, ea_accountName = '', ea_step = 0, ea_pkgTab = 1, ea_data = {}, ea_editMode = false;
+    var _eaAccountStore = {}; // persists edits per account id for this session
+
+    function eaDefaultData(name, vertical, pkg, plan) {
+        return {
+            accountName: name || '', shortName: ((name||'').replace(/[^A-Za-z]/g,'').slice(0,5) || 'ACCT').toUpperCase(),
+            isDemo: false, subdomain: '', customerNo: '', groupId: '',
+            vertical: vertical || 'Higher Education', subVertical: '', cohort: '',
+            onlyCrm: false, adminName: '', adminEmail: '', adminMobile: '',
+            subStart: '', subEnd: '', timezone: '(GMT 5:30) India Standard Time (Asia/Kolkata)',
+            dateFormat: 'DD/MM/YYYY', timeFormat: '12 Hr Format', billingCurrency: '₹ - Indian Rupee (INR)',
+            financeName:'', financeEmail:'', financeMobile:'', financeDesig:'',
+            dmName:'', dmEmail:'', dmMobile:'', dmDesig:'',
+            package: pkg || 'Application Automation Cloud', plan: (plan || 'Pro'),
+            usersLimit:580, publisherUsersLimit:12, trafficChannelLimit:30, publisherLimit:1022,
+            activitiesLimit:1500, customFieldsLimit:300, leadsLimit:40100, widgetLimit:175,
+            telephonyLimit:20, singleApiLimit:30, bulkApiLimit:30, automationLimit:1572,
+            smartFormsLimit:20, flowConfigLimit:30, fieldForceLimit:10,
+            planOverrides: {}, addons: {}
+        };
+    }
+    function openEditAccountModal(accountId, accountName, vertical, pkg, plan) {
+        ea_accountId = accountId; ea_accountName = accountName; ea_step = 0; ea_editMode = false; ea_pkgExpanded = {};
+        ea_pendingPlan = null; ea_spWorking = null; ea_spOpenFeat = {}; ea_fiDiff = []; ea_fiToggles = {};
+        var tabIdx = EA_PACKAGE_DATA.findIndex(function(t) { return t.name === pkg; });
+        ea_pkgTab = tabIdx !== -1 ? tabIdx : 1;
+        ea_data = _eaAccountStore[accountId] ? Object.assign({}, _eaAccountStore[accountId]) : eaDefaultData(accountName, vertical, pkg, plan);
+        document.getElementById('ea-sub').textContent = accountName + ' (#' + accountId + ')';
+        document.getElementById('maListView').style.display = 'none';
+        document.getElementById('maEditView').classList.add('active');
+        eaRenderAll();
+    }
+    function closeEditAccountModal() {
+        document.getElementById('maEditView').classList.remove('active');
+        document.getElementById('maListView').style.display = 'flex';
+    }
+    function eaRenderAll() {
+        eaRenderCrumb();
+        eaRenderBody();
+        eaRenderFooter();
+        var body = document.getElementById('ea-body');
+        if (body) body.scrollTop = 0;
+    }
+    function eaRenderCrumb() {
+        var steps = ['Account Details', 'Package Selection', 'Limit'];
+        var el = document.getElementById('ea-crumb');
+        el.innerHTML = steps.map(function(s, i) {
+            var cls = i === ea_step ? 'active' : (i < ea_step ? 'done' : 'upcoming');
+            var chev = i > 0 ? '<span class="ea-crumb-chev">&#8250;</span>' : '';
+            return chev + '<div class="ea-crumb-step ' + cls + '" onclick="eaJumpStep(' + i + ')">' + s + '</div>';
+        }).join('');
+    }
+    function eaToggleEditMode() { ea_editMode = !ea_editMode; eaRenderBody(); }
+    function eaJumpStep(i) {
+        if (i <= ea_step) { eaCollectStepData(); ea_step = i; eaRenderAll(); }
+    }
+    function eaPrevStep() {
+        if (ea_step > 0) { eaCollectStepData(); ea_step--; eaRenderAll(); }
+    }
+    function eaNextStep() {
+        eaCollectStepData();
+        if (ea_step < 2) { ea_step++; eaRenderAll(); }
+        else { eaSaveAccount(); }
+    }
+    function eaRenderFooter() {
+        var footer = document.getElementById('ea-footer');
+        var backBtn = ea_step > 0 ? '<button class="ea-btn-sec" onclick="eaPrevStep()">&larr; Back</button>' : '';
+        var nextLabel = ea_step < 2 ? 'Next &rarr;' : 'Save Changes';
+        footer.innerHTML = '<button class="ea-btn-sec" onclick="closeEditAccountModal()">Cancel</button><div style="flex:1;"></div>' + backBtn + '<button class="ea-btn-prim" onclick="eaNextStep()">' + nextLabel + '</button>';
+    }
+    function eaCollectStepData() {
+        if (ea_step === 0) {
+            ['accountName','shortName','subdomain','customerNo','groupId','vertical','subVertical','cohort','adminName','adminEmail','adminMobile','subStart','subEnd','timezone','dateFormat','timeFormat','billingCurrency','financeName','financeEmail','financeMobile','financeDesig','dmName','dmEmail','dmMobile','dmDesig'].forEach(function(k) {
+                var el = document.getElementById('ea-f-' + k);
+                if (el) ea_data[k] = el.value;
+            });
+            var demoEl = document.getElementById('ea-f-isDemo'); if (demoEl) ea_data.isDemo = demoEl.checked;
+            var crmEl = document.getElementById('ea-f-onlyCrm'); if (crmEl) ea_data.onlyCrm = crmEl.checked;
+        } else if (ea_step === 2) {
+            Object.keys(ea_data).forEach(function(k) {
+                if (/Limit$/.test(k)) {
+                    var el = document.getElementById('ea-f-' + k);
+                    if (el) ea_data[k] = parseInt(el.value, 10) || 0;
+                }
+            });
+        }
+    }
+    function eaField(label, key, opts) {
+        opts = opts || {};
+        var val = (ea_data[key] || '').toString().replace(/"/g, '&quot;');
+        var dis = ea_editMode ? '' : 'disabled';
+        return '<div class="an-fg"><label>' + label + (opts.required ? ' <span style="color:#dc2626;">*</span>' : '') + '</label>' +
+            (opts.type === 'select'
+                ? '<select id="ea-f-' + key + '" ' + dis + '>' + opts.options.map(function(o) { return '<option ' + (ea_data[key] === o ? 'selected' : '') + '>' + o + '</option>'; }).join('') + '</select>'
+                : '<input id="ea-f-' + key + '" type="' + (opts.type || 'text') + '" value="' + val + '" placeholder="' + (opts.placeholder || '') + '" ' + dis + '>') +
+            '</div>';
+    }
+    function eaToggle(label, key, sub) {
+        var dis = ea_editMode ? '' : 'disabled';
+        return '<div class="an-fg"><label>' + label + '</label><div style="display:flex;align-items:center;gap:10px;">' +
+            '<label class="ea-toggle"><input id="ea-f-' + key + '" type="checkbox" ' + (ea_data[key] ? 'checked' : '') + ' ' + dis + '><span class="ea-tg-track"></span></label>' +
+            (sub ? '<span class="an-hint" style="margin:0;">' + sub + '</span>' : '') + '</div></div>';
+    }
+    function eaEditBtn() {
+        return '<button class="ea-edit-btn" onclick="eaToggleEditMode()"><svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-6"/><path d="M14.5 2.5a1.5 1.5 0 0 1 2 2L9 12l-3 1 1-3z"/></svg>' + (ea_editMode ? 'Editing' : 'Edit') + '</button>';
+    }
+    function eaRenderBody() {
+        var body = document.getElementById('ea-body');
+        if (ea_step === 0) { body.innerHTML = eaRenderAccountDetails(); }
+        else if (ea_step === 1) { body.innerHTML = eaRenderPackageSelection(); }
+        else { body.innerHTML = eaRenderLimits(); }
+    }
+    function eaRenderAccountDetails() {
+        return '<div class="an-section-card">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;">' +
+                '<div><div class="an-sec-title">Account Details</div><div class="an-sec-sub">Please enter the basic details required for the Account</div></div>' +
+                eaEditBtn() +
+            '</div>' +
+            eaField('Account Name', 'accountName', { required:true }) +
+            '<div class="ea-two-col">' + eaField('Short Name', 'shortName') + eaToggle('Is demo account?', 'isDemo') + '</div>' +
+            eaField('Subdomain', 'subdomain', { placeholder: ea_accountId + '-s22.nopaperforms.in' }) +
+            '<div class="ea-two-col">' + eaField('Customer No. (Finance)', 'customerNo') + eaField('Group Id (Finance)', 'groupId') + '</div>' +
+            '<div class="ea-two-col">' +
+                eaField('Vertical', 'vertical', { required:true, type:'select', options:['Higher Education','Coaching & Training','EdTech','Pre-12','Consultants','Others'] }) +
+                eaField('Sub Vertical', 'subVertical', { type:'select', options:['','University','College','Institute','Academy'] }) +
+            '</div>' +
+            '<div class="ea-two-col">' + eaField('Cohort', 'cohort') + eaToggle('Only CRM', 'onlyCrm') + '</div>' +
+            '<div class="ea-two-col">' + eaField('Admin Name', 'adminName') + eaField('Admin Email', 'adminEmail', { type:'email' }) + '</div>' +
+            eaField('Admin Mobile', 'adminMobile') +
+            '<div class="ea-two-col">' + eaField('Subscription Start Date', 'subStart', { type:'date' }) + eaField('Subscription End Date', 'subEnd', { type:'date' }) + '</div>' +
+            eaField('Timezone', 'timezone', { required:true, type:'select', options:['(GMT 5:30) India Standard Time (Asia/Kolkata)','(GMT 0:00) UTC','(GMT -5:00) US Eastern Time'] }) +
+            '<div class="ea-two-col">' +
+                eaField('Date Format', 'dateFormat', { required:true, type:'select', options:['DD/MM/YYYY','MM/DD/YYYY','YYYY-MM-DD'] }) +
+                eaField('Time Format', 'timeFormat', { required:true, type:'select', options:['12 Hr Format','24 Hr Format'] }) +
+            '</div>' +
+            eaField('Billing Currency', 'billingCurrency', { required:true, type:'select', options:['₹ - Indian Rupee (INR)','$ - US Dollar (USD)','€ - Euro (EUR)'] }) +
+            '</div>' +
+            '<div class="an-section-card"><div class="an-sec-title">Finance SPOCs</div><div class="an-sec-sub">Point of contact for billing and finance communication</div>' +
+            '<div class="ea-two-col">' + eaField('Name', 'financeName') + eaField('Email', 'financeEmail', { type:'email' }) + '</div>' +
+            '<div class="ea-two-col">' + eaField('Mobile', 'financeMobile') + eaField('Designation', 'financeDesig') + '</div>' +
+            '</div>' +
+            '<div class="an-section-card"><div class="an-sec-title">Decision Maker SPOC</div><div class="an-sec-sub">Primary decision maker for this account</div>' +
+            '<div class="ea-two-col">' + eaField('Name', 'dmName') + eaField('Email', 'dmEmail', { type:'email' }) + '</div>' +
+            '<div class="ea-two-col">' + eaField('Mobile', 'dmMobile') + eaField('Designation', 'dmDesig') + '</div>' +
+            '</div>';
+    }
+    var EA_PKG_COLORS = { starter:'#a855f7', standard:'#6366f1', growth:'#ef4444', pro:'#374151' };
+    function eaSwitchPkgTab(i) { ea_pkgTab = i; document.getElementById('ea-body').innerHTML = eaRenderPackageSelection(); }
+    // Compares what the account can access right now (its current package+tier's defaults, plus any
+    // addons granted on top) against what the newly-chosen tier would give it by default. Anything
+    // currently accessible that the new tier does NOT cover by default is a feature the account is
+    // about to lose — matched by feature label across packages, since the sub-feature breakdown is
+    // keyed by module name regardless of which tab/package it's offered under.
+    function eaComputeDowngradeDiff(tier) {
+        var newTab = EA_PACKAGE_DATA[ea_pkgTab];
+        var newTierIdx = newTab.tiers.findIndex(function(t) { return t.toLowerCase() === tier.toLowerCase(); });
+        var oldTabIdx = EA_PACKAGE_DATA.findIndex(function(t) { return t.name === ea_data.package; });
+        if (oldTabIdx === -1) return [];
+        var oldTab = EA_PACKAGE_DATA[oldTabIdx];
+        var oldTier = (ea_data.planOverrides || {})[oldTab.name] || oldTab.activeTier;
+        if (!oldTier) return [];
+        var oldTierIdx = oldTab.tiers.findIndex(function(t) { return t.toLowerCase() === oldTier.toLowerCase(); });
+        if (oldTierIdx === -1) return [];
+        var diff = [];
+        oldTab.features.forEach(function(f) {
+            var sub = EA_PKG_SUBFEATURES[f.label] || [];
+            if (!sub.length) return;
+            var oldUsed = parseInt(f.values[oldTierIdx].split('/')[0], 10) || 0;
+            var oldAddons = (ea_data.addons || {})[oldTab.name + '|' + f.label] || [];
+            var newFeature = newTab.features.find(function(nf) { return nf.label === f.label; });
+            var newUsed = (newFeature && newTierIdx !== -1) ? (parseInt(newFeature.values[newTierIdx].split('/')[0], 10) || 0) : 0;
+            for (var si = 0; si < sub.length; si++) {
+                var currentlyGranted = si < oldUsed || oldAddons.indexOf(si) !== -1;
+                var newlyDefault = si < newUsed;
+                if (currentlyGranted && !newlyDefault) diff.push({ featureLabel: f.label, subIndex: si, subName: sub[si] });
+            }
+        });
+        return diff;
+    }
+    function eaChoosePlan(tier) {
+        var tab = EA_PACKAGE_DATA[ea_pkgTab];
+        ea_pendingPlan = { tabIdx: ea_pkgTab, tier: tier };
+        var diff = eaComputeDowngradeDiff(tier);
+        if (diff.length) { eaOpenFeatureImpact(diff, tab, tier); return; }
+        var fromLabel = ea_data.package === tab.name && ea_data.plan ? ea_data.plan : 'no plan';
+        document.getElementById('ea-cp-body').innerHTML =
+            'Switching <b>' + tab.name + '</b> from <b>' + fromLabel + '</b> to <b>' + tier + '</b> will change the feature limits and allocations available to this account' +
+            (Object.keys(ea_data.addons || {}).some(function(k) { return k.indexOf(tab.name + '|') === 0 && (ea_data.addons[k] || []).length; }) ? ', and any custom permissions granted for the current plan will be cleared' : '') + '.';
+        document.getElementById('ea-cp-overlay').style.display = 'block';
+        document.getElementById('ea-cp-modal').style.display = 'flex';
+    }
+    var ea_fiDiff = [];
+    var ea_fiToggles = {}; // keyed "<featureLabel>:<subIndex>" -> true (keep as add-on) / false (let it be disabled)
+    function eaOpenFeatureImpact(diff, tab, tier) {
+        ea_fiDiff = diff;
+        ea_fiToggles = {};
+        diff.forEach(function(d) { ea_fiToggles[d.featureLabel + ':' + d.subIndex] = true; });
+        document.getElementById('ea-fi-sub').textContent = tier + ' (' + tab.name + ') offers fewer features than this account currently has. Leave the toggle on to keep a feature as an add-on, or turn it off to let it be disabled.';
+        eaRenderFeatureImpactBody();
+        document.getElementById('ea-fi-overlay').style.display = 'block';
+        document.getElementById('ea-fi-drawer').style.display = 'flex';
+    }
+    function eaCloseFeatureImpact() {
+        ea_pendingPlan = null; ea_fiDiff = []; ea_fiToggles = {};
+        document.getElementById('ea-fi-overlay').style.display = 'none';
+        document.getElementById('ea-fi-drawer').style.display = 'none';
+    }
+    function eaToggleFiRow(key) {
+        ea_fiToggles[key] = !ea_fiToggles[key];
+        eaRenderFeatureImpactBody();
+    }
+    function eaRenderFeatureImpactBody() {
+        var groups = {};
+        ea_fiDiff.forEach(function(d) { (groups[d.featureLabel] = groups[d.featureLabel] || []).push(d); });
+        var h = Object.keys(groups).map(function(label) {
+            var items = groups[label];
+            var keptCount = items.filter(function(d) { return ea_fiToggles[label + ':' + d.subIndex]; }).length;
+            return '<div class="ea-sp-feat"><div class="ea-sp-feat-hd" style="cursor:default;"><span>' + label + '</span><span class="ea-sp-feat-count">' + keptCount + ' / ' + items.length + ' kept</span></div><div class="ea-sp-feat-body">' +
+                items.map(function(d) {
+                    var key = label + ':' + d.subIndex;
+                    var on = !!ea_fiToggles[key];
+                    return '<div class="ea-fi-row"><span>' + d.subName + '</span><label class="ea-toggle"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="eaToggleFiRow(\'' + key + '\')"><span class="ea-tg-track"></span></label></div>';
+                }).join('') + '</div></div>';
+        }).join('');
+        document.getElementById('ea-fi-body').innerHTML = h;
+        var totalKept = Object.keys(ea_fiToggles).filter(function(k) { return ea_fiToggles[k]; }).length;
+        document.getElementById('ea-fi-count').textContent = totalKept + ' of ' + ea_fiDiff.length + ' feature' + (ea_fiDiff.length > 1 ? 's' : '') + ' kept as add-ons';
+    }
+    function eaApplyFeatureImpact() {
+        if (!ea_pendingPlan) return;
+        var tab = EA_PACKAGE_DATA[ea_pendingPlan.tabIdx];
+        var tier = ea_pendingPlan.tier;
+        ea_data.planOverrides = ea_data.planOverrides || {};
+        ea_data.planOverrides[tab.name] = tier;
+        ea_data.plan = tier;
+        ea_data.package = tab.name;
+        // Start the new tab's addons fresh, then re-grant only the ones the admin left toggled on.
+        Object.keys(ea_data.addons || {}).forEach(function(k) {
+            if (k.indexOf(tab.name + '|') === 0) delete ea_data.addons[k];
+        });
+        ea_fiDiff.forEach(function(d) {
+            var key = d.featureLabel + ':' + d.subIndex;
+            if (!ea_fiToggles[key]) return;
+            var addonKey = tab.name + '|' + d.featureLabel;
+            ea_data.addons[addonKey] = ea_data.addons[addonKey] || [];
+            if (ea_data.addons[addonKey].indexOf(d.subIndex) === -1) ea_data.addons[addonKey].push(d.subIndex);
+        });
+        eaCloseFeatureImpact();
+        eaRenderBody();
+    }
+    function eaCloseChangePlanConfirm() {
+        ea_pendingPlan = null;
+        document.getElementById('ea-cp-overlay').style.display = 'none';
+        document.getElementById('ea-cp-modal').style.display = 'none';
+    }
+    function eaApplyPlanChange() {
+        if (!ea_pendingPlan) return;
+        var tab = EA_PACKAGE_DATA[ea_pendingPlan.tabIdx];
+        var tier = ea_pendingPlan.tier;
+        // Scoped to this account's own ea_data (not the shared EA_PACKAGE_DATA) so picking a plan for
+        // one account can never bleed into what another account sees as its active tier.
+        ea_data.planOverrides = ea_data.planOverrides || {};
+        ea_data.planOverrides[tab.name] = tier;
+        ea_data.plan = tier;
+        ea_data.package = tab.name;
+        // Custom permissions were granted against the old plan's gaps — they no longer mean anything
+        // once the plan itself changes, so clear them rather than leave stale addon grants behind.
+        Object.keys(ea_data.addons || {}).forEach(function(k) {
+            if (k.indexOf(tab.name + '|') === 0) delete ea_data.addons[k];
+        });
+        eaCloseChangePlanConfirm();
+        eaRenderBody();
+    }
+    function eaTogglePkgRow(key) {
+        ea_pkgExpanded[key] = !ea_pkgExpanded[key];
+        document.getElementById('ea-body').innerHTML = eaRenderPackageSelection();
+    }
+    function eaRenderPackageSelection() {
+        var tab = EA_PACKAGE_DATA[ea_pkgTab];
+        // The active-plan highlight is driven by the tab's own ground-truth `activeTier` — the tier
+        // that actually carries full entitlement for that module (the one captured as "Your Active
+        // Plan" on the live product) — not by `ea_data.plan`, which only reflects whatever a user most
+        // recently clicked "Choose" on and can drift out of sync with which column really has the
+        // checkmarks. The highlight still only ever shows on the tab matching the account's purchased
+        // package — every other tab shows plain columns with a "Choose" button for every tier.
+        var isActiveTab = ea_data.package === tab.name;
+        var overrideTier = (ea_data.planOverrides || {})[tab.name];
+        var groundTruthTier = overrideTier || tab.activeTier;
+        var activeTierKey = isActiveTab && groundTruthTier ? groundTruthTier.toLowerCase() : null;
+        var h = '<div class="an-section-card">' +
+            '<div class="an-sec-title">Package Details</div><div class="an-sec-sub">Please choose the Package for the Account</div>' +
+            '<div class="ea-pkg-tabs">' + EA_PACKAGE_DATA.map(function(t, i) {
+                return '<div class="ea-pkg-tab' + (i === ea_pkgTab ? ' active' : '') + '" onclick="eaSwitchPkgTab(' + i + ')">' + t.name + '</div>';
+            }).join('') + '</div>' +
+            '<div style="overflow-x:auto;"><table class="ea-pkg-table"><thead><tr><th></th>' +
+            tab.tiers.map(function(t) {
+                var isActive = t.toLowerCase() === activeTierKey;
+                return '<th' + (isActive ? ' class="ea-pkg-th-active"' : '') + '>' + t + (isActive ? '<small>Your Active Plan</small>' : '') + '</th>';
+            }).join('') + '</tr></thead><tbody>' +
+            tab.features.map(function(f) {
+                var key = ea_pkgTab + ':' + f.label;
+                var isOpen = !!ea_pkgExpanded[key];
+                var sub = EA_PKG_SUBFEATURES[f.label] || [];
+                var usedCounts = tab.tiers.map(function(t, i) { return parseInt(f.values[i].split('/')[0], 10) || 0; });
+                var maxTotal = Math.max.apply(null, tab.tiers.map(function(t, i) { return parseInt(f.values[i].split('/')[1], 10) || 0; }));
+                var addonKey = tab.name + '|' + f.label;
+                var addonSet = (ea_data.addons || {})[addonKey] || [];
+                var row = '<tr class="ea-pkg-row' + (isOpen ? ' open' : '') + '"><td><div class="ea-pkg-row-lbl" onclick="eaTogglePkgRow(\'' + key + '\')"><svg class="ea-pkg-chev' + (isOpen ? ' open' : '') + '" width="11" height="11" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l4 4 4-4"/></svg>' + f.label + '</div></td>' + tab.tiers.map(function(t, i) {
+                    var isActive = t.toLowerCase() === activeTierKey;
+                    // The active tier's count reflects what's actually enabled right now — its plan
+                    // default plus whatever has been granted as an add-on — not the plan's static default.
+                    var total = parseInt(f.values[i].split('/')[1], 10) || 0;
+                    var displayVal = isActive ? Math.min(usedCounts[i] + addonSet.length, total) + '/' + total : f.values[i];
+                    return '<td' + (isActive ? ' class="ea-pkg-col-active"' : '') + '>' + displayVal + '</td>';
+                }).join('') + '</tr>';
+                if (isOpen && sub.length) {
+                    row += sub.slice(0, maxTotal || sub.length).map(function(s, si) {
+                        return '<tr class="ea-pkg-subrow"><td>' + s + '</td>' + tab.tiers.map(function(t, i) {
+                            var isActive = t.toLowerCase() === activeTierKey;
+                            var included = si < usedCounts[i];
+                            var isAddon = isActive && !included && addonSet.indexOf(si) !== -1;
+                            var cellHTML = (included || isAddon)
+                                ? '<svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="' + (isAddon ? '#2563eb' : '#22c55e') + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l4 4 8-8"/></svg>'
+                                : '<span class="ea-pkg-sub-dash">&#8212;</span>';
+                            return '<td' + (isActive ? ' class="ea-pkg-col-active"' : '') + '>' + cellHTML + '</td>';
+                        }).join('') + '</tr>';
+                    }).join('');
+                }
+                return row;
+            }).join('') +
+            '<tr class="ea-pkg-foot"><td></td>' + tab.tiers.map(function(t) {
+                var key = t.toLowerCase();
+                var isActive = key === activeTierKey;
+                var addonCount = isActive ? eaAddonCount(tab.name) : 0;
+                return '<td' + (isActive ? ' class="ea-pkg-col-active"' : '') + '>' + (isActive
+                    ? '<div class="ea-pkg-active-note">&#10003; Active plan<span class="ea-pkg-active-sub">with ' + (addonCount ? addonCount + ' Addon' + (addonCount > 1 ? 's' : '') : 'None Addon') + '</span></div><a href="#" class="ea-pkg-set-perm" onclick="eaOpenSetPermission();return false;">Set Permission &rarr;</a>'
+                    : '<button class="ea-pkg-choose-btn" style="background:' + (EA_PKG_COLORS[key] || '#6b7280') + ';" onclick="eaChoosePlan(\'' + t + '\')">Choose ' + t + '</button>') + '</td>';
+            }).join('') + '</tr>' +
+            '</tbody></table></div>' +
+            '</div>';
+        return h;
+    }
+    function eaAddonCount(tabName) {
+        var total = 0;
+        Object.keys(ea_data.addons || {}).forEach(function(k) {
+            if (k.indexOf(tabName + '|') === 0) total += (ea_data.addons[k] || []).length;
+        });
+        return total;
+    }
+    function eaOpenSetPermission() {
+        var tab = EA_PACKAGE_DATA[ea_pkgTab];
+        ea_spOpenFeat = {};
+        // Work on a scratch copy so Cancel can discard whatever was toggled in this session.
+        ea_spWorking = {};
+        Object.keys(ea_data.addons || {}).forEach(function(k) {
+            if (k.indexOf(tab.name + '|') === 0) ea_spWorking[k] = (ea_data.addons[k] || []).slice();
+        });
+        document.getElementById('ea-sp-sub').textContent = tab.name + ' — grant features beyond the plan default as add-ons';
+        eaRenderSetPermissionBody();
+        document.getElementById('ea-sp-overlay').style.display = 'block';
+        document.getElementById('ea-sp-drawer').style.display = 'flex';
+    }
+    function eaCloseSetPermission() {
+        ea_spWorking = null;
+        document.getElementById('ea-sp-overlay').style.display = 'none';
+        document.getElementById('ea-sp-drawer').style.display = 'none';
+    }
+    function eaToggleSpFeat(label) {
+        ea_spOpenFeat[label] = !ea_spOpenFeat[label];
+        eaRenderSetPermissionBody();
+    }
+    function eaToggleSpRow(addonKey, si) {
+        var arr = ea_spWorking[addonKey] = ea_spWorking[addonKey] || [];
+        var idx = arr.indexOf(si);
+        if (idx === -1) arr.push(si); else arr.splice(idx, 1);
+        eaRenderSetPermissionBody();
+    }
+    function eaRenderSetPermissionBody() {
+        var tab = EA_PACKAGE_DATA[ea_pkgTab];
+        var overrideTier = (ea_data.planOverrides || {})[tab.name];
+        var groundTruthTier = overrideTier || tab.activeTier;
+        var tierIdx = groundTruthTier ? tab.tiers.findIndex(function(t) { return t.toLowerCase() === groundTruthTier.toLowerCase(); }) : -1;
+        var totalGranted = 0;
+        var h = tab.features.map(function(f) {
+            var sub = EA_PKG_SUBFEATURES[f.label] || [];
+            if (!sub.length) return '';
+            var used = tierIdx !== -1 ? (parseInt(f.values[tierIdx].split('/')[0], 10) || 0) : 0;
+            var total = tierIdx !== -1 ? (parseInt(f.values[tierIdx].split('/')[1], 10) || 0) : sub.length;
+            var addonKey = tab.name + '|' + f.label;
+            var addonArr = ea_spWorking[addonKey] || [];
+            var grantedCount = used + addonArr.length;
+            totalGranted += addonArr.length;
+            var isOpen = !!ea_spOpenFeat[f.label];
+            var body = '';
+            if (isOpen) {
+                body = '<div class="ea-sp-feat-body">' + sub.slice(0, total || sub.length).map(function(s, si) {
+                    var locked = si < used;
+                    var checked = locked || addonArr.indexOf(si) !== -1;
+                    return '<label class="ea-sp-row' + (locked ? ' locked' : '') + '"><input type="checkbox" ' + (checked ? 'checked' : '') + ' ' + (locked ? 'disabled' : 'onchange="eaToggleSpRow(\'' + addonKey + '\',' + si + ')"') + '>' + s +
+                        (locked ? '<span class="ea-sp-row-tag">Included</span>' : (checked ? '<span class="ea-sp-row-tag addon">Addon</span>' : '')) + '</label>';
+                }).join('') + '</div>';
+            }
+            return '<div class="ea-sp-feat"><div class="ea-sp-feat-hd" onclick="eaToggleSpFeat(\'' + f.label.replace(/'/g, "\\'") + '\')"><span>' + f.label + '</span><span class="ea-sp-feat-count">' + grantedCount + ' / ' + total + '</span></div>' + body + '</div>';
+        }).join('');
+        document.getElementById('ea-sp-body').innerHTML = h;
+        document.getElementById('ea-sp-count').textContent = totalGranted ? totalGranted + ' addon feature' + (totalGranted > 1 ? 's' : '') + ' selected' : 'No addons selected yet';
+    }
+    function eaSaveSetPermission() {
+        var tab = EA_PACKAGE_DATA[ea_pkgTab];
+        Object.keys(ea_data.addons || {}).forEach(function(k) {
+            if (k.indexOf(tab.name + '|') === 0) delete ea_data.addons[k];
+        });
+        Object.keys(ea_spWorking || {}).forEach(function(k) {
+            if (ea_spWorking[k].length) ea_data.addons[k] = ea_spWorking[k];
+        });
+        eaCloseSetPermission();
+        document.getElementById('ea-body').innerHTML = eaRenderPackageSelection();
+    }
+    function eaUsageBar(used, limit) {
+        var pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+        var color = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e';
+        return '<div class="pu-bar-wrap" style="height:16px;"><div class="pu-bar-inner" style="width:' + pct + '%;background:' + color + ';"></div></div>';
+    }
+    function eaRenderLimits() {
+        var dis = ea_editMode ? '' : 'disabled';
+        var h = '<div class="ea-limit-head"><span class="ea-limit-head-sub">Please define the limits for this Account</span>' +
+            '<div style="display:flex;gap:10px;">' + eaEditBtn() +
+            '<button class="ea-th-btn" onclick="return false;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Transaction History</button>' +
+            '</div></div>';
+        h += EA_LIMIT_SECTIONS.map(function(sec) {
+            return '<div class="ea-limit-card"><div class="ea-limit-title">' + sec.title + '</div>' +
+                (sec.note ? '<div class="ea-limit-note">' + sec.note + '</div>' : '<div style="height:8px;"></div>') +
+                sec.fields.map(function(f) {
+                    var val = ea_data[f.key] != null ? ea_data[f.key] : '';
+                    var usageHTML = '';
+                    if (f.used != null) {
+                        usageHTML = '<div><div class="ea-limit-usage-lbl"><span>Limit' + (f.linkLabel ? ' &middot; <a href="#" onclick="return false;">' + f.linkLabel + '</a>' : '') + '</span><span><b>' + f.used.toLocaleString('en-IN') + '</b> / ' + (val || 0) + '</span></div>' + eaUsageBar(f.used, val) + '</div>';
+                    }
+                    return '<div class="ea-limit-row"><div><div class="ea-limit-lbl">' + f.label + '</div>' + (f.sub ? '<div class="ea-limit-sub" style="color:#9ca3af;">' + f.sub + '</div>' : '') + (f.note ? '<div class="ea-limit-sub">' + f.note + '</div>' : '') + '</div><div style="display:flex;align-items:center;gap:20px;"><input class="ea-limit-input" id="ea-f-' + f.key + '" type="number" value="' + val + '" ' + dis + '>' + (usageHTML ? '<div style="flex:1;">' + usageHTML + '</div>' : '') + '</div></div>';
+                }).join('') +
+                '</div>';
+        }).join('');
+        return h;
+    }
+    function eaSaveAccount() {
+        _eaAccountStore[ea_accountId] = Object.assign({}, ea_data);
+        var rows = document.querySelectorAll('#ma-table-body tr');
+        rows.forEach(function(tr) {
+            if (tr.children[0] && tr.children[0].textContent.trim() === String(ea_accountId)) {
+                if (tr.children[1]) tr.children[1].textContent = ea_data.accountName;
+                if (tr.children[3]) tr.children[3].textContent = ea_data.vertical;
+                if (tr.children[4]) tr.children[4].textContent = ea_data.package;
+                if (tr.children[5]) tr.children[5].textContent = ea_data.plan;
+            }
+        });
+        closeEditAccountModal();
+    }
+
+    var ma_search = '';
+    function maApplyFilter() {
+        var q = ma_search;
         var rows = document.querySelectorAll('#ma-table-body tr');
         var visible = 0;
         rows.forEach(function(tr) {
@@ -6776,6 +7404,26 @@
         });
         var noRes = document.getElementById('ma-no-results-row');
         if (noRes) noRes.style.display = (q && visible === 0) ? '' : 'none';
+    }
+    // Same debounced, 3-character-minimum search pattern used across Limited View's form/field search.
+    var _maSearchTimer = null;
+    function maFilterRows(val) {
+        clearTimeout(_maSearchTimer);
+        var raw = val.trim().toLowerCase();
+        _maSearchTimer = setTimeout(function() {
+            if (raw.length >= 3 || raw.length === 0) {
+                ma_search = raw;
+            } else if (ma_search) {
+                ma_search = '';
+            } else {
+                return;
+            }
+            var input = document.getElementById('ma-search-input');
+            var pos = input ? input.selectionStart : 0;
+            maApplyFilter();
+            var input2 = document.getElementById('ma-search-input');
+            if (input2) { input2.focus(); input2.setSelectionRange(pos, pos); }
+        }, 300);
     }
     var _caNextId = 9000;
     function openCreateAccountModal() {
